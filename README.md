@@ -25,12 +25,19 @@ QuietPatch/
 
 # QuietPatch 
 
-**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It scans your environment with minimal privileges and uses encrypted configuration to protect its scan profile.
+**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It scans your environment with minimal privileges and uses an encrypted configuration to protect its scan profile.
 
-##
-Hi Recruiter/Employer
-QuietPatch is a passive vulnerability scanner that maps system applications to known Common Vulnerabilities and Exposures (CVEs). The core scan, encryption, and alert logic are complete. The GUI is in progress, but not required for functionality. Please let me know if you'd like a walkthrough or have any feedback.
--MCG
+---
+
+### 👋 Note to Recruiters & Employers
+
+QuietPatch is a passive vulnerability scanner that maps system applications to known Common Vulnerabilities and Exposures (CVEs). The core scanning, encryption, and alert logic are fully implemented. A graphical interface (GUI) is currently in development, but is not required for core functionality.
+
+Additionally, I’m exploring API integration workarounds to ensure users can run QuietPatch out of the box, without needing to obtain or manually apply their own API keys. Until then, this is the "lite" version.
+
+If you’d like a walkthrough or have any feedback, please don’t hesitate to reach out.  
+— MCG
+
 
 ## ✨ Features
 - Passive vulnerability monitoring
