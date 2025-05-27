@@ -32,6 +32,7 @@ QuietPatch/
 ### 👋 Note to Recruiters & Employers
 
 QuietPatch is a passive vulnerability scanner that maps system applications to known Common Vulnerabilities and Exposures (CVEs). The core scanning, encryption, and alert logic are fully implemented. A graphical interface (GUI) is currently in development, but is not required for core functionality.
+
 Additionally, I’m exploring API integration workarounds to ensure users can run QuietPatch out of the box, without needing to obtain or manually apply their own API keys. Until then, this is the "lite" version.
 
 If you’d like a walkthrough or have any feedback, please don’t hesitate to reach out.  
