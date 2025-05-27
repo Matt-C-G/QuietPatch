@@ -23,7 +23,7 @@ QuietPatch/
 
 # README.md
 
-# QuietPatch \U0001F6E1️
+# QuietPatch 
 
 **QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It scans your environment with minimal privileges and uses encrypted configuration to protect its scan profile.
 
@@ -43,6 +43,7 @@ pip install -r requirements.txt
 
 ## 📜 License
 MIT License. See LICENSE file for details.
+📌 This project and its core concept are the intellectual property of Matthew Graham. Sharing access is intended for evaluation only. Any commercial use, replication, or derivative work requires written permission.
 
 # requirements.txt
 keyring
