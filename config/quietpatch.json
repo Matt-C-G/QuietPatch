@@ -1,0 +1,21 @@
+{
+  "allowlist": [],
+  "denylist": [
+    "toolbox",
+    "updater"
+  ],
+  "normalize_map": {
+    "ms edge": "Microsoft Edge",
+    "adobe acrobat": "Acrobat Reader"
+  },
+  "nvd": {
+    "per_app_limit": 5,
+    "throttle_seconds": 1.0
+  },
+  "severity_thresholds": {
+    "critical": 9.0,
+    "high": 7.5,
+    "medium": 4.0,
+    "low": 0.1
+  }
+}

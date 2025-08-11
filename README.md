@@ -1,3 +1,80 @@
+# QuietPatch 🔐
+
+**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It maps running applications to real-time known vulnerabilities using NVD CVE data—securely and without privilege escalation.
+
+---
+
+## ✨ Features
+
+- ✅ Passive vulnerability scanning — no auto-patching or intrusive edits
+- 🔐 Secure encrypted configuration (uses system key vault)
+- 🧠 Real-time CVE mapping using [NVD API](https://nvd.nist.gov/)
+- 💻 Cross-platform (Windows, macOS, Linux)
+- 🔔 Optional notifications (planned in notifier module)
+
+---
+
+## 🔧 Installation
+
+```bash
+git clone https://github.com/yourname/QuietPatch.git
+cd QuietPatch
+pip install -r requirements.txt
+```
+
+---
+
+## 🔐 API Key Setup
+
+QuietPatch uses the National Vulnerability Database (NVD) API to retrieve vulnerability data for applications.
+
+### 1️⃣ Get Your Free API Key
+
+Visit [NVD Developer Portal](https://nvd.nist.gov/developers/request-an-api-key) and request an API key (it’s instant and free).
+
+### 2️⃣ Create `settings.json`
+
+Inside `src/config/`, create a file named `settings.json`:
+
+```json
+{
+  "nvd_api_key": "YOUR_API_KEY_HERE"
+}
+```
+
+### 3️⃣ Encrypt the Configuration
+
+Run this one-liner to encrypt your key for secure use:
+
+```bash
+python3 -c 'from src.config.encryptor import encrypt_file; encrypt_file("src/config/settings.json", "src/config/settings.json.enc")'
+```
+
+Then **delete the plaintext version**:
+
+```bash
+rm src/config/settings.json
+```
+
+Now QuietPatch will automatically load and decrypt your API key when scanning.
+
+---
+
+## 🚀 Usage
+
+To scan your system (macOS by default):
+
+```bash
+python src/core/cve_mapper.py
+```
+
+🛡️ The app list is scanned, correlated to known CVEs, and results are encrypted to `data/vuln_log.json.enc`.
+
+---
+
+## 📂 Project Structure
+
+```
 QuietPatch/
 ├── README.md
 ├── LICENSE
@@ -20,45 +97,29 @@ QuietPatch/
 │   └── setup_admin_scan.py
 ├── tests/
 │   └── test_scanner.py
-
-# README.md
-
-# QuietPatch \U0001F6E1️
-
-**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It scans your environment with minimal privileges and uses encrypted configuration to protect its scan profile.
-
-## ✨ Features
-- Passive vulnerability monitoring
-- OS key vault encryption for configuration
-- No auto-patching: provides secure, trusted vendor links
-- Cross-platform: Windows, macOS, Linux
-- Real-time notifications for known CVEs (NVD, CISA KEV)
-
-## 🔧 Installation
-```bash
-git clone https://github.com/yourname/QuietPatch.git
-cd QuietPatch
-pip install -r requirements.txt
 ```
 
-## 📜 License
-MIT License. See LICENSE file for details.
+---
 
-# requirements.txt
+## 📜 License
+
+MIT License — see `LICENSE` file.
+
+---
+
+## ✅ Requirements
+
+```
 keyring
 requests
 cryptography
-pywin32; platform_system == "Windows"
-PyQt5  # Optional GUI
+pywin32 ; platform_system == "Windows"
+PyQt5    # Optional GUI
+```
 
-# .gitignore
-__pycache__/
-*.pyc
-.env
-*.log
-settings.json.enc
-*.sqlite3
-.vscode/
-.idea/
-build/
-dist/
+---
+
+## 🙏 Acknowledgments
+
+- [NIST NVD API](https://nvd.nist.gov/)
+- [CISA KEV Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
