@@ -99,15 +99,7 @@ QuietPatch/
 │   └── test_scanner.py
 ```
 
----
 
-## 📜 License
-
-MIT License — see `LICENSE` file.
-
----
-
-## ✅ Requirements
 
 ```
 keyring
