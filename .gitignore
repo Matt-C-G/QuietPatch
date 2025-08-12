@@ -1,0 +1,11 @@
+>>> # .gitignore
+... __pycache__/
+... *.pyc
+... .env
+... *.log
+... settings.json.enc
+... *.sqlite3
+... .vscode/
+... .idea/
+... build/
+... dist/

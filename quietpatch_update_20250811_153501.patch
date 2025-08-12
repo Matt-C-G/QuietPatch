@@ -1,0 +1,605 @@
+diff --git a/src/config/encryptor_new.py b/src/config/encryptor_new.py
+new file mode 100644
+index 0000000..8e80f5e
+--- /dev/null
++++ b/src/config/encryptor_new.py
+@@ -0,0 +1,51 @@
++# encryptor_new.py
++from __future__ import annotations
++import os
++from pathlib import Path
++from cryptography.fernet import Fernet
++
++DEFAULT_KEY_PATH = Path(os.environ.get("QUIETPATCH_KEY_PATH", Path.home() / ".quietpatch" / "key.key"))
++
++def _ensure_parent(p: Path) -> None:
++    p.parent.mkdir(parents=True, exist_ok=True)
++
++def generate_key() -> bytes:
++    return Fernet.generate_key()
++
++def get_or_create_key(path: Path | None = None) -> bytes:
++    key_path = Path(path) if path else DEFAULT_KEY_PATH
++    if key_path.exists():
++        return key_path.read_bytes()
++    _ensure_parent(key_path)
++    key = generate_key()
++    key_path.write_bytes(key)
++    try:
++        os.chmod(key_path, 0o600)
++    except Exception:
++        pass
++    return key
++
++def encrypt_bytes(data: bytes, key: bytes | None = None) -> bytes:
++    key = key or get_or_create_key()
++    f = Fernet(key)
++    return f.encrypt(data)
++
++def decrypt_bytes(data: bytes, key: bytes | None = None) -> bytes:
++    key = key or get_or_create_key()
++    f = Fernet(key)
++    return f.decrypt(data)
++
++def encrypt_file(input_path: str | os.PathLike, output_path: str | os.PathLike) -> str:
++    key = get_or_create_key()
++    raw = Path(input_path).read_bytes()
++    enc = encrypt_bytes(raw, key)
++    op = Path(output_path)
++    _ensure_parent(op)
++    op.write_bytes(enc)
++    return str(op)
++
++def decrypt_file(input_path: str | os.PathLike) -> bytes:
++    key = get_or_create_key()
++    enc = Path(input_path).read_bytes()
++    dec = decrypt_bytes(enc, key)
++    return dec
+
+diff --git a/src/core/scanner_new.py b/src/core/scanner_new.py
+new file mode 100644
+index 0000000..1e8912d
+--- /dev/null
++++ b/src/core/scanner_new.py
+@@ -0,0 +1,78 @@
++# scanner_new.py
++from __future__ import annotations
++import sys, os, platform, subprocess, json, re
++from pathlib import Path
++from typing import List, Dict, Tuple
++
++App = Dict[str, str]
++
++def _run(cmd: List[str]) -> Tuple[int, str, str]:
++    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
++    out, err = p.communicate()
++    return p.returncode, out, err
++
++def scan_macos() -> List[App]:
++    apps = []
++    apps_dir = Path("/Applications")
++    if not apps_dir.exists():
++        return apps
++    for app in apps_dir.glob("*.app"):
++        code, out, err = _run(["mdls", "-name", "kMDItemVersion", str(app)])
++        ver = None
++        if code == 0:
++            m = re.search(r'"?kMDItemVersion"?\s*=\s*"?(.*?)"?\n', out) or re.search(r'=(.*)', out)
++            if m:
++                ver = m.group(1).strip().strip('"')
++        apps.append({"app": app.stem, "version": ver or "unknown"})
++    return apps
++
++def scan_windows() -> List[App]:
++    apps = []
++    # Query Uninstall registry via powershell for Name/DisplayVersion
++    ps = ["powershell", "-NoProfile", "-Command",
++          "Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* ,"
++          "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | "
++          "Select-Object DisplayName, DisplayVersion | ConvertTo-Json -Compress"]
++    code, out, err = _run(ps)
++    if code == 0 and out.strip():
++        try:
++            data = json.loads(out)
++            if isinstance(data, dict): data=[data]
++            for d in data:
++                name = (d.get('DisplayName') or '').strip()
++                ver = (d.get('DisplayVersion') or '').strip() or 'unknown'
++                if name:
++                    apps.append({"app": name, "version": ver})
++        except Exception:
++            pass
++    return apps
++
++def scan_linux() -> List[App]:
++    apps=[]
++    # dpkg-based
++    code, out, err = _run(["bash","-lc","command -v dpkg >/dev/null 2>&1 && dpkg-query -W -f='${Package} ${Version}\n' || true"])
++    if out:
++        for line in out.splitlines():
++            try:
++                name, ver = line.split(" ", 1)
++                apps.append({"app": name, "version": ver})
++            except ValueError:
++                continue
++    # rpm-based
++    code, out, err = _run(["bash","-lc","command -v rpm >/dev/null 2>&1 && rpm -qa --qf '%{NAME} %{VERSION}-%{RELEASE}\n' || true"])
++    if out:
++        for line in out.splitlines():
++            try:
++                name, ver = line.split(" ", 1)
++                apps.append({"app": name, "version": ver})
++            except ValueError:
++                continue
++    return apps
++
++def scan_installed() -> List[App]:
++    sysname = platform.system()
++    if sysname == "Darwin":
++        return scan_macos()
++    if sysname == "Windows":
++        return scan_windows()
++    return scan_linux()
+
+diff --git a/src/core/cve_mapper_new.py b/src/core/cve_mapper_new.py
+new file mode 100644
+index 0000000..ed15fef
+--- /dev/null
++++ b/src/core/cve_mapper_new.py
+@@ -0,0 +1,115 @@
++# cve_mapper_new.py (enhanced with allow/deny, normalization, severity sorting)
++from __future__ import annotations
++import os, time, json, re
++import requests
++from typing import List, Dict
++from difflib import get_close_matches
++from .scanner_new import scan_installed
++from pathlib import Path
++from ..config.encryptor_new import encrypt_file, decrypt_file, get_or_create_key
++from ..config.config_new import load_config
++
++def _severity_bucket(score: float|None, thresholds: dict) -> str:
++    if score is None: return "unknown"
++    if score >= thresholds.get("critical", 9.0): return "critical"
++    if score >= thresholds.get("high", 7.5): return "high"
++    if score >= thresholds.get("medium", 4.0): return "medium"
++    if score >= thresholds.get("low", 0.1): return "low"
++    return "none"
++
++NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
++
++def _normalize(name: str, normalize_map: Dict[str,str]) -> str:
++    base = name.strip()
++    nlower = base.lower()
++    for k,v in normalize_map.items():
++        if k.lower() in nlower:
++            return v
++    return base
++
++def _matches(token_list: List[str], text: str) -> bool:
++    t = text.lower()
++    return any(tok.lower() in t for tok in token_list)
++
++def query_nvd(query: str, version: str|None, api_key: str|None) -> List[Dict]:
++    params = {"keywordSearch": query}
++    if version:
++        params["version"] = version
++    headers = {}
++    if api_key:
++        headers["apiKey"] = api_key
++    r = requests.get(NVD_API, params=params, headers=headers, timeout=30)
++    r.raise_for_status()
++    data = r.json()
++    return data.get("vulnerabilities", [])
++
++def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
++    allowlist = cfg.get("allowlist", [])
++    denylist = cfg.get("denylist", [])
++    normalize_map = cfg.get("normalize_map", {})
++    per_app_limit = int(cfg["nvd"].get("per_app_limit", 5))
++    throttle = float(cfg["nvd"].get("throttle_seconds", 1.2))
++    api_key = os.environ.get(cfg["nvd"].get("api_key_env", "NVD_API_KEY"))
++    thresholds = cfg.get("severity_thresholds", {})
++
++    # Filter + normalize
++    filtered=[]
++    for app in apps:
++        name = _normalize(app["app"], normalize_map)
++        if allowlist and not _matches(allowlist, name):
++            continue
++        if denylist and _matches(denylist, name):
++            continue
++        filtered.append({"app": name, "version": app.get("version") or ""})
++
++    results=[]
++    for app in filtered:
++        name = app["app"]
++        ver = app.get("version") or ""
++        q = f"{name} {ver}".strip()
++        vulns=[]
++        try:
++            records = query_nvd(q, ver, api_key)
++            for rec in records[:per_app_limit]:
++                cve = rec.get("cve", {})
++                id_ = cve.get("id")
++                metrics = cve.get("metrics", {})
++                cvss = None
++                for k in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
++                    if k in metrics and metrics[k]:
++                        cvss = metrics[k][0].get("cvssData",{}).get("baseScore")
++                        break
++                desc = ""
++                for d in cve.get("descriptions",[]):
++                    if d.get("lang")=="en":
++                        desc = d.get("value","")
++                        break
++                pub = cve.get("published")
++                bucket = _severity_bucket(cvss, thresholds)
++                vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
++        except Exception as e:
++            vulns.append({"error": str(e)})
++
++        # sort by severity then cvss desc
++        rank = {"critical":4, "high":3, "medium":2, "low":1, "none":0, "unknown":-1}
++        vulns.sort(key=lambda v: (rank.get(v.get("severity","unknown"), -1), v.get("cvss") or -1), reverse=True)
++
++        results.append({"app": name, "version": ver, "vulnerabilities": vulns})
++        time.sleep(throttle)
++    return results
++
++def run(output_dir: str = "data") -> Dict[str,str]:
++    cfg = load_config()
++    Path(output_dir).mkdir(parents=True, exist_ok=True)
++    apps = scan_installed()
++    apps_path = Path(output_dir) / "apps.json"
++    apps_path.write_text(json.dumps(apps, indent=2))
++    enc_apps = Path(output_dir) / "apps.json.enc"
++    encrypt_file(apps_path, enc_apps)
++
++    mapping = map_apps_to_cves(apps, cfg)
++    vuln_path = Path(output_dir) / "vuln_log.json"
++    vuln_path.write_text(json.dumps(mapping, indent=2))
++    enc_vuln = Path(output_dir) / "vuln_log.json.enc"
++    encrypt_file(vuln_path, enc_vuln)
++    return {"apps": str(enc_apps), "vulns": str(enc_vuln)}
+
+diff --git a/src/config/config_new.py b/src/config/config_new.py
+new file mode 100644
+index 0000000..de05896
+--- /dev/null
++++ b/src/config/config_new.py
+@@ -0,0 +1,47 @@
++# config_new.py
++from __future__ import annotations
++import os, json
++from pathlib import Path
++from typing import Dict, Any
++
++DEFAULT_CONFIG_PATHS = [
++    Path.cwd() / "config" / "quietpatch.json",
++    Path.home() / ".quietpatch" / "config.json",
++]
++
++DEFAULTS: Dict[str, Any] = {
++    "allowlist": [],                # if non-empty, ONLY apps matching any token show (substring, case-insensitive)
++    "denylist": [],                 # apps matching any token are excluded (substring, case-insensitive)
++    "normalize_map": {},           # e.g., {"ms edge": "Microsoft Edge", "adobe acrobat reader": "Acrobat Reader"}
++    "nvd": {
++        "api_key_env": "NVD_API_KEY",
++        "per_app_limit": 5,
++        "throttle_seconds": 1.2
++    },
++    "severity_thresholds": {        # CVSS v3.x
++        "critical": 9.0,
++        "high": 7.5,
++        "medium": 4.0,
++        "low": 0.1
++    }
++}
++
++def load_config() -> Dict[str, Any]:
++    # Merge user config (first found) over defaults
++    cfg = json.loads(json.dumps(DEFAULTS))
++    for p in DEFAULT_CONFIG_PATHS:
++        if p.exists():
++            try:
++                user = json.loads(p.read_text())
++                _deep_merge(cfg, user)
++                break
++            except Exception:
++                pass
++    return cfg
++
++def _deep_merge(dst, src):
++    for k,v in src.items():
++        if isinstance(v, dict) and isinstance(dst.get(k), dict):
++            _deep_merge(dst[k], v)
++        else:
++            dst[k] = v
+
+diff --git a/qp_cli.py b/qp_cli.py
+new file mode 100644
+index 0000000..26df862
+--- /dev/null
++++ b/qp_cli.py
+@@ -0,0 +1,35 @@
++# qp_cli.py
++from __future__ import annotations
++import argparse, json, sys
++from pathlib import Path
++from src.core.cve_mapper_new import run as run_mapping
++from src.config.encryptor_new import decrypt_file, get_or_create_key
++
++def main():
++    p = argparse.ArgumentParser(prog="quietpatch", description="Local CVE tracker with encrypted outputs.")
++    sub = p.add_subparsers(dest="cmd", required=True)
++
++    p_run = sub.add_parser("scan", help="Scan installed software and map to CVEs.")
++    p_run.add_argument("-o","--output", default="data", help="Output directory (default: data)")
++
++    p_show = sub.add_parser("show", help="Decrypt and print a file (e.g., data/vuln_log.json.enc)")
++    p_show.add_argument("path", help="Path to encrypted file")
++    p_show.add_argument("--pretty", action="store_true", help="Pretty-print JSON if applicable")
++
++    args = p.parse_args()
++    if args.cmd == "scan":
++        locs = run_mapping(args.output)
++        print(json.dumps(locs, indent=2))
++    elif args.cmd == "show":
++        raw = decrypt_file(args.path)
++        try:
++            obj = json.loads(raw.decode())
++            if args.pretty:
++                print(json.dumps(obj, indent=2))
++            else:
++                print(raw.decode())
++        except Exception:
++            sys.stdout.buffer.write(raw)
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/gui.py b/gui.py
+new file mode 100644
+index 0000000..c1c614b
+--- /dev/null
++++ b/gui.py
+@@ -0,0 +1,131 @@
++# gui.py - PyQt5 UI for QuietPatch outputs
++import sys, json
++from pathlib import Path
++from PyQt5.QtWidgets import (
++    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
++    QTableWidget, QTableWidgetItem, QFileDialog, QLineEdit, QLabel, QComboBox
++)
++from PyQt5.QtCore import Qt
++from src.config.encryptor_new import decrypt_file
++
++SEVERITY_ORDER = {"critical":4, "high":3, "medium":2, "low":1, "none":0, "unknown":-1}
++
++class QuietPatchGUI(QWidget):
++    def __init__(self):
++        super().__init__()
++        self.setWindowTitle("QuietPatch – CVE Viewer")
++        self.resize(1100, 680)
++        self.data = []
++        self.init_ui()
++
++    def init_ui(self):
++        layout = QVBoxLayout(self)
++
++        # Controls
++        top = QHBoxLayout()
++        self.open_btn = QPushButton("Open vuln_log.json.enc")
++        self.search = QLineEdit(); self.search.setPlaceholderText("Search app or CVE...")
++        self.sev = QComboBox(); self.sev.addItems(["all","critical","high","medium","low","none","unknown"])
++        self.export_btn = QPushButton("Export CSV")
++
++        top.addWidget(self.open_btn)
++        top.addWidget(QLabel("Filter:"))
++        top.addWidget(self.search)
++        top.addWidget(QLabel("Severity ≥"))
++        top.addWidget(self.sev)
++        top.addWidget(self.export_btn)
++        layout.addLayout(top)
++
++        # Table
++        self.table = QTableWidget(0, 6)
++        self.table.setHorizontalHeaderLabels(["App", "Version", "CVE", "CVSS", "Severity", "Summary"])
++        self.table.setSortingEnabled(True)
++        layout.addWidget(self.table)
++
++        # Events
++        self.open_btn.clicked.connect(self.load_file)
++        self.search.textChanged.connect(self.refresh)
++        self.sev.currentTextChanged.connect(self.refresh)
++        self.export_btn.clicked.connect(self.export_csv)
++
++    def load_file(self):
++        path, _ = QFileDialog.getOpenFileName(self, "Select encrypted vuln file", "", "Encrypted JSON (*.enc);;All Files (*)")
++        if not path: return
++        raw = decrypt_file(path)
++        try:
++            self.data = json.loads(raw.decode())
++        except Exception as e:
++            self.data = []
++        self.refresh()
++
++    def passes_filters(self, app_row, sev_min):
++        # app_row is dict with vulnerabilities list
++        q = self.search.text().lower().strip()
++        if q and q not in app_row["app"].lower():
++            # also search inside CVE ids and summaries
++            if not any(q in (v.get("cve_id","") or "").lower() or q in (v.get("summary","") or "").lower() for v in app_row["vulnerabilities"]):
++                return False
++        if sev_min == "all": return True
++        min_rank = SEVERITY_ORDER[sev_min]
++        # keep rows that have any vuln >= min
++        for v in app_row["vulnerabilities"]:
++            if SEVERITY_ORDER.get(v.get("severity","unknown"), -1) >= min_rank:
++                return True
++        return False
++
++    def refresh(self):
++        sev_min = self.sev.currentText()
++        rows=[]
++        for app in self.data:
++            if not self.passes_filters(app, sev_min):
++                continue
++            for v in app.get("vulnerabilities",[]):
++                rows.append([
++                    app.get("app",""),
++                    app.get("version",""),
++                    v.get("cve_id",""),
++                    str(v.get("cvss","")),
++                    v.get("severity",""),
++                    (v.get("summary","") or "")[:300]
++                ])
++        # sort by severity then cvss descending by default
++        def sort_key(r):
++            sev = r[4]
++            try:
++                cvss = float(r[3])
++            except:
++                cvss = -1
++            return (SEVERITY_ORDER.get(sev, -1), cvss)
++        rows.sort(key=sort_key, reverse=True)
++
++        self.table.setRowCount(0)
++        for r in rows:
++            i = self.table.rowCount()
++            self.table.insertRow(i)
++            for c, val in enumerate(r):
++                item = QTableWidgetItem(val)
++                if c in (3,4):  # center cvss and severity
++                    item.setTextAlignment(Qt.AlignCenter)
++                self.table.setItem(i, c, item)
++
++    def export_csv(self):
++        if self.table.rowCount() == 0:
++            return
++        path, _ = QFileDialog.getSaveFileName(self, "Export CSV", "quietpatch_vulns.csv", "CSV Files (*.csv)")
++        if not path: return
++        import csv
++        with open(path, "w", newline="", encoding="utf-8") as f:
++            w = csv.writer(f)
++            headers = [self.table.horizontalHeaderItem(i).text() for i in range(self.table.columnCount())]
++            w.writerow(headers)
++            for r in range(self.table.rowCount()):
++                w.writerow([self.table.item(r,c).text() if self.table.item(r,c) else "" for c in range(self.table.columnCount())])
++
++def main():
++    app = QApplication(sys.argv)
++    gui = QuietPatchGUI()
++    gui.show()
++    sys.exit(app.exec_())
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/config/quietpatch.json b/config/quietpatch.json
+new file mode 100644
+index 0000000..dd207a7
+--- /dev/null
++++ b/config/quietpatch.json
+@@ -0,0 +1,21 @@
++{
++  "allowlist": [],
++  "denylist": [
++    "toolbox",
++    "updater"
++  ],
++  "normalize_map": {
++    "ms edge": "Microsoft Edge",
++    "adobe acrobat": "Acrobat Reader"
++  },
++  "nvd": {
++    "per_app_limit": 5,
++    "throttle_seconds": 1.0
++  },
++  "severity_thresholds": {
++    "critical": 9.0,
++    "high": 7.5,
++    "medium": 4.0,
++    "low": 0.1
++  }
++}
+
+diff --git a/README_PATCH.md b/README_PATCH.md
+new file mode 100644
+index 0000000..2c77283
+--- /dev/null
++++ b/README_PATCH.md
+@@ -0,0 +1,38 @@
++# QuietPatch – CVE Vulnerability Tracker (fixed-up runnable scaffold)
++
++## What I added
++- **Complete, runnable modules** alongside your originals:
++  - `src/config/encryptor_new.py` – key mgmt at `~/.quietpatch/key.key`, AES-128 (Fernet) file encryption.
++  - `src/core/scanner_new.py` – cross‑platform app inventory (macOS, Windows, Linux).
++  - `src/core/cve_mapper_new.py` – NVD 2.0 API mapping with optional `NVD_API_KEY`.
++  - `qp_cli.py` – one-command CLI to scan, map, and encrypt outputs.
++- Keeps your original files intact.
++
++## Setup
++```bash
++python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
++pip install -r requirements.txt
++```
++
++Optional (higher NVD rate limits):
++```bash
++export NVD_API_KEY=your_key_here    # PowerShell: $env:NVD_API_KEY="..."
++```
++
++## Usage
++```bash
++# From repo root:
++python qp_cli.py scan -o data
++# Decrypt and view:
++python qp_cli.py show data/vuln_log.json.enc --pretty
++```
++
++## Outputs
++- `data/apps.json.enc` – encrypted software inventory
++- `data/vuln_log.json.enc` – encrypted CVE mapping
++- Keys live at `~/.quietpatch/key.key` (override via `QUIETPATCH_KEY_PATH`).
++
++## Notes
++- Windows inventory uses registry; Linux supports dpkg/rpm. macOS uses `mdls` on `.app` bundles.
++- Mapping is heuristic; tune `_normalize()` or add allow/deny lists to reduce false positives.
++- For CI, pin dependencies and add `pytest` around scanner normalization + mapper parsing.
+
+diff --git a/.github/workflows/python-ci.yml b/.github/workflows/python-ci.yml
+new file mode 100644
+index 0000000..acddb7b
+--- /dev/null
++++ b/.github/workflows/python-ci.yml
+@@ -0,0 +1,26 @@
++name: Python CI
++
++on:
++  push:
++    branches: [ "**" ]
++  pull_request:
++
++jobs:
++  build:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: "3.11"
++      - name: Install deps
++        run: |
++          python -m pip install --upgrade pip
++          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
++          pip install pytest
++      - name: Lint (basic)
++        run: python -m py_compile $(git ls-files '*.py') || true
++      - name: Tests
++        run: |
++          if [ -d tests ]; then pytest -q; else echo "No tests directory"; fi
+
