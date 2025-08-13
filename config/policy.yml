@@ -1,0 +1,7 @@
+# QuietPatch policy
+allow: []
+deny: []
+min_severity: low          # <-- set to medium if you want a stricter gate
+treat_unknown_as: low      # unknown CVEs are treated as 'low'
+only_with_cves: true
+limit_per_app: 50
