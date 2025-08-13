@@ -2,9 +2,9 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, Quietpatch-update ]
   push:
-    branches: [ main, master ]
+    branches: [ main, master, Quietpatch-update ]
 
 jobs:
   test:
