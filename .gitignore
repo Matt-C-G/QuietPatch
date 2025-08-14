@@ -9,3 +9,9 @@
 ... .idea/
 ... build/
 ... dist/
+
+# Generated files
+data/
+report.html
+*.enc
+unknown_apps.log
