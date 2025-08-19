@@ -4,6 +4,7 @@ import argparse, json, sys
 from pathlib import Path
 from src.core.cve_mapper_new import run as run_mapping
 from src.config.encryptor_new import decrypt_file, get_or_create_key
+from src.core.rollback import snapshot_system_state, run_canary, rollback_last_checkpoint
 
 def main():
     p = argparse.ArgumentParser(prog="quietpatch", description="Local CVE tracker with encrypted outputs.")
@@ -11,6 +12,9 @@ def main():
 
     p_run = sub.add_parser("scan", help="Scan installed software and map to CVEs.")
     p_run.add_argument("-o","--output", default="data", help="Output directory (default: data)")
+    p_run.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
+    p_run.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
+    p_run.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
 
     p_show = sub.add_parser("show", help="Decrypt and print a file (e.g., data/vuln_log.json.enc)")
     p_show.add_argument("path", help="Path to encrypted file")
@@ -18,6 +22,24 @@ def main():
 
     args = p.parse_args()
     if args.cmd == "scan":
+        # Handle rollback operations first
+        if args.snapshot:
+            from src.core.scanner_new import scan_installed
+            apps = scan_installed()
+            print("Snapshot created:", snapshot_system_state(apps))
+            return
+        
+        if args.canary:
+            from src.core.scanner_new import scan_installed
+            apps = scan_installed()
+            print(run_canary(apps))
+            return
+        
+        if args.rollback:
+            print(rollback_last_checkpoint())
+            return
+        
+        # Normal scan operation
         locs = run_mapping(args.output)
         print(json.dumps(locs, indent=2))
     elif args.cmd == "show":
