@@ -24,14 +24,16 @@ def main():
     if args.cmd == "scan":
         # Handle rollback operations first
         if args.snapshot:
-            from src.core.scanner_new import scan_installed
-            apps = scan_installed()
+            from src.core.scanner_helper import get_scanner
+            scanner = get_scanner()
+            apps = scanner.collect_installed_apps()
             print("Snapshot created:", snapshot_system_state(apps))
             return
         
         if args.canary:
-            from src.core.scanner_new import scan_installed
-            apps = scan_installed()
+            from src.core.scanner_helper import get_scanner
+            scanner = get_scanner()
+            apps = scanner.collect_installed_apps()
             print(run_canary(apps))
             return
         

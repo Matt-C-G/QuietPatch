@@ -76,3 +76,11 @@ def scan_installed() -> List[App]:
     if sysname == "Windows":
         return scan_windows()
     return scan_linux()
+
+
+def collect_installed_apps() -> List[App]:
+    """
+    Consistent interface for cross-platform compatibility.
+    Returns list of {'app': name, 'version': version}.
+    """
+    return scan_installed()
