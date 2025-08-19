@@ -19,6 +19,11 @@ def main():
     p_show = sub.add_parser("show", help="Decrypt and print a file (e.g., data/vuln_log.json.enc)")
     p_show.add_argument("path", help="Path to encrypted file")
     p_show.add_argument("--pretty", action="store_true", help="Pretty-print JSON if applicable")
+    
+    p_report = sub.add_parser("report", help="Generate HTML report from encrypted scan data")
+    p_report.add_argument("-i", "--input", required=True, help="Input encrypted file (e.g., data/vuln_log.json.enc)")
+    p_report.add_argument("-o", "--output", required=True, help="Output HTML file")
+    p_report.add_argument("--age-identity", help="AGE private key file")
 
     args = p.parse_args()
     if args.cmd == "scan":
@@ -54,6 +59,10 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+    elif args.cmd == "report":
+        from report.html import generate_report
+        generate_report(args.input, args.output)
+        print(f"Report generated: {args.output}")
 
 if __name__ == "__main__":
     main()

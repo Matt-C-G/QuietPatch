@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuietPatch</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#0b0e14;color:#e6e6e6}
+  .wrap{max-width:860px;margin:40px auto;padding:0 16px}
+  h1{font-size:28px;margin:0 0 8px}
+  .sub{color:#9aa4b2;margin:0 0 24px}
+  .card{background:#141925;border:1px solid #1d2331;border-radius:14px;padding:18px;margin:12px 0}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #2a3246;text-decoration:none;color:#e6e6e6;margin-right:8px}
+  .btn:hover{background:#1a2131}
+  code{background:#1a2131;padding:2px 6px;border-radius:6px}
+  ul{margin:8px 0 0 18px}
+  footer{margin:32px 0 12px;color:#8b96a8;font-size:13px}
+</style>
+<div class="wrap">
+  <h1>QuietPatch</h1>
+  <p class="sub">Privacy-first, offline patch advisor. Signed catalogs. Deterministic, board-ready reports.</p>
+
+  <div class="card">
+    <b>Why it's different</b>
+    <ul>
+      <li>Offline by default (zero telemetry).</li>
+      <li>Signature-enforced remediation with rollback rehearsal.</li>
+      <li>Deterministic reports (stable hash in footer).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <a class="btn" href="../releases/latest">Download</a>
+    <a class="btn" href="../VERIFY.md">Verify</a>
+    <a class="btn" href="https://forms.gle/">Pilot with us</a>
+    <div style="margin-top:10px;color:#9aa4b2">No installer required: <code>python3 quietpatch.pyz -h</code></div>
+  </div>
+
+  <div class="card">
+    <b>Quick start</b>
+    <pre><code># scan + encrypt
+python3 quietpatch.pyz scan -o data --age-recipient &lt;AGE_PUBKEY&gt;
+
+# generate HTML report
+python3 quietpatch.pyz report -i data/vuln_log.json.enc -o report.html
+</code></pre>
+  </div>
+
+  <footer>© QuietPatch — privacy-first by design.</footer>
+</div>
+</html>

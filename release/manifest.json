@@ -1,0 +1,67 @@
+{
+  "name": "QuietPatch",
+  "version": "0.2.0",
+  "released": "2025-08-19T18:34:43Z",
+  "publisher_pubkey": "minisign.pub",
+  "sha256sums": "SHA256SUMS",
+  "sha256sums_sig": "SHA256SUMS.minisig",
+  "artifacts": [
+    {
+      "file": "Ops.html",
+      "size": 3600,
+      "sha256": "8886670dc7174ea570ce2002f68f4a17dc706a2040e597acd4163d6ca9048282",
+      "platforms": []
+    },
+    {
+      "file": "quietpatch.pyz",
+      "size": 127918,
+      "sha256": "0290bf6d4646642cea2351f103542dba66e338b37f79f002500d3a4ffd4631e5",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ]
+    },
+    {
+      "file": "SBOM.spdx.json",
+      "size": 6582,
+      "sha256": "5658f190ebab628b39b7b0b230efb60f0a9a56381145215b809f621c671bd827",
+      "platforms": []
+    },
+    {
+      "file": "README.md",
+      "size": 393,
+      "sha256": "e027b812c13597c738c084d791d6ce49ec3a923ff38a7cb2934bda5d7a072b07",
+      "platforms": []
+    },
+    {
+      "file": "manifest.json",
+      "size": 848,
+      "sha256": "3f332ac783b3d7e7ece09aed65fb86213a66224986b9758838de2c424ac643e5",
+      "platforms": []
+    },
+    {
+      "file": "Board.md",
+      "size": 1114,
+      "sha256": "367e46af9d5fdbb190c535a920608ad271d3f05c217aa56b2577348d0170d912",
+      "platforms": []
+    },
+    {
+      "file": "quietpatch.cmd",
+      "size": 44,
+      "sha256": "28760d4d773c86014a90264b739c266ea6810193aa8e57c0ea0488134b6aee9f",
+      "platforms": [
+        "windows"
+      ]
+    },
+    {
+      "file": "quietpatch",
+      "size": 71,
+      "sha256": "254bc0c6c7546764779f39f6f70f2762b0fafcb66a06dbb0253848aead0a4f74",
+      "platforms": [
+        "macos",
+        "linux"
+      ]
+    }
+  ]
+}

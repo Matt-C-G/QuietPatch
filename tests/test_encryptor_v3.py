@@ -26,7 +26,7 @@ def test_v3_roundtrip_and_perms(tmp_path: Path):
     encrypt_file(plain, enc, age_recipients=[recip], include_keychain_wrap=False)
     # v3 envelope & perms 0600 (skip strict on Windows)
     text = enc.read_text()
-    assert text.startswith('{"v":3,')
+    assert text.startswith('{"v": 3,') or text.startswith('{"v":3,')
     if platform.system() != "Windows":
         mode = stat.S_IMODE(os.stat(enc).st_mode)
         assert mode == 0o600
