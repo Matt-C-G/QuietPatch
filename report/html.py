@@ -46,11 +46,13 @@ def _first_action(rec: dict) -> str:
 
 def _first_cve(rec: dict) -> tuple[str, str, str, str]:
     """(cve_id, cvss, sev, summary) — empty strings if none."""
-    cves = rec.get("cves") or []
-    if not cves:
+    # Support both old 'cves' and new 'vulnerabilities' structure
+    vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+    if not vulns:
         return ("", "", "", "")
-    c = cves[0]
-    cve = c.get("id") or ""
+    c = vulns[0]
+    # Support both old 'id' and new 'cve_id' structure
+    cve = c.get("cve_id") or c.get("id") or ""
     cvss = str(c.get("cvss") or "")
     sev = str(c.get("severity") or "")
     summary = c.get("summary") or ""
@@ -120,18 +122,21 @@ def _action_cell(rec: dict) -> str:
 
 def _generate_cve_details(rec: dict, row_id: str) -> str:
     """Generate detailed CVE information for the drawer."""
-    cves = rec.get("cves") or []
-    if not cves:
+    # Support both old 'cves' and new 'vulnerabilities' structure
+    vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+    if not vulns:
         return '<div class="cve-details">No CVEs found</div>'
     
     details = []
-    for i, cve in enumerate(cves):
-        cve_id = cve.get("id", "")
-        cvss = cve.get("cvss", "")
-        severity = cve.get("severity", "unknown")
-        kev = "✓" if cve.get("kev") else ""
-        epss = cve.get("epss", "")
-        summary = cve.get("summary", "")
+    for i, vuln in enumerate(vulns):
+        # Support both old 'id' and new 'cve_id' structure
+        cve_id = vuln.get("cve_id") or vuln.get("id", "")
+        cvss = vuln.get("cvss", "")
+        severity = vuln.get("severity", "unknown")
+        # Support both old 'kev' and new 'is_kev' structure
+        kev = "✓" if vuln.get("is_kev") or vuln.get("kev") else ""
+        epss = vuln.get("epss_score") or vuln.get("epss", "")
+        summary = vuln.get("summary", "")
         
         details.append(f'''
             <div class="cve-item">
@@ -150,7 +155,7 @@ def _generate_cve_details(rec: dict, row_id: str) -> str:
     
     return f'''
         <div class="cve-details" id="cve-details-{row_id}">
-            <h4>All CVEs ({len(cves)})</h4>
+            <h4>All CVEs ({len(vulns)})</h4>
             {''.join(details)}
         </div>
     '''
@@ -164,15 +169,17 @@ def generate_report(input_path: str, output_path: str) -> str:
         app  = rec.get("app") or rec.get("name") or ""
         ver  = rec.get("version") or ""
         cve, cvss, sev, summary = _first_cve(rec)
-        kev  = "✓" if any((c or {}).get("kev") for c in (rec.get("cves") or [])) else ""
+        # Support both old 'cves' and new 'vulnerabilities' structure
+        vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+        kev  = "✓" if any((v or {}).get("is_kev") or (v or {}).get("kev") for v in vulns) else ""
         epss = ""
-        for c in rec.get("cves") or []:
-            v = c.get("epss")
-            if v:
-                epss = str(v); break
+        for v in vulns:
+            epss_val = v.get("epss_score") or v.get("epss")
+            if epss_val:
+                epss = str(epss_val); break
         
         row_id = f"row-{i}"
-        has_cves = bool(rec.get("cves"))
+        has_cves = bool(vulns)
         
         cells = [
             f'<td class="app-cell">{html.escape(str(app))}</td>',

@@ -70,6 +70,17 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
     
     # Initialize CPE resolver
     cpe_resolver = CPEResolver()
+    
+    # Initialize local database resolver
+    try:
+        from .local_db_resolver import LocalDBResolver
+        local_db = LocalDBResolver()
+        use_local_db = True
+        print(f"Local database loaded: {local_db.get_summary_stats()}")
+    except Exception as e:
+        print(f"Warning: Local database not available: {e}")
+        local_db = None
+        use_local_db = False
 
     # Filter + normalize
     filtered=[]
@@ -88,12 +99,43 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
         vulns=[]
         
         try:
-            # Try CPE-first querying
-            cpe = cpe_resolver.resolve_best_cpe(name, ver)
-            if cpe:
-                records = query_nvd_cpe(cpe, api_key)
-                if records:
-                    # CPE query successful, process results
+            # Try local database first (offline mode)
+            if use_local_db and local_db:
+                local_vulns = local_db.resolve_cves_for_app(name, ver)
+                if local_vulns:
+                    vulns.extend(local_vulns[:per_app_limit])
+                    print(f"Found {len(local_vulns)} CVEs for {name} in local database")
+            
+            # If no local results and not in offline mode, try NVD API
+            if not vulns and not os.environ.get("QP_OFFLINE"):
+                # Try CPE-first querying
+                cpe = cpe_resolver.resolve_best_cpe(name, ver)
+                if cpe:
+                    records = query_nvd_cpe(cpe, api_key)
+                    if records:
+                        # CPE query successful, process results
+                        for rec in records[:per_app_limit]:
+                            cve = rec.get("cve", {})
+                            id_ = cve.get("id")
+                            metrics = cve.get("metrics", {})
+                            cvss = None
+                            for k in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
+                                if k in metrics and metrics[k]:
+                                    cvss = metrics[k][0].get("cvssData",{}).get("baseScore")
+                                    break
+                            desc = ""
+                            for d in cve.get("descriptions",[]):
+                                if d.get("lang")=="en":
+                                    desc = d.get("value","")
+                                    break
+                            pub = cve.get("published")
+                            bucket = _severity_bucket(cvss, thresholds)
+                            vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
+                
+                # Fallback to keyword search if CPE didn't yield results
+                if not vulns:
+                    q = f"{name} {ver}".strip()
+                    records = query_nvd(q, ver, api_key)
                     for rec in records[:per_app_limit]:
                         cve = rec.get("cve", {})
                         id_ = cve.get("id")
@@ -112,27 +154,12 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
                         bucket = _severity_bucket(cvss, thresholds)
                         vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
             
-            # Fallback to keyword search if CPE didn't yield results
+            # If still no results, add a note
             if not vulns:
-                q = f"{name} {ver}".strip()
-                records = query_nvd(q, ver, api_key)
-                for rec in records[:per_app_limit]:
-                    cve = rec.get("cve", {})
-                    id_ = cve.get("id")
-                    metrics = cve.get("metrics", {})
-                    cvss = None
-                    for k in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
-                        if k in metrics and metrics[k]:
-                            cvss = metrics[k][0].get("cvssData",{}).get("baseScore")
-                            break
-                    desc = ""
-                    for d in cve.get("descriptions",[]):
-                        if d.get("lang")=="en":
-                            desc = d.get("value","")
-                            break
-                    pub = cve.get("published")
-                    bucket = _severity_bucket(cvss, thresholds)
-                    vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
+                if use_local_db:
+                    vulns.append({"note": "No CVEs found in local database for this app"})
+                else:
+                    vulns.append({"note": "No CVEs found and offline mode enabled"})
                     
         except Exception as e:
             vulns.append({"error": str(e)})
