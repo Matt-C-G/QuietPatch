@@ -1,5 +1,5 @@
 #!/usr/local/bin/python3.13
-# QuietPatch release wrapper
+# QuietPatch wrapper script
 # This ensures we use the correct Python version
 
 import sys

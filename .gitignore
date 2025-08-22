@@ -1,11 +1,17 @@
->>> # .gitignore
-... __pycache__/
-... *.pyc
-... .env
-... *.log
-... settings.json.enc
-... *.sqlite3
-... .vscode/
-... .idea/
-... build/
-... dist/
+# .gitignore
+__pycache__/
+*.pyc
+.env
+*.log
+settings.json.enc
+*.sqlite3
+.vscode/
+.idea/
+build/
+dist/
+
+# Security exclusions
+data/
+*.enc
+report.html
+unknown_apps.log
