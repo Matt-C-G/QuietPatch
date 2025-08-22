@@ -1,0 +1,28 @@
+{
+  "mozilla:firefox": [
+    {
+      "cve": "CVE-2024-1234",
+      "versions": ["<120.0", ">=119.0"],
+      "description": "Firefox 119.x and 120.x affected by XSS vulnerability"
+    },
+    {
+      "cve": "CVE-2024-5678", 
+      "versions": ["<119.0"],
+      "description": "Firefox versions below 119.0 affected by RCE vulnerability"
+    }
+  ],
+  "google:chrome": [
+    {
+      "cve": "CVE-2024-9012",
+      "versions": ["<120.0.6099.109"],
+      "description": "Chrome versions below 120.0.6099.109 affected by memory corruption"
+    }
+  ],
+  "microsoft:edge": [
+    {
+      "cve": "CVE-2024-3456",
+      "versions": ["<120.0.2210.77"],
+      "description": "Edge versions below 120.0.2210.77 affected by type confusion"
+    }
+  ]
+}

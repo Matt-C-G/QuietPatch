@@ -79,7 +79,7 @@ def fetch_cves(keyword, max_results=20, retries=3):
         "cvssV3Severity": "HIGH"
     }
     for attempt in range(retries):
-        response = requests.get(NVD_API, params=params, headers=HEADERS)
+        response = requests.get(NVD_API, params=params, headers=HEADERS, timeout=30)
 
         if response.status_code == 200:
             try:
