@@ -52,6 +52,19 @@ def main():
     p_show.add_argument("path", help="Path to encrypted file")
     p_show.add_argument("--pretty", action="store_true", help="Pretty-print JSON if applicable")
 
+    # db
+    db = sub.add_parser("db", help="Database actions")
+    db_sub = db.add_subparsers(dest="db_cmd", required=True)
+
+    db_refresh = db_sub.add_parser("refresh", help="Refresh offline DB snapshot")
+    db_refresh.add_argument("--mirror", action="append",
+                            help="Preferred mirror(s). Can repeat; file:/// or https://", default=[])
+    db_refresh.add_argument("--fallback", action="append",
+                            help="Fallback mirror(s). Can repeat", default=[])
+    db_refresh.add_argument("--tor", help="SOCKS5h host:port (e.g. 127.0.0.1:9050)")
+    db_refresh.add_argument("--privacy", default="strict", choices=["strict","normal"])
+    db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
+
     args = p.parse_args()
 
     if args.cmd == "scan":
@@ -137,6 +150,24 @@ def main():
             from tools.evidence_pack import build_evidence_pack
             build_evidence_pack(args.input, args.output, args.evidence, args.include)
             print(f"Evidence pack created: {args.evidence}")
+
+    elif args.cmd == "db" and args.db_cmd == "refresh":
+        from src.datafeed.updater import refresh_db
+        data_dir = os.environ.get("QP_DATA_DIR", str(Path("data").resolve()))
+        mirrors = []
+        env_mirror = os.environ.get("QP_MIRROR")
+        env_fallback = os.environ.get("QP_FALLBACK_MIRROR")
+        if env_mirror: mirrors.append(env_mirror)
+        mirrors.extend(args.mirror or [])
+        if env_fallback: mirrors.append(env_fallback)
+        mirrors.extend(args.fallback or [])
+        if not mirrors:
+            print("No mirrors provided. Use --mirror or set QP_MIRROR / QP_FALLBACK_MIRROR.", file=sys.stderr)
+            sys.exit(2)
+        info = refresh_db(data_dir=data_dir, mirrors=mirrors, tor_socks=args.tor,
+                          privacy=args.privacy, pubkey_path=args.pubkey)
+        print(json.dumps(info, indent=2))
+        return
 
     elif args.cmd == "show":
         raw = decrypt_file(args.path)
