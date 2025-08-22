@@ -1,0 +1,24 @@
+[Unit]
+Description=QuietPatch Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /usr/local/quietpatch/quietpatch.pyz --scheduled-run
+WorkingDirectory=/usr/local/quietpatch
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log /usr/local/quietpatch
+StandardOutput=append:/var/log/quietpatch.out
+StandardError=append:/var/log/quietpatch.err
+
+[Install]
+WantedBy=multi-user.target
+
+

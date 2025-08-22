@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+mkdir -p /usr/local/quietpatch
+# preserve existing config/keys if present
+exit 0
+

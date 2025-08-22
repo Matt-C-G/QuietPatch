@@ -1,0 +1,20 @@
+#!/bin/sh
+# Postinst script for QuietPatch
+
+set -e
+
+# Install the zipapp
+install -Dm755 /usr/local/quietpatch/quietpatch.pyz /usr/local/quietpatch/quietpatch.pyz
+
+# Install systemd service
+install -Dm644 /usr/local/quietpatch/quietpatch.service /usr/lib/systemd/system/quietpatch.service
+
+# Reload systemd and enable service
+systemctl daemon-reload
+systemctl enable quietpatch.service
+systemctl start quietpatch.service || true
+
+echo "QuietPatch service installed and started"
+exit 0
+
+

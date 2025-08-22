@@ -1,0 +1,19 @@
+Package: quietpatch-agent
+Version: 0.2.1
+Section: admin
+Priority: optional
+Architecture: amd64
+Maintainer: QuietPatch <support@quietpatch.io>
+Depends: python3 (>= 3.8), python3-cryptography, python3-yaml, python3-requests
+Description: QuietPatch offline vulnerability scanner agent
+ Privacy-first vulnerability scanner that runs offline
+ with deterministic reports and encrypted outputs.
+ .
+ Features:
+  * Offline CVE database (no telemetry)
+  * Hardware-key encryption (AGE)
+  * Cross-platform application scanning
+  * Policy-based filtering and sorting
+  * Scheduled vulnerability monitoring
+
+

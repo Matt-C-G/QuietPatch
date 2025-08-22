@@ -1,0 +1,159 @@
+Metadata-Version: 2.4
+Name: quietpatch
+Version: 0.2.1
+Summary: Privacy-first, offline vulnerability scanner with deterministic reports
+Author-email: QuietPatch Team <security@quietpatch.dev>
+License: MIT
+Project-URL: Homepage, https://github.com/Matt-C-G/QuietPatch
+Project-URL: Documentation, https://github.com/Matt-C-G/QuietPatch#readme
+Project-URL: Repository, https://github.com/Matt-C-G/QuietPatch.git
+Project-URL: Issues, https://github.com/Matt-C-G/QuietPatch/issues
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Information Technology
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: Security
+Classifier: Topic :: System :: Systems Administration
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: cryptography<43.0.0,>=41.0.0
+Requires-Dist: PyYAML<7.0.0,>=6.0.0
+Requires-Dist: requests<3.0.0,>=2.32.0
+Requires-Dist: keyring<26.0.0,>=25.0.0
+Requires-Dist: packaging<25.0.0,>=24.0.0
+Provides-Extra: dev
+Requires-Dist: pytest<8.0.0,>=7.4.0; extra == "dev"
+Requires-Dist: pytest-cov<5.0.0,>=4.1.0; extra == "dev"
+Requires-Dist: black<24.0.0,>=23.0.0; extra == "dev"
+Requires-Dist: flake8<7.0.0,>=6.0.0; extra == "dev"
+Requires-Dist: mypy<2.0.0,>=1.5.0; extra == "dev"
+Requires-Dist: bandit<2.0.0,>=1.7.0; extra == "dev"
+Provides-Extra: gui
+Requires-Dist: PyQt5<6.0.0,>=5.15.0; sys_platform == "darwin" and extra == "gui"
+Provides-Extra: windows
+Requires-Dist: pywin32>=306.0.0; sys_platform == "win32" and extra == "windows"
+Dynamic: license-file
+
+# QuietPatch 🔐
+
+**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It maps running applications to real-time known vulnerabilities using NVD CVE data—securely and without privilege escalation.
+
+---
+
+## ✨ Features
+
+- ✅ Passive vulnerability scanning — no auto-patching or intrusive edits
+- 🔐 Secure encrypted configuration (uses system key vault)
+- 🧠 Real-time CVE mapping using [NVD API](https://nvd.nist.gov/)
+- 💻 Cross-platform (Windows, macOS, Linux)
+- 🔔 Optional notifications (planned in notifier module)
+
+---
+
+## 🔧 Installation
+
+```bash
+git clone https://github.com/yourname/QuietPatch.git
+cd QuietPatch
+pip install -r requirements.txt
+```
+
+---
+
+## 🔐 API Key Setup
+
+QuietPatch uses the National Vulnerability Database (NVD) API to retrieve vulnerability data for applications.
+
+### 1️⃣ Get Your Free API Key
+
+Visit [NVD Developer Portal](https://nvd.nist.gov/developers/request-an-api-key) and request an API key (it’s instant and free).
+
+### 2️⃣ Create `settings.json`
+
+Inside `src/config/`, create a file named `settings.json`:
+
+```json
+{
+  "nvd_api_key": "YOUR_API_KEY_HERE"
+}
+```
+
+### 3️⃣ Encrypt the Configuration
+
+Run this one-liner to encrypt your key for secure use:
+
+```bash
+python3 -c 'from src.config.encryptor import encrypt_file; encrypt_file("src/config/settings.json", "src/config/settings.json.enc")'
+```
+
+Then **delete the plaintext version**:
+
+```bash
+rm src/config/settings.json
+```
+
+Now QuietPatch will automatically load and decrypt your API key when scanning.
+
+---
+
+## 🚀 Usage
+
+To scan your system (macOS by default):
+
+```bash
+python src/core/cve_mapper.py
+```
+
+🛡️ The app list is scanned, correlated to known CVEs, and results are encrypted to `data/vuln_log.json.enc`.
+
+---
+
+## 📂 Project Structure
+
+```
+QuietPatch/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── requirements.txt
+├── src/
+│   ├── core/
+│   │   ├── scanner.py
+│   │   ├── cve_mapper.py
+│   │   └── notifier.py
+│   ├── ui/
+│   │   └── dashboard.py
+│   └── config/
+│       ├── encryptor.py
+│       └── settings.json.enc
+├── data/
+│   ├── cve_cache.json
+│   └── known_apps.json
+├── scripts/
+│   └── setup_admin_scan.py
+├── tests/
+│   └── test_scanner.py
+```
+
+
+
+```
+keyring
+requests
+cryptography
+pywin32 ; platform_system == "Windows"
+PyQt5    # Optional GUI
+```
+
+---
+
+## 🙏 Acknowledgments
+
+- [NIST NVD API](https://nvd.nist.gov/)
+- [CISA KEV Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)

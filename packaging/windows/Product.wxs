@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="QuietPatch Agent" Language="1033" Version="0.2.1" 
+           Manufacturer="QuietPatch" UpgradeCode="12345678-1234-1234-1234-123456789012">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+    <MediaTemplate />
+    
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <UIRef Id="WixUI_Minimal" />
+    
+    <Feature Id="Main" Title="QuietPatch Agent" Level="1">
+      <ComponentGroupRef Id="AppFiles"/>
+    </Feature>
+    
+    <CustomAction Id="CreateScheduledTask" 
+                  Directory="INSTALLDIR" 
+                  Execute="deferred" 
+                  Return="check" 
+                  Impersonate="no"
+                  ExeCommand="powershell.exe -ExecutionPolicy Bypass -File &quot;[INSTALLDIR]after_install.ps1&quot;" />
+    
+    <InstallExecuteSequence>
+      <Custom Action="CreateScheduledTask" After="InstallFiles">NOT Installed</Custom>
+    </InstallExecuteSequence>
+  </Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLDIR" Name="QuietPatch">
+          <Component Id="cmpApp" Guid="87654321-4321-4321-4321-210987654321">
+            <File Source="quietpatch.pyz" Id="fileQP" KeyPath="yes" />
+            <File Source="after_install.ps1" Id="fileScript" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+    
+    <ComponentGroup Id="AppFiles">
+      <ComponentRef Id="cmpApp"/>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
+
+

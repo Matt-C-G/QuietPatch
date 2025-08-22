@@ -1,0 +1,404 @@
+Run started:2025-08-22 18:32:47.794939
+
+Test results:
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/config_new.py:38:12
+37	                break
+38	            except Exception:
+39	                pass
+40	    return cfg
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/encryptor_new.py:24:4
+23	        os.chmod(key_path, 0o600)
+24	    except Exception:
+25	        pass
+26	    return key
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: src/config/encryptor_v3.py:2:0
+1	from __future__ import annotations
+2	import os, json, secrets, subprocess
+3	from pathlib import Path
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/encryptor_v3.py:25:4
+24	    try: path.chmod(0o600)
+25	    except Exception: pass
+26	
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/config/encryptor_v3.py:35:12
+34	    try:
+35	        p = subprocess.run(cmd, input=dek, capture_output=True, check=True)
+36	        return p.stdout
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/config/encryptor_v3.py:41:16
+40	        try:
+41	            p = subprocess.run(cmd, input=dek, capture_output=True, check=True)
+42	            return p.stdout
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/config/encryptor_v3.py:53:12
+52	    try:
+53	        p = subprocess.run(cmd, input=armored, capture_output=True, check=True)
+54	    except FileNotFoundError:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/encryptor_v3.py:105:16
+104	                    dek = _age_unwrap(w["armored"].encode(), ids); break
+105	                except Exception: pass
+106	    if dek is None and allow_keychain and _HAS_V2:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/encryptor_v3.py:112:16
+111	                    dek = AESGCM(kek).decrypt(bytes.fromhex(w["iv"]), bytes.fromhex(w["ct"]), None); break
+112	                except Exception: pass
+113	    if dek is None: raise DecryptError("No usable wrap; provide --age-identity or enable keychain")
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/config/encryptor_v3.py:134:12
+133	            try: return _v2_decrypt_to_bytes(json.loads(t))
+134	            except Exception: pass
+135	        raise DecryptError("Unknown/legacy envelope; regenerate with v3")
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Call to requests without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b113_request_without_timeout.html
+   Location: src/core/cve_mapper.py:82:19
+81	    for attempt in range(retries):
+82	        response = requests.get(NVD_API, params=params, headers=HEADERS)
+83	
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: src/core/scanner.py:4:0
+3	import platform
+4	import subprocess
+5	
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner.py:34:17
+33	    try:
+34	        output = subprocess.check_output(
+35	            ["powershell", "Get-ItemProperty", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+36	             "| Select-Object DisplayName, DisplayVersion"],
+37	            stderr=subprocess.DEVNULL
+38	        ).decode(errors="ignore")
+39	
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner.py:34:17
+33	    try:
+34	        output = subprocess.check_output(
+35	            ["powershell", "Get-ItemProperty", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+36	             "| Select-Object DisplayName, DisplayVersion"],
+37	            stderr=subprocess.DEVNULL
+38	        ).decode(errors="ignore")
+39	
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner.py:54:17
+53	    try:
+54	        output = subprocess.check_output(["dpkg-query", "-W", "-f=${Package} ${Version}\n"]).decode()
+55	        for line in output.strip().split("\n"):
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner.py:54:17
+53	    try:
+54	        output = subprocess.check_output(["dpkg-query", "-W", "-f=${Package} ${Version}\n"]).decode()
+55	        for line in output.strip().split("\n"):
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner.py:61:21
+60	        try:
+61	            output = subprocess.check_output(["rpm", "-qa", "--qf", "%{NAME} %{VERSION}\n"]).decode()
+62	            for line in output.strip().split("\n"):
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner.py:61:21
+60	        try:
+61	            output = subprocess.check_output(["rpm", "-qa", "--qf", "%{NAME} %{VERSION}\n"]).decode()
+62	            for line in output.strip().split("\n"):
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: src/core/scanner_linux.py:1:0
+1	import subprocess
+2	from pathlib import Path
+3	
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner_linux.py:7:17
+6	    try:
+7	        output = subprocess.check_output(["dpkg", "-l"], text=True)
+8	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_linux.py:7:17
+6	    try:
+7	        output = subprocess.check_output(["dpkg", "-l"], text=True)
+8	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner_linux.py:20:17
+19	    try:
+20	        output = subprocess.check_output(["rpm", "-qa", "--queryformat", "%{NAME} %{VERSION}\n"], text=True)
+21	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_linux.py:20:17
+19	    try:
+20	        output = subprocess.check_output(["rpm", "-qa", "--queryformat", "%{NAME} %{VERSION}\n"], text=True)
+21	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: src/core/scanner_new.py:3:0
+2	from __future__ import annotations
+3	import sys, os, platform, subprocess, json, re
+4	from pathlib import Path
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_new.py:10:8
+9	def _run(cmd: List[str]) -> Tuple[int, str, str]:
+10	    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+11	    out, err = p.communicate()
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/core/scanner_new.py:46:8
+45	                    apps.append({"app": name, "version": ver})
+46	        except Exception:
+47	            pass
+48	    return apps
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: src/core/scanner_windows.py:1:0
+1	import subprocess
+2	import json
+3	
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner_windows.py:7:17
+6	    try:
+7	        output = subprocess.check_output(['wmic', 'product', 'get', 'Name,Version'], text=True)
+8	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_windows.py:7:17
+6	    try:
+7	        output = subprocess.check_output(['wmic', 'product', 'get', 'Name,Version'], text=True)
+8	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner_windows.py:21:17
+20	    try:
+21	        output = subprocess.check_output(["powershell", "-Command", ps_cmd], text=True)
+22	        data = json.loads(output)
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_windows.py:21:17
+20	    try:
+21	        output = subprocess.check_output(["powershell", "-Command", ps_cmd], text=True)
+22	        data = json.loads(output)
+
+--------------------------------------------------
+>> Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
+   Location: src/core/scanner_windows.py:30:17
+29	    try:
+30	        output = subprocess.check_output(['winget', 'list'], text=True)
+31	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: src/core/scanner_windows.py:30:17
+29	    try:
+30	        output = subprocess.check_output(['winget', 'list'], text=True)
+31	    except Exception:
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/datafeed/sync.py:128:8
+127	            _ingest_nvd_json(json.loads(data.decode("utf-8", "ignore")), cpe_to_cves, cve_meta, affects)
+128	        except Exception:
+129	            pass  # keep going
+130	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/datafeed/sync.py:136:4
+135	        for k in kev_ids: cve_meta.setdefault(k,{}).update({"kev": True})
+136	    except Exception: pass
+137	    # EPSS
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/datafeed/sync.py:145:4
+144	                if cid: cve_meta.setdefault(cid,{}).update({"epss": epss})
+145	    except Exception: pass
+146	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: src/match/cpe_resolver.py:182:8
+181	            
+182	        except Exception:
+183	            pass
+184	        
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 1319
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 36
+		Medium: 1
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 1
+		Medium: 0
+		High: 36
+Files skipped (0):
