@@ -30,6 +30,15 @@ jobs:
           # Optional: pull prebuilt snapshot artifact here instead of syncing.
           # echo "using repo-committed small fixture for gates"
 
+      - name: Test database refresh from local feed
+        run: |
+          # Create a minimal test feed
+          python3 tools/make_manifest.py --src data/db --out _feed --version "test-$(date +%F)" --gzip
+          # Test the refresh functionality
+          python3 qp_cli.py db refresh --mirror "file://$PWD/_feed"
+          # Verify files were installed
+          test -f data/db/manifest.json
+
       - name: Selfcheck (strict)
         env:
           QP_OFFLINE: "1"
