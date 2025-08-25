@@ -32,72 +32,75 @@ Windows x64: quietpatch-windows-x64.zip + db-YYYYMMDD.tar.zst (recommended)
 
 # **macOS**
 ```bash
-# 1) Download runner + checksum (see release page for exact URLs)
-curl -LO <macOS-tarball> && curl -LO <macOS-tarball>.sha256
+# 1) Download runner + checksum
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-0.2.1-macos-pex.tar.gz
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-0.2.1-macos-pex.tar.gz.sha256
 
 # 2) Verify
-shasum -a 256 -c quietpatch-<ver>-macos-pex.tar.gz.sha256
+shasum -a 256 -c quietpatch-0.2.1-macos-pex.tar.gz.sha256
 
-# 3) Extract & remove quarantine (if needed)
-tar -xzf quietpatch-<ver>-macos-pex.tar.gz
+# 3) Extract & remove quarantine (if present)
+tar -xzf quietpatch-0.2.1-macos-pex.tar.gz
 xattr -cr quietpatch-macos.pex || true
 
-# 4) (Optional) Download offline DB
-curl -LO <db-zst> && curl -LO <db-zst>.sha256 && shasum -a 256 -c db-*.zst.sha256
+# 4) (Optional) Offline DB
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256
+shasum -a 256 -c db-20250823.tar.zst.sha256
 
 # 5) One-shot scan → HTML → auto-open (fully offline)
 QP_OFFLINE=1 QP_DISABLE_AUTO_SYNC=1 \
-  ./quietpatch-macos.pex scan --db ./db-YYYYMMDD.tar.zst --also-report --open
+  ./quietpatch-macos.pex scan --db ./db-20250823.tar.zst --also-report --open
 ```
 
 # **Linux (x64)**
 ```Bash 
-# 1) Download + verify
-curl -LO <linux-pex> && chmod +x quietpatch-linux-x64.pex
+# 1) Download
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-linux-x64.pex
+chmod +x quietpatch-linux-x64.pex
 
 # 2) (Optional) Offline DB
-curl -LO <db-zst> && curl -LO <db-zst>.sha256
-sha256sum -c db-*.zst.sha256
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256
+sha256sum -c db-20250823.tar.zst.sha256
 
 # 3) Run (offline)
 QP_OFFLINE=1 QP_DISABLE_AUTO_SYNC=1 \
-  ./quietpatch-linux-x64.pex scan --db ./db-YYYYMMDD.tar.zst --also-report --open
+  ./quietpatch-linux-x64.pex scan --db ./db-20250823.tar.zst --also-report --open
 ```
 
 # **Windows (PowerShell, x64)**
 ```powershell 
 # 1) Download + extract
-Invoke-WebRequest -Uri <windows-zip> -OutFile quietpatch-windows-x64.zip
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-windows-x64.zip -OutFile quietpatch-windows-x64.zip
 Expand-Archive quietpatch-windows-x64.zip -DestinationPath .\quietpatch
 
-# 2) (Optional) Offline DB
-Invoke-WebRequest -Uri <db-zst> -OutFile .\quietpatch\db-YYYYMMDD.tar.zst
-Invoke-WebRequest -Uri <db-zst>.sha256 -OutFile .\quietpatch\db-YYYYMMDD.tar.zst.sha256
-if ((Get-FileHash .\quietpatch\db-YYYYMMDD.tar.zst -Algorithm SHA256).Hash -ne
-    (Get-Content .\quietpatch\db-YYYYMMDD.tar.zst.sha256).Split()[0]) {
-  throw "DB checksum mismatch!"
-}
+# 2) (Optional) Offline DB + verify
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst -OutFile .\quietpatch\db-20250823.tar.zst
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256 -OutFile .\quietpatch\db-20250823.tar.zst.sha256
+if ((Get-FileHash .\quietpatch\db-20250823.tar.zst -Algorithm SHA256).Hash -ne
+    (Get-Content .\quietpatch\db-20250823.tar.zst.sha256).Split()[0]) { throw "DB checksum mismatch!" }
 
 # 3) Run (offline)
 $env:QP_OFFLINE = "1"
 $env:QP_DISABLE_AUTO_SYNC = "1"
-.\quietpatch\quietpatch.exe scan --db .\quietpatch\db-YYYYMMDD.tar.zst --also-report --open
+.\quietpatch\quietpatch.exe scan --db .\quietpatch\db-20250823.tar.zst --also-report --open
 ```
-The report opens in your default browser and includes Action suggestions per app.
+The scanner writes report.html next to your working directory and opens it with --open. Omit --open for unattended runs (services/cron).
 
-# 🧠 **What the report contains**
+# 🧠 **What you'll see**
 
-**App/Version**
+The HTML report includes:
 
-**Action** (remediation suggestions; e.g., Homebrew, MAU, vendor links)
+  **App / Version**
 
-**CVE** (list, KEV badge, EPSS)
+  **Action** – concrete remediation (e.g., brew upgrade, MAU path, vendor link)
 
-**CVSS/Severity** (with unknown → mapped via policy or CVSS)
+  **CVE** (with KEV badge), CVSS, Severity
 
-**Summary** (short, human-readable description)
+  **EPSS & Summary**
 
-KEV entries are promoted above non-KEV when severity and CVSS tie.
+  “All CVEs” section with per-CVE detail, sorted deterministically (KEV promoted on ties)
 
 # ⚙️ **Policy (config/policy.yml)**
 ```yaml
@@ -190,7 +193,9 @@ CISA KEV Catalog
 
 FIRST EPSS
 
-**Pro tips**
+# **Pro tips**
 Keep your **DB snapshot** fresh (attach a signed one to every release).
+
 For enterprise rollout, use the provided launchd/systemd/Task Scheduler templates.
+
 Use --also-report to always emit report.html. Add --open for interactive runs.
