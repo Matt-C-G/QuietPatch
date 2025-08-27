@@ -1,36 +1,81 @@
-name: Release
+name: build-release-pex
+
 on:
-  workflow_dispatch:
   push:
-    tags: [ 'v*' ]
+    tags: ["v*.*.*"]
 
 jobs:
-  mac-pkg:
-    runs-on: macos-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-14]
+        py: ["3.11"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build zipapp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Install build deps
         run: |
-          python3 -m pip install -r requirements-ci.txt
-          bash tools/build_pyz.sh  # <- your existing builder
-          mkdir -p packaging/macos/payload/usr/local/quietpatch
-          cp dist/quietpatch.pyz packaging/macos/payload/usr/local/quietpatch/quietpatch.pyz
-      - name: Build pkg
-        run: packaging/macos/mkpkg.sh ${GITHUB_REF_NAME#v}
-      - name: Sign (optional)
-        if: env.INSTALLER_ID != ''
+          python -m pip install --upgrade pip wheel setuptools pex
+          python -m pip install -e .
+
+      - name: Build PEX
+        shell: bash
         run: |
-          productsign --sign "${{ env.INSTALLER_ID }}" packaging/macos/quietpatch-${GITHUB_REF_NAME#v}.pkg \
-            packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg
-      - name: Notarize (optional)
-        if: env.NOTARY_PROFILE != ''
+          mkdir -p dist
+          case "${{ matrix.os }}" in
+            windows-latest)
+              python -m pex quietpatch -c quietpatch -o dist/quietpatch-win-py311.pex --validate-entry-point --no-build --venv prepend --strip-pex-env
+              ;;
+            ubuntu-latest)
+              python -m pex quietpatch -c quietpatch -o dist/quietpatch-linux-py311.pex --validate-entry-point --no-build --venv prepend --strip-pex-env
+              ;;
+            macos-14)
+              python -m pex quietpatch -c quietpatch -o dist/quietpatch-macos-arm64-py311.pex --validate-entry-point --no-build --venv prepend --strip-pex-env
+              ;;
+          esac
+
+      - name: Attach wrapper (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
         run: |
-          xcrun notarytool submit packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg \
-            --keychain-profile "${{ env.NOTARY_PROFILE }}" --wait
-          xcrun stapler staple packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg
-      - name: Upload artifact
+          cat > dist/run_quietpatch.bat <<'BAT'
+          @echo off
+          setlocal
+          set PEX_ROOT=%~dp0.pexroot
+          set TMP=%~dp0.tmp
+          set TEMP=%~dp0.tmp
+          where py >nul 2>&1
+          if %ERRORLEVEL% neq 0 (
+            echo Python launcher not found. Please install Python 3.11 (64-bit) and retry.
+            exit /b 86
+          )
+          py -3.11 "%~dp0quietpatch-win-py311.pex" %*
+          endlocal
+          BAT
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: quietpatch-macos-pkg
-          path: packaging/macos/*.pkg
+          name: pex-${{ matrix.os }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pex-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            pex-windows-latest/quietpatch-win-py311.pex
+            pex-windows-latest/run_quietpatch.bat
+            pex-ubuntu-latest/quietpatch-linux-py311.pex
+            pex-macos-14/quietpatch-macos-arm64-py311.pex
 
