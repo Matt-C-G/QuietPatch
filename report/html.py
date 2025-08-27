@@ -205,7 +205,13 @@ def generate_report(input_path: str, output_path: str) -> str:
         else:
             cells.append('<td class="expand-cell">—</td>')
         
-        rows.append(f'<tr id="{row_id}" class="data-row" data-severity="{sev or "unknown"}" data-kev="{bool(kev)}">{''.join(cells)}</tr>')
+        cells_html = "".join(cells)
+        row_html = (
+            f'<tr id="{row_id}" class="data-row" '
+            f'data-severity="{sev or "unknown"}" '
+            f'data-kev="{str(bool(kev)).lower()}">{cells_html}</tr>'
+        )
+        rows.append(row_html)
         
         # Add details row
         if has_cves:

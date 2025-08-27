@@ -1,36 +1,145 @@
-name: Release
+name: Build and Release
 on:
-  workflow_dispatch:
   push:
     tags: [ 'v*' ]
 
 jobs:
-  mac-pkg:
-    runs-on: macos-latest
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
     steps:
       - uses: actions/checkout@v4
-      - name: Build zipapp
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install build deps
         run: |
-          python3 -m pip install -r requirements-ci.txt
-          bash tools/build_pyz.sh  # <- your existing builder
-          mkdir -p packaging/macos/payload/usr/local/quietpatch
-          cp dist/quietpatch.pyz packaging/macos/payload/usr/local/quietpatch/quietpatch.pyz
-      - name: Build pkg
-        run: packaging/macos/mkpkg.sh ${GITHUB_REF_NAME#v}
-      - name: Sign (optional)
-        if: env.INSTALLER_ID != ''
+          python -m pip install --upgrade pip
+          pip install pex wheel PyYAML==6.0.2
+
+      - name: Build platform wheels (offline bundle)
         run: |
-          productsign --sign "${{ env.INSTALLER_ID }}" packaging/macos/quietpatch-${GITHUB_REF_NAME#v}.pkg \
-            packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg
-      - name: Notarize (optional)
-        if: env.NOTARY_PROFILE != ''
+          mkdir -p build/wheels
+          pip wheel -r requirements.pex.txt -w build/wheels
+
+      - name: Build PEX
+        shell: bash
         run: |
-          xcrun notarytool submit packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg \
-            --keychain-profile "${{ env.NOTARY_PROFILE }}" --wait
-          xcrun stapler staple packaging/macos/quietpatch-${GITHUB_REF_NAME#v}-signed.pkg
-      - name: Upload artifact
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            python -m pex . -r requirements.pex.txt \
+              --interpreter-constraint 'CPython>=3.11,<3.14' \
+              -m qp_cli:main -o dist/quietpatch-windows-x64.pex
+            powershell -NoProfile -Command "Compress-Archive -Force dist\\quietpatch-windows-x64.pex dist\\quietpatch-windows-x64.zip"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            python -m pex . -r requirements.pex.txt \
+              --interpreter-constraint 'CPython>=3.11,<3.14' \
+              -m qp_cli:main -o dist/quietpatch-macos.pex
+          else
+            python -m pex . -r requirements.pex.txt \
+              --interpreter-constraint 'CPython>=3.11,<3.14' \
+              -m qp_cli:main -o dist/quietpatch-linux-x64.pex
+          fi
+
+      - name: Smoke test (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          QP_OFFLINE: "1"
+          QP_DISABLE_AUTO_SYNC: "1"
+        run: |
+          ./dist/quietpatch-*.pex --help
+          ./dist/quietpatch-*.pex scan --also-report
+          test -s report.html
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          QP_OFFLINE: "1"
+          QP_DISABLE_AUTO_SYNC: "1"
+        run: |
+          python dist\\quietpatch-windows-x64.pex --help
+          python dist\\quietpatch-windows-x64.pex scan --also-report
+          if (!(Test-Path report.html)) { throw "No report.html" }
+
+      - name: Checksums
+        shell: bash
+        run: |
+          cd dist
+          shasum -a 256 * > SHA256SUMS.txt || certutil -hashfile * SHA256 > NUL
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: quietpatch-macos-pkg
-          path: packaging/macos/*.pkg
+          name: quietpatch-${{ runner.os }}
+          path: dist/*
+
+  db-snapshot:
+    name: Build DB Snapshot
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt PyYAML==6.0.2
+      
+      - name: Build offline database snapshot
+        run: |
+          python tools/db_snapshot.py --years-back 5 --out dist
+          cd dist
+          shasum -a 256 db-*.tar.zst > db-*.tar.zst.sha256
+      
+      - name: Upload DB snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-snapshot
+          path: dist/db-*.tar.zst*
+
+  release:
+    needs: [build, db-snapshot]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist_all
+      
+      - name: Flatten artifacts
+        run: |
+          mkdir -p rel
+          find dist_all -type f -maxdepth 2 -exec cp {} rel/ \;
+          ls -lh rel
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: rel/*
+          draft: false
+          generate_release_notes: true
+          body: |
+            ## Downloads
+            - **macOS**: quietpatch-macos.pex
+            - **Linux x64**: quietpatch-linux-x64.pex  
+            - **Windows x64**: quietpatch-windows-x64.zip
+            
+            ## Offline DB Snapshot
+            - db-*.tar.zst (includes SHA256 checksums)
+            
+            ## Installation
+            - **Linux**: Run `sudo ./packaging/linux/install.sh`
+            - **Windows**: Run `.\packaging\windows\install.ps1` as Administrator
+            
+            See [PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for full details.
 

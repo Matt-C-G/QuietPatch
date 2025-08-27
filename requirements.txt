@@ -1,6 +1,7 @@
 keyring
 requests
 cryptography
+PyYAML>=6.0.1,<7.0.0
 pywin32; platform_system == "Windows"
 PyQt5  # Optional GUI
 pytest
