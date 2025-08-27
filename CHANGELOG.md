@@ -4,3 +4,4 @@
 - Version-range aware matching (affects.json)
 - Actionable remediation in HTML report (Action column)
 - Hardware-first AGE encryption (no plaintext spill)
+ - Windows: unified scanner improvements (registry + AppX + winget), MSI packaging & Task Scheduler template
