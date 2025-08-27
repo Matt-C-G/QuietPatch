@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quietpatch"
+version = "0.1.0"
+description = "Privacy-first, offline vulnerability & patch advisor"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "PyYAML==6.0.2",
+  "charset-normalizer==3.4.3",
+  "requests==2.32.3"
+]
+
+[project.scripts]
+quietpatch = "quietpatch.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E","F","W","I","B","UP"]
+ignore = []
+

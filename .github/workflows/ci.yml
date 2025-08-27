@@ -1,16 +1,8 @@
 name: ci
-
-on:
-  pull_request:
-  push:
-    branches: [ main ]
-
-permissions:
-  contents: read
+on: { pull_request: {}, push: { branches: [ main ] } }
 
 jobs:
   lint:
-    name: lint
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -19,10 +11,10 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           python -m pip install ruff
-          ruff check .
+          ruff check . --fix
+          ruff format .
 
   unit:
-    name: unit
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +26,6 @@ jobs:
           pytest -q
 
   build-linux:
-    name: build-linux
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -48,5 +39,4 @@ jobs:
             -o dist/quietpatch-linux-x86_64-py311.pex \
             --validate-entry-point --no-build --venv prepend --strip-pex-env
       - name: smoke
-        run: |
-          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
+        run: python3.11 dist/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
