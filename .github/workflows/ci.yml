@@ -92,16 +92,16 @@ jobs:
       - name: Build wheel
         shell: pwsh
         run: |
-          python -m pip install -U pip build wheel setuptools
-          python -m build -w -n
+          py -3.11 -m pip install -U pip build wheel setuptools
+          py -3.11 -m build -w -n
           Get-ChildItem dist\*.whl | Format-List
 
       - name: Build PEX from local wheel (deps from PyPI)
         shell: pwsh
         env:
-          PEX_IGNORE_RCFILES: "1"
+          PEX_IGNORE_RCFILES: '1'
         run: |
-          python -m pip install pex==2.54.2
+          py -3.11 -m pip install pex==2.54.2
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
           $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
           py -3.11 -m pex $whl `
@@ -114,10 +114,11 @@ jobs:
       - name: Smoke
         shell: pwsh
         env:
-          PEX_ROOT: "C:\pex"
-          TMP: "C:\t"
-          TEMP: "C:\t"
-          PEX_IGNORE_RCFILES: "1"
+          # SINGLE-QUOTED to avoid YAML escape sequences
+          PEX_ROOT: 'C:\pex'
+          TMP: 'C:\t'
+          TEMP: 'C:\t'
+          PEX_IGNORE_RCFILES: '1'
         run: |
           py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
 
