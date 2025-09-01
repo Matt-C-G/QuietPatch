@@ -1,0 +1,12 @@
+Safari:            { vendor: apple,        product: safari }
+Microsoft Word:    { vendor: microsoft,    product: word }
+OneDrive:          { vendor: microsoft,    product: onedrive }
+OpenVPN Connect:   { vendor: openvpn,      product: openvpn_connect }
+Battle.net:        { vendor: blizzard,     product: battle.net }
+Numbers:           { vendor: apple,        product: numbers }
+iMovie:            { vendor: apple,        product: imovie }
+OnyX:              { vendor: titanium_software, product: onyx }
+Hex Fiend:         { vendor: ridiculous_fish, product: hex_fiend }
+PDFgear:           { vendor: pdfgear,      product: pdfgear }
+Raycast:           { vendor: raycast,      product: raycast }
+Cursor:            { vendor: cursor,       product: cursor }

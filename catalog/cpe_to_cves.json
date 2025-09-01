@@ -1,0 +1,53 @@
+{
+  "Safari": [
+    {
+      "cve_id": "CVE-2024-3089",
+      "severity": "high",
+      "cvss": 8.2
+    }
+  ],
+  "Firefox": [
+    {
+      "cve_id": "CVE-2024-3170",
+      "severity": "critical",
+      "cvss": 9.3
+    }
+  ],
+  "Microsoft Word": [
+    {
+      "cve_id": "CVE-2024-3529",
+      "severity": "high",
+      "cvss": 8.1
+    }
+  ],
+  "Microsoft Excel": [
+    {
+      "cve_id": "CVE-2024-3530",
+      "severity": "medium",
+      "cvss": 6.8
+    }
+  ],
+  "zoom.us": [
+    {
+      "cve_id": "CVE-2024-3654",
+      "severity": "high",
+      "cvss": 7.5
+    }
+  ],
+  "Wireshark": [
+    {
+      "cve_id": "CVE-2024-3745",
+      "severity": "critical",
+      "cvss": 9.8
+    }
+  ],
+  "OpenVPN Connect": [
+    {
+      "cve_id": "CVE-2024-3812",
+      "severity": "high",
+      "cvss": 8.0
+    }
+  ]
+}
+
+
