@@ -7,9 +7,9 @@ from pathlib import Path
 
 # Decryptor import (v3 first, fallback to v2 if present)
 try:
-    from src.config.encryptor_v3 import decrypt_file  # type: ignore
+    from quietpatch.config.encryptor_v3 import decrypt_file  # type: ignore
 except Exception:  # pragma: no cover
-    from src.config.encryptor_v2 import decrypt_file  # type: ignore
+    from quietpatch.config.encryptor_v2 import decrypt_file  # type: ignore
 
 
 def _load_items(input_path: str):

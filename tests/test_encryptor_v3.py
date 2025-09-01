@@ -12,7 +12,7 @@ AGE = shutil.which("age")
 PLUGIN = shutil.which("age-plugin-ssh") or shutil.which("age")  # plugin is bundled on some installs
 pytestmark = pytest.mark.skipif(not AGE, reason="age CLI not installed")
 
-from src.config.encryptor_v3 import decrypt_file, encrypt_file
+from quietpatch.config.encryptor_v3 import decrypt_file, encrypt_file
 
 
 def gen_age_identity(tmp: Path):

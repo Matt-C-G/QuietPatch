@@ -17,3 +17,4 @@ report.html
 unknown_apps.log
 # Trigger CI
 # Trigger CI run after YAML fix
+.venv/

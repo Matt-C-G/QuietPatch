@@ -18,6 +18,14 @@ dependencies = [
 [project.scripts]
 quietpatch = "quietpatch.cli:main"
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8.2",
+  "PyYAML==6.0.2",
+  "cryptography==43.0.1",
+  "cffi>=1.16.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["quietpatch*", "src*"]
