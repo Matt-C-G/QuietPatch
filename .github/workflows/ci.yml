@@ -120,9 +120,9 @@ jobs:
       - name: Smoke
         shell: pwsh
         env:
-          PEX_ROOT: "C:\pex"
-          TMP: "C:\t"
-          TEMP: "C:\t"
+          PEX_ROOT: "C:\\pex"
+          TMP: "C:\\t"
+          TEMP: "C:\\t"
           PEX_IGNORE_RCFILES: "1"
         run: |
           py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
