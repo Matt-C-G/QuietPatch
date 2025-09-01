@@ -12,3 +12,5 @@ Open the report:
 Policy (defaults):
 min_severity: low | treat_unknown_as: low | only_with_cves: true
 Edit config/policy.yml and re-run.
+
+

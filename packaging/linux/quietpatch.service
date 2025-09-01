@@ -1,0 +1,21 @@
+[Unit]
+Description=QuietPatch agent (one-shot scan)
+Documentation=https://github.com/quietpatch/QuietPatch
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=QP_OFFLINE=1
+Environment=QP_DISABLE_AUTO_SYNC=1
+Environment=QP_DATA_DIR=/var/lib/quietpatch
+ExecStart=/usr/bin/env -S /usr/bin/python3 -u /usr/local/quietpatch/quietpatch.pex scan --also-report
+WorkingDirectory=/var/lib/quietpatch
+StandardOutput=append:/var/lib/quietpatch/logs/quietpatch.log
+StandardError=append:/var/lib/quietpatch/logs/quietpatch.err
+# Avoid leaking env
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+
+

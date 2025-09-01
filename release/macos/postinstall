@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+# Create symlink to /usr/local/bin
+ln -sf /usr/local/quietpatch/quietpatch.pex /usr/local/bin/quietpatch
+
+# (Re)load daemon
+/bin/launchctl unload /Library/LaunchDaemons/com.quietpatch.agent.plist 2>/dev/null || true
+/bin/launchctl load -w /Library/LaunchDaemons/com.quietpatch.agent.plist
+
+echo "QuietPatch service installed and started"
+echo "Command available at: /usr/local/bin/quietpatch"
+exit 0
+

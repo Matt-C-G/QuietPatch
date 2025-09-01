@@ -139,6 +139,9 @@ class LocalDBResolver:
                 # Get EPSS score
                 epss_score = self.epss_data.get(cve_id, 0.0)
                 
+                # Generate actionable remediation
+                action = self._generate_action(normalized_name, cve_id, severity, is_kev)
+                
                 vuln = {
                     "cve_id": cve_id,
                     "severity": severity,
@@ -147,6 +150,7 @@ class LocalDBResolver:
                     "is_kev": is_kev,
                     "kev_action": kev_action,
                     "epss_score": epss_score,
+                    "action": action,
                     "source": "local_db"
                 }
                 
@@ -163,6 +167,49 @@ class LocalDBResolver:
         
         vulns.sort(key=sort_key, reverse=True)
         return vulns
+    
+    def _generate_action(self, app_name: str, cve_id: str, severity: str, is_kev: bool) -> str:
+        """Generate actionable remediation steps for a vulnerability"""
+        app_lower = app_name.lower()
+        
+        # Critical vulnerabilities get immediate action
+        if severity == "critical" or is_kev:
+            if "firefox" in app_lower:
+                return "brew upgrade firefox || Download latest from mozilla.org"
+            elif "wireshark" in app_lower:
+                return "brew upgrade wireshark || Download from wireshark.org"
+            elif "pdfgear" in app_lower:
+                return "Update PDFgear immediately - critical RCE vulnerability"
+            else:
+                return "Update immediately - critical vulnerability actively exploited"
+        
+        # High severity vulnerabilities
+        elif severity == "high":
+            if "safari" in app_lower:
+                return "Update macOS to latest version (Safari updates included)"
+            elif "microsoft" in app_lower or "word" in app_lower or "excel" in app_lower:
+                return "Update Microsoft Office via AutoUpdate or download latest"
+            elif "zoom" in app_lower:
+                return "Update Zoom client from zoom.us/download"
+            elif "openvpn" in app_lower:
+                return "Update OpenVPN Connect from openvpn.net"
+            else:
+                return "Update to latest version - high severity vulnerability"
+        
+        # Medium severity vulnerabilities
+        elif severity == "medium":
+            if "numbers" in app_lower or "pages" in app_lower or "keynote" in app_lower:
+                return "Update macOS to latest version (iWork updates included)"
+            elif "discord" in app_lower:
+                return "Update Discord client - restart app to trigger update"
+            elif "onedrive" in app_lower:
+                return "Update OneDrive via Microsoft AutoUpdate"
+            else:
+                return "Update when convenient - medium severity vulnerability"
+        
+        # Low severity or unknown
+        else:
+            return "Monitor for updates - low risk vulnerability"
     
     def get_summary_stats(self) -> Dict:
         """Get summary statistics about the local database"""

@@ -1,73 +1,86 @@
 # src/core/actions.py
 from __future__ import annotations
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List
+import yaml
 
-def suggest_actions(app_name: str, cpe: Optional[str], version: Optional[str]) -> List[Dict[str, str]]:
-    """
-    Return prioritized remediation actions for a given app.
-    Each action: {"type": "...", "cmd": "..."} or {"type": "...", "url": "...", "note": "..."}
-    """
-    n = (app_name or "").lower()
-    c = (cpe or "").lower()
-    out: List[Dict[str, str]] = []
+# Fallback defaults keyed by either app name or vendor:product
+_DEFAULT_ACTIONS = {
+    "Safari": "softwareupdate -l && sudo softwareupdate -ia",
+    "apple:safari": "softwareupdate -l && sudo softwareupdate -ia",
 
-    # 1) Homebrew caskable common apps
-    # (heuristic; we don't require brew to be installed—command is a safe suggestion)
-    casks = {
-        "zoom.us": "zoom",
-        "zoom": "zoom",
-        "wireshark": "wireshark",
-        "firefox": "firefox",
-        "iterm": "iterm2",
-        "webex": "webex",
-        "openvpn connect": "openvpn-connect",
-    }
-    for k, v in casks.items():
-        if k in n:
-            out.append({
-                "type": "upgrade",
-                "cmd": f'brew upgrade --cask {v} || brew install --cask {v}',
-                "note": "Requires Homebrew."
-            })
-            break
+    "Microsoft Word": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps WORD',
+    "microsoft:word": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps WORD',
 
-    # 2) Microsoft apps via AutoUpdate (broad update, safe default)
-    if "microsoft" in c or any(x in n for x in ["word", "excel", "powerpoint", "onedrive", "teams"]):
-        out.append({
-            "type": "update",
-            "cmd": r'"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --all',
-            "note": "Runs Microsoft AutoUpdate for all Office apps."
-        })
+    "Microsoft Excel": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps XCEL',
+    "microsoft:excel": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps XCEL',
 
-    # 3) Apple system apps (Safari etc.) -> Software Update
-    if "apple:safari" in c or "safari" in n:
-        out.append({
-            "type": "update",
-            "cmd": "softwareupdate -l && sudo softwareupdate -ia",
-            "note": "Safari updates ship with macOS."
-        })
+    "Microsoft PowerPoint": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps PPT3',
+    "microsoft:powerpoint": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps PPT3',
 
-    # 4) OpenVPN fallback (direct download)
-    if "openvpn" in c or "openvpn" in n:
-        out.append({
-            "type": "upgrade",
-            "url": "https://openvpn.net/client",
-            "note": "Download latest OpenVPN Connect."
-        })
+    "Zoom": "brew upgrade --cask zoom || brew install --cask zoom",
+    "zoom:zoom": "brew upgrade --cask zoom || brew install --cask zoom",
 
-    # 5) Battle.net
-    if "battle.net" in n or "blizzard:battle.net" in c:
-        out.append({
-            "type": "upgrade",
-            "url": "https://www.blizzard.com/en-us/apps/battle.net/desktop",
-            "note": "Install/Update via Blizzard installer."
-        })
+    "Wireshark": "brew upgrade --cask wireshark || brew install --cask wireshark",
+    "wireshark:wireshark": "brew upgrade --cask wireshark || brew install --cask wireshark",
 
-    # 6) Generic fallback
-    if not out:
-        out.append({
-            "type": "investigate",
-            "note": "Open the app and check its built-in updater or vendor site."
-        })
+    "Firefox": "brew upgrade --cask firefox || brew install --cask firefox",
+    "mozilla:firefox": "brew upgrade --cask firefox || brew install --cask firefox",
 
+    "OpenVPN Connect": "brew upgrade --cask openvpn-connect || brew install --cask openvpn-connect",
+    "openvpn:connect": "brew upgrade --cask openvpn-connect || brew install --cask openvpn-connect",
+
+    "Numbers": "softwareupdate -l && sudo softwareupdate -ia",
+    "Pages": "softwareupdate -l && sudo softwareupdate -ia",
+    "Keynote": "softwareupdate -l && sudo softwareupdate -ia",
+
+    "OneDrive": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps ONDR',
+    "microsoft:onedrive": '"/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate" --install --apps ONDR',
+
+    "Discord": "open https://discord.com/download",
+    "discord:discord": "open https://discord.com/download",
+
+    "PDFgear": "open https://pdfgear.com/download",
+    "pdfgear:pdfgear": "open https://pdfgear.com/download",
+
+    "Raycast": "brew upgrade --cask raycast || brew install --cask raycast",
+    "raycast:raycast": "brew upgrade --cask raycast || brew install --cask raycast",
+
+    # Fallback generic
+    "__generic__": "Open the app → Check built-in updater or vendor site for updates."
+}
+
+def load_actions(path: Path | None) -> Dict[str, str]:
+    try:
+        if path and path.exists():
+            data = yaml.safe_load(path.read_text()) or {}
+            if isinstance(data, dict):
+                # Merge file over defaults so users can override
+                return {**_DEFAULT_ACTIONS, **data}
+    except Exception:
+        pass
+    return dict(_DEFAULT_ACTIONS)
+
+def _lookup_action(app: Dict[str, Any], actions: Dict[str, str]) -> str:
+    # Try by CPE first if present
+    cpe = (app.get("cpe") or "").lower()
+    if cpe:
+        # cpe:2.3:a:vendor:product:version:...
+        parts = cpe.split(":")
+        if len(parts) >= 5:
+            key = f"{parts[3]}:{parts[4]}"  # vendor:product
+            if key in actions:
+                return actions[key]
+    # Try by App name
+    name = str(app.get("app") or app.get("name") or "").strip()
+    if name and name in actions:
+        return actions[name]
+    return actions.get("__generic__", "")
+
+def decorate_actions(apps: List[Dict[str, Any]], actions_map: Dict[str, str]) -> List[Dict[str, Any]]:
+    out = []
+    for a in apps:
+        a2 = dict(a)
+        a2["actions"] = [ _lookup_action(a, actions_map) ] if actions_map else []
+        out.append(a2)
     return out

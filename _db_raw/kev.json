@@ -1,0 +1,18 @@
+{
+  "CVE-2024-3170": {
+    "dateAdded": "2024-07-15",
+    "cisaRequiredAction": "Critical: Update Firefox immediately - actively exploited in the wild"
+  },
+  "CVE-2024-3745": {
+    "dateAdded": "2024-08-10",
+    "cisaRequiredAction": "Critical: Update Wireshark immediately - network analysis tool compromised"
+  },
+  "CVE-2024-3529": {
+    "dateAdded": "2024-06-20",
+    "cisaRequiredAction": "High: Update Microsoft Office - document-based attacks observed"
+  },
+  "CVE-2024-3654": {
+    "dateAdded": "2024-07-30",
+    "cisaRequiredAction": "High: Update Zoom client - privilege escalation attacks reported"
+  }
+}

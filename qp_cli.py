@@ -107,6 +107,23 @@ def main():
             pass
 
         locs = run_mapping(str(outdir))
+        
+        # Apply actions to the scan results
+        try:
+            from src.core.actions import load_actions, decorate_actions
+            actions_file = Path(os.environ.get("QP_ACTIONS_FILE", "config/actions.yml"))
+            actions_map = load_actions(actions_file)
+            
+            # Read the vulnerability data and apply actions
+            vuln_path = Path(outdir) / "vuln_log.json"
+            if vuln_path.exists():
+                vuln_data = json.loads(vuln_path.read_text())
+                vuln_data_with_actions = decorate_actions(vuln_data, actions_map)
+                vuln_path.write_text(json.dumps(vuln_data_with_actions, indent=2))
+                print(f"Actions applied to {len(vuln_data_with_actions)} apps")
+        except Exception as e:
+            print(f"Warning: Could not apply actions: {e}")
+        
         print(json.dumps(locs, indent=2))
 
         if args.also_report:

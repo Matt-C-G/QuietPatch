@@ -1,2 +1,15 @@
-#!/usr/bin/env bash
-exec python3 "$(dirname "$0")/quietpatch.pyz" "$@"
+#!/usr/local/bin/python3.13
+# QuietPatch wrapper script
+# This ensures we use the correct Python version
+
+import sys
+import os
+
+# Add the current directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import and run the main CLI
+from qp_cli import main
+
+if __name__ == "__main__":
+    sys.exit(main())

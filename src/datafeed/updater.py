@@ -195,3 +195,5 @@ def refresh_db(
         "version": man.version,
         "files": downloaded,
     }
+
+

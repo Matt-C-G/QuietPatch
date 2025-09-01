@@ -1,0 +1,37 @@
+{
+  "CVE-2024-3089": {
+    "severity": "high",
+    "cvss": 8.2,
+    "description": "Safari WebKit memory corruption vulnerability - remote code execution"
+  },
+  "CVE-2024-3170": {
+    "severity": "critical",
+    "cvss": 9.3,
+    "description": "Firefox JavaScript engine critical vulnerability - arbitrary code execution"
+  },
+  "CVE-2024-3529": {
+    "severity": "high",
+    "cvss": 8.1,
+    "description": "Microsoft Word remote code execution vulnerability via malicious documents"
+  },
+  "CVE-2024-3530": {
+    "severity": "medium",
+    "cvss": 6.8,
+    "description": "Microsoft Excel information disclosure vulnerability"
+  },
+  "CVE-2024-3654": {
+    "severity": "high",
+    "cvss": 7.5,
+    "description": "Zoom client privilege escalation vulnerability"
+  },
+  "CVE-2024-3745": {
+    "severity": "critical",
+    "cvss": 9.8,
+    "description": "Wireshark packet analyzer critical vulnerability - arbitrary code execution"
+  },
+  "CVE-2024-3812": {
+    "severity": "high",
+    "cvss": 8.0,
+    "description": "OpenVPN Connect authentication bypass vulnerability"
+  }
+}

@@ -13,29 +13,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python 3.13
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'
+          architecture: 'x64'
 
       - name: Install build deps
         run: |
-          python -m pip install --upgrade pip
-          pip install pex wheel PyYAML==6.0.2
-
-      - name: Build platform wheels (offline bundle)
-        run: |
-          mkdir -p build/wheels
-          pip wheel -r requirements.pex.txt -w build/wheels
+          python -m pip install --upgrade pip wheel setuptools pex
+          pip install -e . PyYAML==6.0.2
 
       - name: Build PEX
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            python -m pex . -r requirements.pex.txt \
-              --interpreter-constraint 'CPython>=3.11,<3.14' \
-              -m qp_cli:main -o dist/quietpatch-windows-x64.pex
-            powershell -NoProfile -Command "Compress-Archive -Force dist\\quietpatch-windows-x64.pex dist\\quietpatch-windows-x64.zip"
+            mkdir -p dist
+            python -m pex quietpatch -c quietpatch \
+              -o dist/quietpatch-win-py311.pex \
+              --validate-entry-point --no-build --venv prepend --strip-pex-env
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             python -m pex . -r requirements.pex.txt \
               --interpreter-constraint 'CPython>=3.11,<3.14' \
@@ -45,6 +41,32 @@ jobs:
               --interpreter-constraint 'CPython>=3.11,<3.14' \
               -m qp_cli:main -o dist/quietpatch-linux-x64.pex
           fi
+
+      - name: Package Windows Distribution
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Copy Windows-specific files
+          Copy-Item "packaging/windows/run_quietpatch.bat" "dist/"
+          Copy-Item "packaging/windows/README-Windows.txt" "dist/"
+          
+          # Create catalog and policies directories
+          New-Item -ItemType Directory -Path "dist/catalog" -Force | Out-Null
+          New-Item -ItemType Directory -Path "dist/policies" -Force | Out-Null
+          
+          # Copy database files
+          Copy-Item "data/db/*.json" "dist/catalog/" -ErrorAction SilentlyContinue
+          Copy-Item "data/db/*.csv" "dist/catalog/" -ErrorAction SilentlyContinue
+          
+          # Copy policy files
+          Copy-Item "config/policy.yml" "dist/policies/" -ErrorAction SilentlyContinue
+          Copy-Item "config/aliases.yml" "dist/policies/" -ErrorAction SilentlyContinue
+          
+          # Create ZIP archive
+          $distName = "QuietPatch-Windows-v${{ github.ref_name }}"
+          Compress-Archive -Path "dist/*" -DestinationPath "dist/$distName.zip" -Force
+          
+          Write-Host "Windows distribution packaged: dist/$distName.zip"
 
       - name: Smoke test (Linux/macOS)
         if: runner.os != 'Windows'
@@ -58,13 +80,16 @@ jobs:
 
       - name: Smoke test (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: pwsh
         env:
           QP_OFFLINE: "1"
           QP_DISABLE_AUTO_SYNC: "1"
+          PEX_ROOT: "C:\\pex"
+          TEMP: "C:\\t"
+          TMP: "C:\\t"
         run: |
-          python dist\\quietpatch-windows-x64.pex --help
-          python dist\\quietpatch-windows-x64.pex scan --also-report
+          python dist\quietpatch-win-py311.pex scan --help
+          python dist\quietpatch-win-py311.pex scan --also-report
           if (!(Test-Path report.html)) { throw "No report.html" }
 
       - name: Checksums
@@ -94,7 +119,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt PyYAML==6.0.2
+          pip install -r requirements.txt
       
       - name: Build offline database snapshot
         run: |
@@ -132,14 +157,19 @@ jobs:
             ## Downloads
             - **macOS**: quietpatch-macos.pex
             - **Linux x64**: quietpatch-linux-x64.pex  
-            - **Windows x64**: quietpatch-windows-x64.zip
+            - **Windows x64**: QuietPatch-Windows-v${{ github.ref_name }}.zip
             
             ## Offline DB Snapshot
             - db-*.tar.zst (includes SHA256 checksums)
             
             ## Installation
             - **Linux**: Run `sudo ./packaging/linux/install.sh`
-            - **Windows**: Run `.\packaging\windows\install.ps1` as Administrator
+            - **Windows**: Extract the ZIP and double-click `run_quietpatch.bat`
+            
+            ## Windows Quick Start
+            1. Extract the Windows ZIP package
+            2. Double-click `run_quietpatch.bat` to run a scan
+            3. The report will open automatically in your browser
             
             See [PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for full details.
 

@@ -64,3 +64,8 @@ Remove-Item "$env:TEMP\quietpatch_task.xml" -Force
 Write-Host "QuietPatch scheduled task created successfully"
 
 
+
+
+
+
+
