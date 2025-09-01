@@ -26,6 +26,7 @@ jobs:
       - name: Build PEX
         shell: pwsh
         run: |
+          if (Test-Path dist) { Remove-Item dist -Recurse -Force }
           mkdir dist
           python -m pex -D . -r requirements.pex.txt `
             --interpreter-constraint 'CPython>=3.11,<3.14' `
