@@ -1,13 +1,18 @@
 name: python-ci
 
 on:
-  push:          # any branch
-  pull_request:  # any PR
+  push:
+    branches: ["**"]        # run on any branch
+  pull_request:
+    branches: ["**"]        # run on any PR
   workflow_dispatch:
 
 jobs:
   sanity:
+    name: sanity
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: echo "CI wiring OK: $GITHUB_REF $GITHUB_EVENT_NAME"
+      - run: |
+          echo "CI wiring OK"
+          echo "ref=$GITHUB_REF event=$GITHUB_EVENT_NAME"
