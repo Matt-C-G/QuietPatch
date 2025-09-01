@@ -59,13 +59,13 @@ jobs:
           python -m pip install -U pip build wheel setuptools
           python -m build -w -n
           ls -l dist/*.whl
-      - name: Build PEX from local wheel (no PyPI)
+      - name: Build PEX from local wheel (deps from PyPI)
         run: |
           python -m pip install -U pex
           mkdir -p dist-pex
           python -m pex dist/*.whl \
             -c quietpatch \
-            --no-pypi --find-links dist \
+            --find-links dist \
             --validate-entry-point --no-build \
             --venv prepend --strip-pex-env \
             -o dist-pex/quietpatch-linux-x86_64-py311.pex
@@ -95,15 +95,17 @@ jobs:
         run: |
           python -m pip install -U pip build wheel setuptools
           python -m build -w -n
-          Get-ChildItem dist/*.whl
-      - name: Build PEX from local wheel (no PyPI)
+          Get-ChildItem dist\*.whl | Format-List
+      - name: Build PEX from local wheel (deps from PyPI)
         shell: pwsh
         run: |
           python -m pip install -U pex
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
-          python -m pex dist/*.whl `
+          # PowerShell doesn't expand dist\*.whl reliably; resolve explicitly:
+          $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
+          python -m pex $whl `
             -c quietpatch `
-            --no-pypi --find-links dist `
+            --find-links dist `
             --validate-entry-point --no-build `
             --venv prepend --strip-pex-env `
             -o dist-pex/quietpatch-win-py311.pex
@@ -130,13 +132,13 @@ jobs:
           python -m pip install -U pip build wheel setuptools
           python -m build -w -n
           ls -l dist/*.whl
-      - name: Build PEX from local wheel (no PyPI)
+      - name: Build PEX from local wheel (deps from PyPI)
         run: |
           python -m pip install -U pex
           mkdir -p dist-pex
           python -m pex dist/*.whl \
             -c quietpatch \
-            --no-pypi --find-links dist \
+            --find-links dist \
             --validate-entry-point --no-build \
             --venv prepend --strip-pex-env \
             -o dist-pex/quietpatch-macos-arm64-py311.pex
