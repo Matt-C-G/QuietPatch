@@ -1,117 +1,201 @@
 # QuietPatch 🔐
 
-**QuietPatch** is a lightweight, cross-platform security awareness tool that passively monitors your system for vulnerable applications and services. It maps running applications to real-time known vulnerabilities using NVD CVE data—securely and without privilege escalation.
+QuietPatch is a lightweight, privacy-first vulnerability scanner with an action engine and policy engine. It maps the software on a host to known CVEs and produces a clean, searchable HTML report with actionable remediation—offline-first, cross-platform, and without privilege escalation.
 
----
+  ⚠️ QuietPatch never auto-patches or changes your system. All remediation commands shown   in the report are suggestions for human review.
 
-## ✨ Features
+# ✨ Highlights
 
-- ✅ Passive vulnerability scanning — no auto-patching or intrusive edits
-- 🔐 Secure encrypted configuration (uses system key vault)
-- 🧠 Real-time CVE mapping using [NVD API](https://nvd.nist.gov/)
-- 💻 Cross-platform (Windows, macOS, Linux)
-- 🔔 Optional notifications (planned in notifier module)
+Offline-first: ship an encrypted, signed CVE DB snapshot; scan with zero network calls
 
----
+Action engine: per-app remediation (Homebrew / MAU / vendor pages / package managers)
 
-## 🔧 Installation
+Policy engine: filter by min severity, treat-unknown-as, KEV/EPSS sort, deterministic output
 
+Cross-platform runners: single-file PEX for macOS, Linux, Windows
+
+Enterprise-friendly: systemd / launchd / Task Scheduler unit templates
+
+Security: encrypted config, SBOM + third-party notices, sensible timeouts, no secrets in repo
+
+# 🚀 Quickstart (binaries)
+
+Grab assets from the latest GitHub Release. Each OS has a runner and an optional offline DB snapshot:
+
+macOS (Apple Silicon & Intel): quietpatch-<ver>-macos-pex.tar.gz + db-YYYYMMDD.tar.zst (recommended)
+
+Linux x64: quietpatch-linux-x64.pex + db-YYYYMMDD.tar.zst (recommended)
+
+Windows x64: quietpatch-windows-x64.zip + db-YYYYMMDD.tar.zst (recommended)
+
+✅ Always verify checksums (*.sha256) before running.
+
+# **macOS**
 ```bash
-git clone https://github.com/yourname/QuietPatch.git
+# 1) Download runner + checksum
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-0.2.1-macos-pex.tar.gz
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-0.2.1-macos-pex.tar.gz.sha256
+
+# 2) Verify
+shasum -a 256 -c quietpatch-0.2.1-macos-pex.tar.gz.sha256
+
+# 3) Extract & remove quarantine (if present)
+tar -xzf quietpatch-0.2.1-macos-pex.tar.gz
+xattr -cr quietpatch-macos.pex || true
+
+# 4) (Optional) Offline DB
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256
+shasum -a 256 -c db-20250823.tar.zst.sha256
+
+# 5) One-shot scan → HTML → auto-open (fully offline)
+QP_OFFLINE=1 QP_DISABLE_AUTO_SYNC=1 \
+  ./quietpatch-macos.pex scan --db ./db-20250823.tar.zst --also-report --open
+```
+
+# **Linux (x64)**
+```Bash 
+# 1) Download
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-linux-x64.pex
+chmod +x quietpatch-linux-x64.pex
+
+# 2) (Optional) Offline DB
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256
+sha256sum -c db-20250823.tar.zst.sha256
+
+# 3) Run (offline)
+QP_OFFLINE=1 QP_DISABLE_AUTO_SYNC=1 \
+  ./quietpatch-linux-x64.pex scan --db ./db-20250823.tar.zst --also-report --open
+```
+
+# **Windows (PowerShell, x64)**
+```powershell 
+# 1) Download + extract
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/quietpatch-windows-x64.zip -OutFile quietpatch-windows-x64.zip
+Expand-Archive quietpatch-windows-x64.zip -DestinationPath .\quietpatch
+
+# 2) (Optional) Offline DB + verify
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst -OutFile .\quietpatch\db-20250823.tar.zst
+Invoke-WebRequest -Uri https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.1/db-20250823.tar.zst.sha256 -OutFile .\quietpatch\db-20250823.tar.zst.sha256
+if ((Get-FileHash .\quietpatch\db-20250823.tar.zst -Algorithm SHA256).Hash -ne
+    (Get-Content .\quietpatch\db-20250823.tar.zst.sha256).Split()[0]) { throw "DB checksum mismatch!" }
+
+# 3) Run (offline)
+$env:QP_OFFLINE = "1"
+$env:QP_DISABLE_AUTO_SYNC = "1"
+.\quietpatch\quietpatch.exe scan --db .\quietpatch\db-20250823.tar.zst --also-report --open
+```
+The scanner writes report.html next to your working directory and opens it with --open. Omit --open for unattended runs (services/cron).
+
+# 🧠 **What you'll see**
+
+The HTML report includes:
+
+  **App / Version**
+
+  **Action** – concrete remediation (e.g., brew upgrade, MAU path, vendor link)
+
+  **CVE** (with KEV badge), CVSS, Severity
+
+  **EPSS & Summary**
+
+  “All CVEs” section with per-CVE detail, sorted deterministically (KEV promoted on ties)
+
+# ⚙️ **Policy (config/policy.yml)**
+```yaml
+allow: []
+deny:  []
+min_severity: low           # low | medium | high | critical
+treat_unknown_as: low       # map "unknown" to this floor
+only_with_cves: true        # drop apps with no CVEs
+limit_per_app: 50
+```
+
+# 🔒 **Security & Privacy**
+
+**Offline-first** database snapshot (recommended)
+
+**No auto-patching;** commands are suggestions
+
+**Deterministic output:** stable sorting & rollups
+
+**SBOM:** sbom.spdx.json, dependencies recorded in THIRD_PARTY_NOTICES.json
+
+**No secrets in repo;** encrypted config supported if you integrate NVD API online mode later
+
+# 🖥️ **Service install (optional)**
+
+Templates are provided to schedule recurring scans:
+
+**macOS (launchd):** /Library/LaunchDaemons/com.quietpatch.agent.plist
+
+**Linux (systemd):** /etc/systemd/system/quietpatch.service
+
+**Windows (Task Scheduler):** XML template
+
+Each service runs the platform runner with:
+```ini
+QP_OFFLINE=1 QP_DISABLE_AUTO_SYNC=1 <runner> scan --db <db-snapshot> --also-report
+```
+Use --open only for interactive sessions (not for background services).
+
+# 🧪 **Validate your build**
+```bash
+# From repo root
+python3 tools/selfcheck.py
+# Ensures structure, policy behavior, KEV/EPSS sorting, basic integrity.
+```
+Run unit tests when developing:
+```bash
+python3 -m pytest -q
+bandit -q -r src
+```
+# 🛠️ **Build from source (optional)**
+```bash
+git clone https://github.com/Matt-C-G/QuietPatch.git
 cd QuietPatch
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
+# Run from source
+PYTHONPATH=. python3 qp_cli.py scan --also-report --open
 ```
+For production, prefer the release runners and offline DB.
 
----
+# ❓ **FAQ**
 
-## 🔐 API Key Setup
+**Does QuietPatch need internet?**
 
-QuietPatch uses the National Vulnerability Database (NVD) API to retrieve vulnerability data for applications.
+No, if you provide the offline DB snapshot (db-YYYYMMDD.tar.zst). If you enable online sync later, only the feeds are downloaded; no host inventory leaves the machine.
 
-### 1️⃣ Get Your Free API Key
+**Does it change my system?**
 
-Visit [NVD Developer Portal](https://nvd.nist.gov/developers/request-an-api-key) and request an API key (it’s instant and free).
+No. QuietPatch is read-only. It suggests commands you may run manually.
 
-### 2️⃣ Create `settings.json`
+**What about unknown severities?**
 
-Inside `src/config/`, create a file named `settings.json`:
+They’re mapped via treat_unknown_as and CVSS where available; ordering is deterministic and KEV-aware.
 
-```json
-{
-  "nvd_api_key": "YOUR_API_KEY_HERE"
-}
-```
+# 📄 **License & Notices**
 
-### 3️⃣ Encrypt the Configuration
+License: MIT (see LICENSE)
 
-Run this one-liner to encrypt your key for secure use:
+SBOM: sbom.spdx.json
 
-```bash
-python3 -c 'from src.config.encryptor import encrypt_file; encrypt_file("src/config/settings.json", "src/config/settings.json.enc")'
-```
+Third-party notices: THIRD_PARTY_NOTICES.json
 
-Then **delete the plaintext version**:
+# 🙏 **Acknowledgments**
 
-```bash
-rm src/config/settings.json
-```
+NIST NVD CVE data
 
-Now QuietPatch will automatically load and decrypt your API key when scanning.
+CISA KEV Catalog
 
----
+FIRST EPSS
 
-## 🚀 Usage
+# **Pro tips**
+Keep your **DB snapshot** fresh (attach a signed one to every release).
 
-To scan your system (macOS by default):
+For enterprise rollout, use the provided launchd/systemd/Task Scheduler templates.
 
-```bash
-python src/core/cve_mapper.py
-```
-
-🛡️ The app list is scanned, correlated to known CVEs, and results are encrypted to `data/vuln_log.json.enc`.
-
----
-
-## 📂 Project Structure
-
-```
-QuietPatch/
-├── README.md
-├── LICENSE
-├── .gitignore
-├── requirements.txt
-├── src/
-│   ├── core/
-│   │   ├── scanner.py
-│   │   ├── cve_mapper.py
-│   │   └── notifier.py
-│   ├── ui/
-│   │   └── dashboard.py
-│   └── config/
-│       ├── encryptor.py
-│       └── settings.json.enc
-├── data/
-│   ├── cve_cache.json
-│   └── known_apps.json
-├── scripts/
-│   └── setup_admin_scan.py
-├── tests/
-│   └── test_scanner.py
-```
-
-
-
-```
-keyring
-requests
-cryptography
-pywin32 ; platform_system == "Windows"
-PyQt5    # Optional GUI
-```
-
----
-
-## 🙏 Acknowledgments
-
-- [NIST NVD API](https://nvd.nist.gov/)
-- [CISA KEV Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+Use --also-report to always emit report.html. Add --open for interactive runs.
