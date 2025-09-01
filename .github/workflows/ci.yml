@@ -87,10 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          architecture: "x64"
-          cache: "pip"
+        with: { python-version: "3.11", architecture: "x64", cache: "pip" }
 
       - name: Build wheel
         shell: pwsh
@@ -102,11 +99,9 @@ jobs:
       - name: Build PEX from local wheel (deps from PyPI)
         shell: pwsh
         env:
-          # Avoid reading any user/system pexrc, and disable venv logic on Windows
           PEX_IGNORE_RCFILES: "1"
         run: |
-          # Pin a PEX version known-good on Windows
-          python -m pip install pex==2.53.1
+          python -m pip install pex==2.54.2
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
           $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
           py -3.11 -m pex $whl `
@@ -114,23 +109,20 @@ jobs:
             --find-links dist `
             --no-build `
             --strip-pex-env `
-            --venv false `        # <— explicitly disable venv features on Windows
-            -o dist-pex/quietpatch-win-py311.pex
+            -o dist-pex\quietpatch-win-py311.pex
 
       - name: Smoke
         shell: pwsh
         env:
-          PEX_ROOT: "C:\\pex"
-          TMP: "C:\\t"
-          TEMP: "C:\\t"
+          PEX_ROOT: "C:\pex"
+          TMP: "C:\t"
+          TEMP: "C:\t"
           PEX_IGNORE_RCFILES: "1"
         run: |
           py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
 
       - uses: actions/upload-artifact@v4
-        with:
-          name: quietpatch-windows
-          path: dist-pex/*
+        with: { name: quietpatch-windows, path: dist-pex/* }
 
   build-macos:
     runs-on: macos-14
