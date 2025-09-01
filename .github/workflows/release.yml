@@ -48,11 +48,11 @@ jobs:
           echo 'Run: double-click run_quietpatch.bat' >> dist/README-Windows.txt
           echo 'Report: .\reports\quietpatch_report.html' >> dist/README-Windows.txt
       - name: Zip
-        shell: bash
+        shell: pwsh
         run: |
-          ver="${GITHUB_REF_NAME#v}"
-          mkdir -p release
-          (cd dist && zip -r9 "../release/quietpatch-${ver}-windows.zip" .)
+          $ver = $env:GITHUB_REF_NAME -replace '^v', ''
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Compress-Archive -Path dist\* -DestinationPath "release\quietpatch-${ver}-windows.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: win-zip
