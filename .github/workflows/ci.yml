@@ -24,9 +24,10 @@ jobs:
         run: |
           if (Test-Path dist) { Remove-Item dist -Recurse -Force }
           mkdir dist
-          python -m pex quietpatch -c quietpatch `
-            -o dist/quietpatch-win-py311.pex `
-            --validate-entry-point --no-build --venv prepend --strip-pex-env
+          python -m pex -D . -r requirements.pex.txt `
+            --interpreter-constraint 'CPython>=3.11,<3.14' `
+            -m qp_cli:main `
+            -o dist/quietpatch-win-py311.pex
       - name: Add Windows wrapper
         shell: bash
         run: |
@@ -67,12 +68,10 @@ jobs:
       - name: Build Linux PEX
         run: |
           mkdir -p dist
-          python -m pex quietpatch -c quietpatch \
-            -o dist/quietpatch-linux-x86_64-py311.pex \
-            --validate-entry-point \
-            --no-build \
-            --venv prepend \
-            --strip-pex-env
+          python -m pex -D . -r requirements.pex.txt \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
+            -m qp_cli:main \
+            -o dist/quietpatch-linux-x86_64-py311.pex
 
       - name: Smoke run
         env:
