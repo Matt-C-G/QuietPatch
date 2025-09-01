@@ -51,7 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: ${{ env.PY_VER }}, cache: "pip" }
+        with:
+          python-version: ${{ env.PY_VER }}
+          cache: "pip"
       - name: Build wheel
         run: |
           python -m pip install -U pip build wheel setuptools
@@ -75,14 +77,19 @@ jobs:
         run: |
           python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
-        with: { name: quietpatch-linux, path: dist-pex/* }
+        with:
+          name: quietpatch-linux
+          path: dist-pex/*
 
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: ${{ env.PY_VER }}, architecture: "x64", cache: "pip" }
+        with:
+          python-version: ${{ env.PY_VER }}
+          architecture: "x64"
+          cache: "pip"
       - name: Build wheel
         shell: pwsh
         run: |
@@ -106,14 +113,18 @@ jobs:
           $env:PEX_ROOT="C:\pex"; $env:TEMP="C:\t"; $env:TMP="C:\t"
           py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
       - uses: actions/upload-artifact@v4
-        with: { name: quietpatch-windows, path: dist-pex/* }
+        with:
+          name: quietpatch-windows
+          path: dist-pex/*
 
   build-macos:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: ${{ env.PY_VER }}, cache: "pip" }
+        with:
+          python-version: ${{ env.PY_VER }}
+          cache: "pip"
       - name: Build wheel
         run: |
           python -m pip install -U pip build wheel setuptools
@@ -133,4 +144,6 @@ jobs:
         run: |
           python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
-        with: { name: quietpatch-macos, path: dist-pex/* }
+        with:
+          name: quietpatch-macos
+          path: dist-pex/*
