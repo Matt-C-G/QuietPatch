@@ -22,6 +22,7 @@ jobs:
       - name: Build PEX
         shell: pwsh
         run: |
+          if (Test-Path dist) { Remove-Item dist -Recurse -Force }
           mkdir dist
           python -m pex quietpatch -c quietpatch `
             -o dist/quietpatch-win-py311.pex `
