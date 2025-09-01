@@ -1,13 +1,17 @@
 from __future__ import annotations
+
 import secrets
-from Foundation import NSData
+
 import Security
+from Foundation import NSData
 
 SERVICE = "quietpatch"
 ACCOUNT = "kek"
 
+
 def _nsdata(b: bytes):
     return NSData.dataWithBytes_length_(b, len(b))
+
 
 def _bytes(nsdata):
     # PyObjC bridges CFData/NSData to a bytes-like; this works across macOS versions
@@ -16,17 +20,16 @@ def _bytes(nsdata):
     except Exception:
         return bytes(memoryview(nsdata))
 
+
 class BiometricKeychain:
     name = "biometric"
 
     def _access_control(self):
-        flags = (Security.kSecAccessControlBiometryCurrentSet |
-                 Security.kSecAccessControlUserPresence)
+        flags = (
+            Security.kSecAccessControlBiometryCurrentSet | Security.kSecAccessControlUserPresence
+        )
         sac, err = Security.SecAccessControlCreateWithFlags(
-            None,
-            Security.kSecAttrAccessibleWhenUnlocked,
-            flags,
-            None
+            None, Security.kSecAttrAccessibleWhenUnlocked, flags, None
         )
         if err is not None or sac is None:
             raise RuntimeError(f"SecAccessControlCreateWithFlags failed: {err}")
@@ -46,11 +49,13 @@ class BiometricKeychain:
             return _bytes(result)
 
         # Remove any broken record
-        Security.SecItemDelete({
-            Security.kSecClass: Security.kSecClassGenericPassword,
-            Security.kSecAttrService: SERVICE,
-            Security.kSecAttrAccount: ACCOUNT
-        })
+        Security.SecItemDelete(
+            {
+                Security.kSecClass: Security.kSecClassGenericPassword,
+                Security.kSecAttrService: SERVICE,
+                Security.kSecAttrAccount: ACCOUNT,
+            }
+        )
 
         # Create new key—use access control ONLY (no kSecAttrAccessible alongside it)
         kek = secrets.token_bytes(32)

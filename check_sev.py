@@ -12,4 +12,3 @@ for sev, count in sorted(sev_counts.items()):
     print(f"  {sev}: {count}")
 
 print(f"\nTotal apps: {len(data)}")
-

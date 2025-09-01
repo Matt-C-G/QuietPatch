@@ -1,7 +1,7 @@
 import platform
+
+from . import scanner_linux, scanner_windows
 from . import scanner_new as mac_scanner
-from . import scanner_linux
-from . import scanner_windows
 
 
 def get_scanner():

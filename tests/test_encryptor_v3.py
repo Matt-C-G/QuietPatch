@@ -1,12 +1,19 @@
-import os, json, platform, shutil, tempfile, stat, subprocess
+import json
+import os
+import platform
+import shutil
+import stat
+import subprocess
 from pathlib import Path
+
 import pytest
 
 AGE = shutil.which("age")
 PLUGIN = shutil.which("age-plugin-ssh") or shutil.which("age")  # plugin is bundled on some installs
 pytestmark = pytest.mark.skipif(not AGE, reason="age CLI not installed")
 
-from src.config.encryptor_v3 import encrypt_file, decrypt_file
+from src.config.encryptor_v3 import decrypt_file, encrypt_file
+
 
 def gen_age_identity(tmp: Path):
     ident = tmp / "id.agekey"
@@ -16,6 +23,7 @@ def gen_age_identity(tmp: Path):
     out = subprocess.check_output(["age-keygen", "-y", str(ident)])
     recip.write_bytes(out)
     return str(ident), str(recip)
+
 
 def test_v3_roundtrip_and_perms(tmp_path: Path):
     ident, recip = gen_age_identity(tmp_path)
@@ -35,11 +43,13 @@ def test_v3_roundtrip_and_perms(tmp_path: Path):
     raw = decrypt_file(enc, age_identities=[ident], allow_keychain=False)
     assert json.loads(raw.decode()) == {"ok": True}
 
+
 def test_multi_wrap_prefers_age(tmp_path: Path, monkeypatch):
     ident, recip = gen_age_identity(tmp_path)
-    p = tmp_path / "v.json"; e = tmp_path / "v.json.enc"
+    p = tmp_path / "v.json"
+    e = tmp_path / "v.json.enc"
     p.write_text('{"x":1}')
     # include a keychain wrap if v2 is present (won't be used)
     encrypt_file(p, e, age_recipients=[recip], include_keychain_wrap=True)
     raw = decrypt_file(e, age_identities=[ident], allow_keychain=True)
-    assert json.loads(raw.decode()) == {"x":1}
+    assert json.loads(raw.decode()) == {"x": 1}

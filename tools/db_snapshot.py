@@ -10,12 +10,21 @@ Builds an offline DB snapshot (tar.zst) for QuietPatch.
 Usage:
   python3 tools/db_snapshot.py --years-back 5 --out dist
 """
+
 from __future__ import annotations
-import argparse, datetime as dt, hashlib, io, json, os, tarfile, time
+
+import argparse
+import datetime as dt
+import hashlib
+import io
+import json
+import os
+import tarfile
 from pathlib import Path
 
 DEFAULT_DB_DIR = Path("data/db")
 DIST_DIR = Path("dist")
+
 
 def _sha256(path: Path) -> str:
     h = hashlib.sha256()
@@ -24,39 +33,49 @@ def _sha256(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+
 def _zstd_open(fileobj, level: int = 19):
     # No external deps: use tar with "w:gz" as fallback if zstandard isn't available on host.
     # If you have zstandard installed on CI, prefer it by setting QP_ZSTD=1 in env.
     if os.environ.get("QP_ZSTD") == "1":
         try:
             import zstandard as zstd  # type: ignore
+
             cctx = zstd.ZstdCompressor(level=level)
             return cctx.stream_writer(fileobj)
         except Exception:
             pass
     # fallback: gzip
     import gzip
+
     return gzip.GzipFile(fileobj=fileobj, mode="wb", compresslevel=9)
+
 
 def _run_sync(years_back: int, tmp_out: Path) -> None:
     """Try to run your repo's network sync; otherwise copy current DB."""
     tmp_out.mkdir(parents=True, exist_ok=True)
     try:
         from src.datafeed.sync import sync  # your existing feed sync (if present)
+
         print(f"[db-snapshot] Running online sync for last {years_back} years …")
         sync(years_back=years_back, outdir=str(tmp_out))
         # Expect it to populate cpe_to_cves.json, cve_meta.json, kev.json, epss.json, etc.
     except Exception as e:
-        print(f"[db-snapshot] Online sync not available or failed ({e!r})."
-              f" Falling back to current {DEFAULT_DB_DIR} …")
+        print(
+            f"[db-snapshot] Online sync not available or failed ({e!r})."
+            f" Falling back to current {DEFAULT_DB_DIR} …"
+        )
         if not DEFAULT_DB_DIR.exists():
             raise SystemExit("No data/db available to bundle; aborting.")
         for p in DEFAULT_DB_DIR.glob("*"):
             tgt = tmp_out / p.name
             if p.is_dir():
-                import shutil; shutil.copytree(p, tgt, dirs_exist_ok=True)
+                import shutil
+
+                shutil.copytree(p, tgt, dirs_exist_ok=True)
             else:
                 tgt.write_bytes(p.read_bytes())
+
 
 def _write_manifest(tmp_out: Path, years_back: int) -> None:
     manifest = {
@@ -68,16 +87,19 @@ def _write_manifest(tmp_out: Path, years_back: int) -> None:
             "cpe_to_cves": "json",
             "cve_meta": "json",
             "kev": "json (optional)",
-            "epss": "json/csv converted to json (optional)"
-        }
+            "epss": "json/csv converted to json (optional)",
+        },
     }
     (tmp_out / "db-manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
 
 def build_snapshot(years_back: int, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     tmp_out = Path(".snapshot_tmp")
     if tmp_out.exists():
-        import shutil; shutil.rmtree(tmp_out)
+        import shutil
+
+        shutil.rmtree(tmp_out)
     tmp_out.mkdir(parents=True)
 
     try:
@@ -104,7 +126,9 @@ def build_snapshot(years_back: int, out_dir: Path) -> Path:
         return out_path
     finally:
         import shutil
+
         shutil.rmtree(tmp_out, ignore_errors=True)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -113,7 +137,6 @@ def main():
     args = ap.parse_args()
     build_snapshot(args.years_back, args.out)
 
+
 if __name__ == "__main__":
     main()
-
-

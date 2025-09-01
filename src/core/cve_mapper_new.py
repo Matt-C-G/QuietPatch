@@ -1,44 +1,57 @@
 # cve_mapper_new.py (enhanced with allow/deny, normalization, severity sorting, CPE-first querying)
 from __future__ import annotations
-import os, time, json, re
-import requests
-from typing import List, Dict
-from difflib import get_close_matches
-from .scanner_new import scan_installed
-from pathlib import Path
-from ..config.encryptor_new import encrypt_file, decrypt_file, get_or_create_key
-from ..config.config_new import load_config
-from ..match.cpe_resolver import CPEResolver
 
-def _severity_bucket(score: float|None, thresholds: dict) -> str:
-    if score is None: return "unknown"
-    if score >= thresholds.get("critical", 9.0): return "critical"
-    if score >= thresholds.get("high", 7.5): return "high"
-    if score >= thresholds.get("medium", 4.0): return "medium"
-    if score >= thresholds.get("low", 0.1): return "low"
+import json
+import os
+import time
+from pathlib import Path
+
+import requests
+
+from ..config.config_new import load_config
+from ..config.encryptor_new import encrypt_file
+from ..match.cpe_resolver import CPEResolver
+from .scanner_new import scan_installed
+
+
+def _severity_bucket(score: float | None, thresholds: dict) -> str:
+    if score is None:
+        return "unknown"
+    if score >= thresholds.get("critical", 9.0):
+        return "critical"
+    if score >= thresholds.get("high", 7.5):
+        return "high"
+    if score >= thresholds.get("medium", 4.0):
+        return "medium"
+    if score >= thresholds.get("low", 0.1):
+        return "low"
     return "none"
+
 
 NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
-def _normalize(name: str, normalize_map: Dict[str,str]) -> str:
+
+def _normalize(name: str, normalize_map: dict[str, str]) -> str:
     base = name.strip()
     nlower = base.lower()
-    for k,v in normalize_map.items():
+    for k, v in normalize_map.items():
         if k.lower() in nlower:
             return v
     return base
 
-def _matches(token_list: List[str], text: str) -> bool:
+
+def _matches(token_list: list[str], text: str) -> bool:
     t = text.lower()
     return any(tok.lower() in t for tok in token_list)
 
-def query_nvd_cpe(cpe: str, api_key: str|None) -> List[Dict]:
+
+def query_nvd_cpe(cpe: str, api_key: str | None) -> list[dict]:
     """Query NVD using CPE string for more accurate results"""
     params = {"cpeName": cpe}
     headers = {}
     if api_key:
         headers["apiKey"] = api_key
-    
+
     try:
         r = requests.get(NVD_API, params=params, headers=headers, timeout=10)
         r.raise_for_status()
@@ -47,7 +60,8 @@ def query_nvd_cpe(cpe: str, api_key: str|None) -> List[Dict]:
     except Exception:
         return []
 
-def query_nvd(query: str, version: str|None, api_key: str|None) -> List[Dict]:
+
+def query_nvd(query: str, version: str | None, api_key: str | None) -> list[dict]:
     params = {"keywordSearch": query}
     if version:
         params["version"] = version
@@ -59,7 +73,8 @@ def query_nvd(query: str, version: str|None, api_key: str|None) -> List[Dict]:
     data = r.json()
     return data.get("vulnerabilities", [])
 
-def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
+
+def map_apps_to_cves(apps: list[dict[str, str]], cfg: dict) -> list[dict]:
     allowlist = cfg.get("allowlist", [])
     denylist = cfg.get("denylist", [])
     normalize_map = cfg.get("normalize_map", {})
@@ -67,13 +82,14 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
     throttle = float(cfg["nvd"].get("throttle_seconds", 1.2))
     api_key = os.environ.get(cfg["nvd"].get("api_key_env", "NVD_API_KEY"))
     thresholds = cfg.get("severity_thresholds", {})
-    
+
     # Initialize CPE resolver
     cpe_resolver = CPEResolver()
-    
+
     # Initialize local database resolver
     try:
         from .local_db_resolver import LocalDBResolver
+
         local_db = LocalDBResolver()
         use_local_db = True
         print(f"Local database loaded: {local_db.get_summary_stats()}")
@@ -83,7 +99,7 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
         use_local_db = False
 
     # Filter + normalize
-    filtered=[]
+    filtered = []
     for app in apps:
         name = _normalize(app["app"], normalize_map)
         if allowlist and not _matches(allowlist, name):
@@ -92,12 +108,12 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
             continue
         filtered.append({"app": name, "version": app.get("version") or ""})
 
-    results=[]
+    results = []
     for app in filtered:
         name = app["app"]
         ver = app.get("version") or ""
-        vulns=[]
-        
+        vulns = []
+
         try:
             # Try local database first (offline mode)
             if use_local_db and local_db:
@@ -105,7 +121,7 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
                 if local_vulns:
                     vulns.extend(local_vulns[:per_app_limit])
                     print(f"Found {len(local_vulns)} CVEs for {name} in local database")
-            
+
             # If no local results and not in offline mode, try NVD API
             if not vulns and not os.environ.get("QP_OFFLINE"):
                 # Try CPE-first querying
@@ -119,19 +135,27 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
                             id_ = cve.get("id")
                             metrics = cve.get("metrics", {})
                             cvss = None
-                            for k in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
+                            for k in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
                                 if k in metrics and metrics[k]:
-                                    cvss = metrics[k][0].get("cvssData",{}).get("baseScore")
+                                    cvss = metrics[k][0].get("cvssData", {}).get("baseScore")
                                     break
                             desc = ""
-                            for d in cve.get("descriptions",[]):
-                                if d.get("lang")=="en":
-                                    desc = d.get("value","")
+                            for d in cve.get("descriptions", []):
+                                if d.get("lang") == "en":
+                                    desc = d.get("value", "")
                                     break
                             pub = cve.get("published")
                             bucket = _severity_bucket(cvss, thresholds)
-                            vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
-                
+                            vulns.append(
+                                {
+                                    "cve_id": id_,
+                                    "cvss": cvss,
+                                    "severity": bucket,
+                                    "published": pub,
+                                    "summary": desc,
+                                }
+                            )
+
                 # Fallback to keyword search if CPE didn't yield results
                 if not vulns:
                     q = f"{name} {ver}".strip()
@@ -141,38 +165,50 @@ def map_apps_to_cves(apps: List[Dict[str,str]], cfg: Dict) -> List[Dict]:
                         id_ = cve.get("id")
                         metrics = cve.get("metrics", {})
                         cvss = None
-                        for k in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
+                        for k in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
                             if k in metrics and metrics[k]:
-                                cvss = metrics[k][0].get("cvssData",{}).get("baseScore")
+                                cvss = metrics[k][0].get("cvssData", {}).get("baseScore")
                                 break
                         desc = ""
-                        for d in cve.get("descriptions",[]):
-                            if d.get("lang")=="en":
-                                desc = d.get("value","")
+                        for d in cve.get("descriptions", []):
+                            if d.get("lang") == "en":
+                                desc = d.get("value", "")
                                 break
                         pub = cve.get("published")
                         bucket = _severity_bucket(cvss, thresholds)
-                        vulns.append({"cve_id": id_, "cvss": cvss, "severity": bucket, "published": pub, "summary": desc})
-            
+                        vulns.append(
+                            {
+                                "cve_id": id_,
+                                "cvss": cvss,
+                                "severity": bucket,
+                                "published": pub,
+                                "summary": desc,
+                            }
+                        )
+
             # If still no results, add a note
             if not vulns:
                 if use_local_db:
                     vulns.append({"note": "No CVEs found in local database for this app"})
                 else:
                     vulns.append({"note": "No CVEs found and offline mode enabled"})
-                    
+
         except Exception as e:
             vulns.append({"error": str(e)})
 
         # sort by severity then cvss desc
-        rank = {"critical":4, "high":3, "medium":2, "low":1, "none":0, "unknown":-1}
-        vulns.sort(key=lambda v: (rank.get(v.get("severity","unknown"), -1), v.get("cvss") or -1), reverse=True)
+        rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "none": 0, "unknown": -1}
+        vulns.sort(
+            key=lambda v: (rank.get(v.get("severity", "unknown"), -1), v.get("cvss") or -1),
+            reverse=True,
+        )
 
         results.append({"app": name, "version": ver, "vulnerabilities": vulns})
         time.sleep(throttle)
     return results
 
-def run(output_dir: str = "data") -> Dict[str,str]:
+
+def run(output_dir: str = "data") -> dict[str, str]:
     cfg = load_config()
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     apps = scan_installed()

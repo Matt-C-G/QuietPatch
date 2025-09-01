@@ -32,9 +32,13 @@ def scan_windows_programs():
     apps = []
     try:
         output = subprocess.check_output(
-            ["powershell", "Get-ItemProperty", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
-             "| Select-Object DisplayName, DisplayVersion"],
-            stderr=subprocess.DEVNULL
+            [
+                "powershell",
+                "Get-ItemProperty",
+                "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
+                "| Select-Object DisplayName, DisplayVersion",
+            ],
+            stderr=subprocess.DEVNULL,
         ).decode(errors="ignore")
 
         for line in output.splitlines():
@@ -51,14 +55,18 @@ def scan_windows_programs():
 def scan_linux_packages():
     apps = []
     try:
-        output = subprocess.check_output(["dpkg-query", "-W", "-f=${Package} ${Version}\n"]).decode()
+        output = subprocess.check_output(
+            ["dpkg-query", "-W", "-f=${Package} ${Version}\n"]
+        ).decode()
         for line in output.strip().split("\n"):
             parts = line.split()
             if len(parts) == 2:
                 apps.append({"name": parts[0], "version": parts[1]})
     except Exception:
         try:
-            output = subprocess.check_output(["rpm", "-qa", "--qf", "%{NAME} %{VERSION}\n"]).decode()
+            output = subprocess.check_output(
+                ["rpm", "-qa", "--qf", "%{NAME} %{VERSION}\n"]
+            ).decode()
             for line in output.strip().split("\n"):
                 parts = line.split()
                 if len(parts) == 2:

@@ -1,27 +1,30 @@
 # report/html.py — enhanced HTML report with safety features, filters, and details
 from __future__ import annotations
-import json, html, re
+
+import html
+import json
 from pathlib import Path
 
 # Decryptor import (v3 first, fallback to v2 if present)
 try:
-    from src.config.encryptor_v3 import decrypt_file # type: ignore
-except Exception: # pragma: no cover
-    from src.config.encryptor_v2 import decrypt_file # type: ignore
+    from src.config.encryptor_v3 import decrypt_file  # type: ignore
+except Exception:  # pragma: no cover
+    from src.config.encryptor_v2 import decrypt_file  # type: ignore
+
 
 def _load_items(input_path: str):
     """Return list[dict] records from plaintext JSON or encrypted .enc."""
     p = Path(input_path)
     raw = p.read_bytes()
     # plaintext JSON starts with '{' or '['; otherwise try decrypt
-    if not raw[:1] in (b"{", b"["):
+    if raw[:1] not in (b"{", b"["):
         raw = decrypt_file(str(p))
     try:
         obj = json.loads(raw.decode("utf-8", "ignore"))
     except Exception:
         # if the decryptor already returned bytes of JSON, attempt direct load
         obj = json.loads(raw)
-    
+
     # Normalize to list of app records
     if isinstance(obj, list):
         return obj
@@ -30,6 +33,7 @@ def _load_items(input_path: str):
             return obj["apps"]
         return [obj]
     return []
+
 
 def _first_action(rec: dict) -> str:
     """Pull a short human-readable action from rec['actions']."""
@@ -43,6 +47,7 @@ def _first_action(rec: dict) -> str:
         text = str(a)
     text = text.strip()
     return (text[:120] + "…") if len(text) > 120 else text
+
 
 def _first_cve(rec: dict) -> tuple[str, str, str, str]:
     """(cve_id, cvss, sev, summary) — empty strings if none."""
@@ -58,11 +63,12 @@ def _first_cve(rec: dict) -> tuple[str, str, str, str]:
     summary = c.get("summary") or ""
     return (cve, cvss, sev, summary)
 
+
 def _sev_badge(sev: str) -> str:
     s = (sev or "").lower()
     cls = {
         "critical": "badge-crit",
-        "high": "badge-high", 
+        "high": "badge-high",
         "medium": "badge-med",
         "low": "badge-low",
         "none": "badge-none",
@@ -71,29 +77,30 @@ def _sev_badge(sev: str) -> str:
     label = sev.capitalize() if sev else "Unknown"
     return f'<span class="badge {cls}">{html.escape(label)}</span>'
 
+
 def _action_cell(rec: dict) -> str:
     """Generate action cell with copy button and safety warning."""
     acts = rec.get("actions") or []
     if not acts:
         return '<td class="action-cell">—</td>'
-    
+
     a = acts[0]
     if isinstance(a, dict):
         cmd = a.get("cmd") or ""
         url = a.get("url") or ""
         note = a.get("note") or ""
-        
+
         if cmd:
             # Command with copy button
-            return f'''<td class="action-cell">
+            return f"""<td class="action-cell">
                 <div class="action-content">
                     <code class="command">{html.escape(cmd)}</code>
                     <button class="copy-btn" onclick="copyToClipboard(this, '{html.escape(cmd)}')" title="Copy command">
                         📋
                     </button>
                 </div>
-                {f'<div class="action-note">{html.escape(note)}</div>' if note else ''}
-            </td>'''
+                {f'<div class="action-note">{html.escape(note)}</div>' if note else ""}
+            </td>"""
         elif url:
             # URL with copy button
             return f'''<td class="action-cell">
@@ -103,22 +110,25 @@ def _action_cell(rec: dict) -> str:
                         📋
                     </button>
                 </div>
-                {f'<div class="action-note">{html.escape(note)}</div>' if note else ''}
+                {f'<div class="action-note">{html.escape(note)}</div>' if note else ""}
             </td>'''
         else:
             # Note only
-            return f'<td class="action-cell"><div class="action-note">{html.escape(note)}</div></td>'
-    
+            return (
+                f'<td class="action-cell"><div class="action-note">{html.escape(note)}</div></td>'
+            )
+
     # Fallback for string actions
     text = str(a)
-    return f'''<td class="action-cell">
+    return f"""<td class="action-cell">
         <div class="action-content">
             <span>{html.escape(text)}</span>
             <button class="copy-btn" onclick="copyToClipboard(this, '{html.escape(text)}')" title="Copy text">
                 📋
             </button>
         </div>
-    </td>'''
+    </td>"""
+
 
 def _generate_cve_details(rec: dict, row_id: str) -> str:
     """Generate detailed CVE information for the drawer."""
@@ -126,7 +136,7 @@ def _generate_cve_details(rec: dict, row_id: str) -> str:
     vulns = rec.get("vulnerabilities") or rec.get("cves") or []
     if not vulns:
         return '<div class="cve-details">No CVEs found</div>'
-    
+
     details = []
     for i, vuln in enumerate(vulns):
         # Support both old 'id' and new 'cve_id' structure
@@ -137,50 +147,52 @@ def _generate_cve_details(rec: dict, row_id: str) -> str:
         kev = "✓" if vuln.get("is_kev") or vuln.get("kev") else ""
         epss = vuln.get("epss_score") or vuln.get("epss", "")
         summary = vuln.get("summary", "")
-        
-        details.append(f'''
+
+        details.append(f"""
             <div class="cve-item">
                 <div class="cve-header">
                     <span class="cve-id">{html.escape(cve_id)}</span>
                     <span class="cve-meta">
-                        {f'<span class="cvss">CVSS: {html.escape(str(cvss))}</span>' if cvss else ''}
+                        {f'<span class="cvss">CVSS: {html.escape(str(cvss))}</span>' if cvss else ""}
                         {_sev_badge(severity)}
-                        {f'<span class="kev-badge">KEV</span>' if kev else ''}
-                        {f'<span class="epss">EPSS: {html.escape(str(epss))}</span>' if epss else ''}
+                        {'<span class="kev-badge">KEV</span>' if kev else ""}
+                        {f'<span class="epss">EPSS: {html.escape(str(epss))}</span>' if epss else ""}
                     </span>
                 </div>
-                {f'<div class="cve-summary">{html.escape(summary)}</div>' if summary else ''}
+                {f'<div class="cve-summary">{html.escape(summary)}</div>' if summary else ""}
             </div>
-        ''')
-    
-    return f'''
+        """)
+
+    return f"""
         <div class="cve-details" id="cve-details-{row_id}">
             <h4>All CVEs ({len(vulns)})</h4>
-            {''.join(details)}
+            {"".join(details)}
         </div>
-    '''
+    """
+
 
 def generate_report(input_path: str, output_path: str) -> str:
     items = _load_items(input_path)
-    
+
     # Build table rows (one row per app, show first CVE + action preview)
     rows = []
     for i, rec in enumerate(items):
-        app  = rec.get("app") or rec.get("name") or ""
-        ver  = rec.get("version") or ""
+        app = rec.get("app") or rec.get("name") or ""
+        ver = rec.get("version") or ""
         cve, cvss, sev, summary = _first_cve(rec)
         # Support both old 'cves' and new 'vulnerabilities' structure
         vulns = rec.get("vulnerabilities") or rec.get("cves") or []
-        kev  = "✓" if any((v or {}).get("is_kev") or (v or {}).get("kev") for v in vulns) else ""
+        kev = "✓" if any((v or {}).get("is_kev") or (v or {}).get("kev") for v in vulns) else ""
         epss = ""
         for v in vulns:
             epss_val = v.get("epss_score") or v.get("epss")
             if epss_val:
-                epss = str(epss_val); break
-        
+                epss = str(epss_val)
+                break
+
         row_id = f"row-{i}"
         has_cves = bool(vulns)
-        
+
         cells = [
             f'<td class="app-cell">{html.escape(str(app))}</td>',
             f'<td class="version-cell">{html.escape(str(ver))}</td>',
@@ -192,19 +204,19 @@ def generate_report(input_path: str, output_path: str) -> str:
             f'<td class="epss-cell">{html.escape(epss or "—")}</td>',
             f'<td class="summary-cell">{html.escape(summary or "")}</td>',
         ]
-        
+
         # Add expand/collapse button if there are CVEs
         if has_cves:
-            cells.append(f'''
+            cells.append(f"""
                 <td class="expand-cell">
                     <button class="expand-btn" onclick="toggleDetails('{row_id}')" title="Show all CVEs">
                         📋
                     </button>
                 </td>
-            ''')
+            """)
         else:
             cells.append('<td class="expand-cell">—</td>')
-        
+
         cells_html = "".join(cells)
         row_html = (
             f'<tr id="{row_id}" class="data-row" '
@@ -212,16 +224,16 @@ def generate_report(input_path: str, output_path: str) -> str:
             f'data-kev="{str(bool(kev)).lower()}">{cells_html}</tr>'
         )
         rows.append(row_html)
-        
+
         # Add details row
         if has_cves:
-            rows.append(f'''
+            rows.append(f"""
                 <tr class="details-row" id="details-{row_id}" style="display: none;">
                     <td colspan="10" class="details-cell">
                         {_generate_cve_details(rec, row_id)}
                     </td>
                 </tr>
-            ''')
+            """)
 
     html_out = f"""\
 <!doctype html>
@@ -601,7 +613,7 @@ def generate_report(input_path: str, output_path: str) -> str:
 </body>
 </html>
 """
-    
+
     out = Path(output_path)
     out.write_text(html_out, encoding="utf-8")
     return str(out)

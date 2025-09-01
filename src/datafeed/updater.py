@@ -1,13 +1,21 @@
 # src/datafeed/updater.py
 from __future__ import annotations
-import os, io, sys, json, time, gzip, shutil, hashlib, tempfile, subprocess, logging
+
+import gzip
+import hashlib
+import io
+import logging
+import shutil
+import subprocess
+import tempfile
+import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 import requests
 
-from src.datafeed.snapshot_manifest import SnapshotManifest, ManifestFile
+from src.datafeed.snapshot_manifest import SnapshotManifest
 
 LOG = logging.getLogger("quietpatch.updater")
 
@@ -21,6 +29,7 @@ TARGET_FILENAMES = {
     "affects.json",
 }
 
+
 # Map compressed source -> decompressed target name
 # (Accept .json, .json.gz, .json.zst ; .csv/.csv.gz similarly)
 def _target_name(src_name: str) -> str:
@@ -30,14 +39,17 @@ def _target_name(src_name: str) -> str:
             n = n[: -len(suf)]
     return n
 
-def _requests_session(tor_socks: Optional[str], privacy: str, timeout: int) -> requests.Session:
+
+def _requests_session(tor_socks: str | None, privacy: str, timeout: int) -> requests.Session:
     s = requests.Session()
-    s.headers.update({
-        "User-Agent": "QuietPatch/0",
-        # Avoid conditionals; keep requests boring & uniform
-        "Cache-Control": "no-store",
-        "Pragma": "no-cache",
-    })
+    s.headers.update(
+        {
+            "User-Agent": "QuietPatch/0",
+            # Avoid conditionals; keep requests boring & uniform
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        }
+    )
     if tor_socks:
         proxy = f"socks5h://{tor_socks}"
         s.proxies.update({"http": proxy, "https": proxy})
@@ -45,6 +57,7 @@ def _requests_session(tor_socks: Optional[str], privacy: str, timeout: int) -> r
     s.max_redirects = 3
     s.request = _wrap_request(s.request, timeout=timeout)
     return s
+
 
 def _wrap_request(fn, timeout: int):
     def _inner(method, url, **kw):
@@ -54,7 +67,9 @@ def _wrap_request(fn, timeout: int):
             if kw.get("headers") and h in kw["headers"]:
                 del kw["headers"][h]
         return fn(method, url, **kw)
+
     return _inner
+
 
 def _read_url(url: str, sess: requests.Session) -> bytes:
     p = urlparse(url)
@@ -69,7 +84,10 @@ def _read_url(url: str, sess: requests.Session) -> bytes:
         buf.write(chunk)
     return buf.getvalue()
 
-def _minisign_verify_if_available(manifest_bytes: bytes, sig_bytes: bytes, pubkey_path: Optional[str]) -> Tuple[bool, str]:
+
+def _minisign_verify_if_available(
+    manifest_bytes: bytes, sig_bytes: bytes, pubkey_path: str | None
+) -> tuple[bool, str]:
     """
     Verify manifest with minisign if both minisign and pubkey are present.
     Returns (ok, msg). If minisign or pubkey is missing, returns (True, "skipped").
@@ -78,16 +96,20 @@ def _minisign_verify_if_available(manifest_bytes: bytes, sig_bytes: bytes, pubke
     if not minisign or not pubkey_path:
         return True, "minisign not used"
     with tempfile.TemporaryDirectory() as td:
-        m = Path(td, "manifest.json"); m.write_bytes(manifest_bytes)
-        s = Path(td, "manifest.json.minisig"); s.write_bytes(sig_bytes)
+        m = Path(td, "manifest.json")
+        m.write_bytes(manifest_bytes)
+        s = Path(td, "manifest.json.minisig")
+        s.write_bytes(sig_bytes)
         cmd = [minisign, "-Vm", str(m), "-P", pubkey_path, "-q"]
         r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if r.returncode == 0:
             return True, "minisign OK"
         return False, f"minisign failed: {r.stderr.decode('utf-8', 'ignore').strip()}"
 
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
 
 def _decompress_if_needed(data: bytes, name: str) -> bytes:
     if name.endswith(".gz"):
@@ -101,13 +123,14 @@ def _decompress_if_needed(data: bytes, name: str) -> bytes:
         return d
     return data
 
+
 def refresh_db(
     data_dir: str,
     mirrors: Iterable[str],
-    tor_socks: Optional[str] = None,
+    tor_socks: str | None = None,
     privacy: str = "strict",
     timeout: int = 30,
-    pubkey_path: Optional[str] = None,
+    pubkey_path: str | None = None,
 ) -> dict:
     """
     Download snapshot manifest & objects, verify, install atomically into data_dir/db
@@ -195,5 +218,3 @@ def refresh_db(
         "version": man.version,
         "files": downloaded,
     }
-
-

@@ -1,22 +1,22 @@
-import subprocess
 import json
+import subprocess
 
 
 def _scan_wmic():
     try:
-        output = subprocess.check_output(['wmic', 'product', 'get', 'Name,Version'], text=True)
+        output = subprocess.check_output(["wmic", "product", "get", "Name,Version"], text=True)
     except Exception:
         return []
     apps = []
     for line in output.splitlines()[1:]:
-        if '  ' in line:
-            name, version = line.rsplit('  ', 1)
+        if "  " in line:
+            name, version = line.rsplit("  ", 1)
             apps.append({"app": name.strip(), "version": version.strip()})
     return apps
 
 
 def _scan_appx():
-    ps_cmd = 'Get-AppxPackage | Select-Object Name,Version | ConvertTo-Json'
+    ps_cmd = "Get-AppxPackage | Select-Object Name,Version | ConvertTo-Json"
     try:
         output = subprocess.check_output(["powershell", "-Command", ps_cmd], text=True)
         data = json.loads(output)
@@ -27,7 +27,7 @@ def _scan_appx():
 
 def _scan_winget():
     try:
-        output = subprocess.check_output(['winget', 'list'], text=True)
+        output = subprocess.check_output(["winget", "list"], text=True)
     except Exception:
         return []
     apps = []

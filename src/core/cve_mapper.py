@@ -1,16 +1,18 @@
 # cve_mapper.py
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-import requests
 import json
 import time
-from src.config.encryptor import get_or_create_key
-from cryptography.fernet import Fernet
-from src.config.encryptor import encrypt_file, decrypt_file
 from difflib import get_close_matches
+
+import requests
+from cryptography.fernet import Fernet
+
+from src.config.encryptor import decrypt_file, get_or_create_key
 from src.core.scanner import scan_installed_apps
 
 VULN_LOG_ENC = "data/vuln_log.json.enc"
@@ -29,11 +31,10 @@ if not NVD_API_KEY:
     print("🔒 No NVD API key found.")
     print("🧪 Launching QuietPatch Lite — limited mode with 5 lookups every 30 seconds.")
 
-HEADERS = {
-    "User-Agent": "QuietPatch/1.0"
-}
+HEADERS = {"User-Agent": "QuietPatch/1.0"}
 if NVD_API_KEY:
     HEADERS["apiKey"] = NVD_API_KEY
+
 
 # Efficient keyword normalization
 def normalize_keyword(app_name):
@@ -46,7 +47,7 @@ def normalize_keyword(app_name):
         "vlc": "vlc",
         "firefox": "firefox",
         "safari": "safari",
-        "outlook": "outlook"
+        "outlook": "outlook",
     }
     name = app_name.lower()
     if name in known_map:
@@ -56,28 +57,30 @@ def normalize_keyword(app_name):
         return known_map[match[0]]
     return name.split()[0]  # fallback
 
+
 def is_common_keyword(keyword):
     return len(keyword) > 3 and keyword.isalpha()
+
 
 def parse_cves(data):
     results = []
     for item in data.get("vulnerabilities", []):
         cve = item.get("cve", {})
-        summary = next((d.get("value", "") for d in cve.get("descriptions", []) if d.get("lang") == "en"), "")
-        score = cve.get("metrics", {}).get("cvssMetricV31", [{}])[0].get("cvssData", {}).get("baseScore", 0)
-        results.append({
-            "id": cve.get("id", ""),
-            "summary": summary,
-            "cvss": score
-        })
+        summary = next(
+            (d.get("value", "") for d in cve.get("descriptions", []) if d.get("lang") == "en"), ""
+        )
+        score = (
+            cve.get("metrics", {})
+            .get("cvssMetricV31", [{}])[0]
+            .get("cvssData", {})
+            .get("baseScore", 0)
+        )
+        results.append({"id": cve.get("id", ""), "summary": summary, "cvss": score})
     return results
 
+
 def fetch_cves(keyword, max_results=20, retries=3):
-    params = {
-        "keywordSearch": keyword,
-        "resultsPerPage": max_results,
-        "cvssV3Severity": "HIGH"
-    }
+    params = {"keywordSearch": keyword, "resultsPerPage": max_results, "cvssV3Severity": "HIGH"}
     for attempt in range(retries):
         response = requests.get(NVD_API, params=params, headers=HEADERS, timeout=30)
 
@@ -98,6 +101,7 @@ def fetch_cves(keyword, max_results=20, retries=3):
             break
 
     return []
+
 
 def correlate(app_data, additional_apps=None):
     results = []
@@ -124,14 +128,17 @@ def correlate(app_data, additional_apps=None):
         count += 1
 
         for cve in cves:
-            results.append({
-                "app": app["name"],
-                "version": app["version"],
-                "vulnerability": cve["summary"],
-                "resolved": False
-            })
+            results.append(
+                {
+                    "app": app["name"],
+                    "version": app["version"],
+                    "vulnerability": cve["summary"],
+                    "resolved": False,
+                }
+            )
 
     return results
+
 
 def save_encrypted_vuln_log(vuln_data):
     key = get_or_create_key()
@@ -141,6 +148,7 @@ def save_encrypted_vuln_log(vuln_data):
         f.write(encrypted)
     print(f"🔐 Encrypted vuln log saved to {VULN_LOG_ENC}")
 
+
 def load_vuln_log():
     if not os.path.exists(VULN_LOG_ENC):
         return []
@@ -149,6 +157,7 @@ def load_vuln_log():
     except Exception as e:
         print(f"Failed to decrypt vuln log: {e}")
         return []
+
 
 def purge_resolved(apps, vuln_log):
     current_versions = {app["name"]: app["version"] for app in apps}
@@ -160,6 +169,7 @@ def purge_resolved(apps, vuln_log):
         if current_versions[app_name] == entry["version"]:
             filtered.append(entry)
     return filtered
+
 
 if __name__ == "__main__":
     print("🔍 Running CVE correlation...\n")

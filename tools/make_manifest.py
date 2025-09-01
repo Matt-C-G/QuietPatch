@@ -1,20 +1,26 @@
 # tools/make_manifest.py
 from __future__ import annotations
-import argparse, json, os, gzip, hashlib
+
+import argparse
+import gzip
+import json
 from pathlib import Path
-from typing import List, Dict, Any
 
 from src.datafeed.snapshot_manifest import ManifestFile, SnapshotManifest, sha256_file
 
+
 def _maybe_gzip(path: Path, gz: bool) -> Path:
-    if not gz: return path
+    if not gz:
+        return path
     out = path.with_suffix(path.suffix + ".gz")
     with open(path, "rb") as fi, gzip.open(out, "wb", compresslevel=9) as fo:
         while True:
             b = fi.read(1024 * 1024)
-            if not b: break
+            if not b:
+                break
             fo.write(b)
     return out
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -24,7 +30,8 @@ def main():
     ap.add_argument("--gzip", action="store_true", help="Emit .gz files")
     args = ap.parse_args()
 
-    src = Path(args.src); out = Path(args.out)
+    src = Path(args.src)
+    out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
     # the raw filenames your app expects post-install
@@ -36,7 +43,7 @@ def main():
         "aliases.json",
         "affects.json",
     ]
-    files: List[ManifestFile] = []
+    files: list[ManifestFile] = []
     for w in want:
         raw = src / w
         if not raw.exists():
@@ -53,10 +60,9 @@ def main():
     man = SnapshotManifest(version=args.version, files=files).__dict__
     man["files"] = [f.__dict__ for f in files]
     (out / "manifest.json").write_text(json.dumps(man, indent=2))
-    print(f"snapshot wrote: {out/'manifest.json'}")
+    print(f"snapshot wrote: {out / 'manifest.json'}")
     print("Remember to sign it: minisign -Sm manifest.json  (produces manifest.json.minisig)")
+
 
 if __name__ == "__main__":
     main()
-
-

@@ -63,15 +63,23 @@ jobs:
       - name: Install build deps (pinned)
         run: |
           set -eux
-          python -m pip install -r requirements.ci.txt
-          python -m pip install -e .
-      - name: Build PEX
+          python -m pip install -U pip
+          python -m pip install build pex wheel setuptools
+      - name: Build wheel from repo
         run: |
           set -eux
-          mkdir -p dist
-          python -m pex quietpatch -c quietpatch \
-            -o dist/quietpatch-linux-x86_64-py311.pex \
-            --validate-entry-point --no-build --venv prepend --strip-pex-env
+          python -m build -w -n
+          ls -l dist/*.whl  # sanity
+      - name: Build PEX from local wheel (no PyPI)
+        run: |
+          set -eux
+          mkdir -p dist-pex
+          python -m pex dist/*.whl \
+            -c quietpatch \
+            --no-pypi --find-links dist \
+            --validate-entry-point --no-build \
+            --venv prepend --strip-pex-env \
+            -o dist-pex/quietpatch-linux-x86_64-py311.pex
       - name: Smoke
         env:
           PEX_ROOT: ${{ github.workspace }}/.pexroot
@@ -79,4 +87,4 @@ jobs:
           TEMP: ${{ github.workspace }}/.tmp
         run: |
           set -eux
-          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
+          python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null

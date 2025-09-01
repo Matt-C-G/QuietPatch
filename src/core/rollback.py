@@ -33,9 +33,7 @@ def run_canary(app_list):
     if not snapshot_file.exists():
         return "No snapshot found – run snapshot_system_state() first."
     snapshot = json.loads(snapshot_file.read_text())
-    current_digest = hashlib.sha256(
-        json.dumps(app_list, sort_keys=True).encode()
-    ).hexdigest()
+    current_digest = hashlib.sha256(json.dumps(app_list, sort_keys=True).encode()).hexdigest()
     if snapshot.get("digest") == current_digest:
         return "✅ Canary OK – system state unchanged."
     return "⚠️ Canary WARNING – state changed since last snapshot."

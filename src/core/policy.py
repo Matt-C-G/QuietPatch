@@ -1,17 +1,17 @@
 # src/core/policy.py
 from __future__ import annotations
+
 import fnmatch
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import yaml
 
 # ---------- Severity normalization ----------
 
 # Canonical rank (keep integers stable for tests)
-_SEV_RANK: Dict[str, int] = {
+_SEV_RANK: dict[str, int] = {
     "none": 0,
     "low": 2,
     "medium": 3,
@@ -19,6 +19,7 @@ _SEV_RANK: Dict[str, int] = {
     "critical": 5,
     "unknown": 0,  # will be remapped by policy if requested
 }
+
 
 def _coerce_sev_label(v: Any) -> str:
     """Accept 'medium', 3, '3', etc. Return canonical label."""
@@ -38,22 +39,26 @@ def _coerce_sev_label(v: Any) -> str:
     except Exception:
         return "unknown"
 
+
 def _sev_to_int(label: str, treat_unknown_as: str) -> int:
     """Map label to rank; remap 'unknown' according to policy."""
     if label == "unknown":
         label = treat_unknown_as
     return _SEV_RANK.get(label, 0)
 
+
 # ---------- Policy model ----------
+
 
 @dataclass(frozen=True)
 class Policy:
-    allow: List[str]
-    deny: List[str]
+    allow: list[str]
+    deny: list[str]
     min_severity: str
     only_with_cves: bool
     limit_per_app: int
     treat_unknown_as: str
+
 
 DEFAULT_POLICY = Policy(
     allow=[],
@@ -63,6 +68,7 @@ DEFAULT_POLICY = Policy(
     limit_per_app=50,
     treat_unknown_as="low",
 )
+
 
 def load_policy(path: str | Path = "config/policy.yml") -> Policy:
     p = Path(path)
@@ -75,12 +81,16 @@ def load_policy(path: str | Path = "config/policy.yml") -> Policy:
         min_severity=_coerce_sev_label(data.get("min_severity", DEFAULT_POLICY.min_severity)),
         only_with_cves=bool(data.get("only_with_cves", DEFAULT_POLICY.only_with_cves)),
         limit_per_app=int(data.get("limit_per_app", DEFAULT_POLICY.limit_per_app)),
-        treat_unknown_as=_coerce_sev_label(data.get("treat_unknown_as", DEFAULT_POLICY.treat_unknown_as)),
+        treat_unknown_as=_coerce_sev_label(
+            data.get("treat_unknown_as", DEFAULT_POLICY.treat_unknown_as)
+        ),
     )
+
 
 # ---------- Scoring / rollup ----------
 
-def _cve_risk_tuple(cve: Dict[str, Any], treat_unknown_as: str) -> Tuple[int, float, bool, str]:
+
+def _cve_risk_tuple(cve: dict[str, Any], treat_unknown_as: str) -> tuple[int, float, bool, str]:
     # Sort key: severity (desc), cvss (desc), kev (desc), cve id (asc) for stability
     sev_label = _coerce_sev_label(cve.get("severity", "unknown"))
     sev_score = _sev_to_int(sev_label, treat_unknown_as)
@@ -90,28 +100,35 @@ def _cve_risk_tuple(cve: Dict[str, Any], treat_unknown_as: str) -> Tuple[int, fl
     # Invert kev so True sorts before False (KEV promotes display)
     return (sev_score, cvss, not kev, cid)
 
-def rollup_app_severity(app: Dict[str, Any], treat_unknown_as: str) -> int:
+
+def rollup_app_severity(app: dict[str, Any], treat_unknown_as: str) -> int:
     cves = app.get("cves") or []
     if not isinstance(cves, list) or not cves:
         return 0
     return max(_cve_risk_tuple(c, treat_unknown_as)[0] for c in cves)
 
+
 # ---------- Allow/Deny ----------
 
-def _match_any(globs: List[str], text: str) -> bool:
+
+def _match_any(globs: list[str], text: str) -> bool:
     text_l = text.lower()
     for pat in globs:
         if fnmatch.fnmatch(text_l, pat.lower()):
             return True
     return False
 
-def _is_denied(app_name: str, deny: List[str]) -> bool:
+
+def _is_denied(app_name: str, deny: list[str]) -> bool:
     return _match_any(deny, app_name)
 
-def _is_allowed(app_name: str, allow: List[str]) -> bool:
+
+def _is_allowed(app_name: str, allow: list[str]) -> bool:
     return True if not allow else _match_any(allow, app_name)
 
+
 # ---------- Main application ----------
+
 
 def apply_policy(data, policy: Policy):
     """
@@ -132,15 +149,15 @@ def apply_policy(data, policy: Policy):
     # Apply min severity gate and limits
     out = []
     min_rank = _sev_to_int(policy.min_severity, policy.treat_unknown_as)
-    
+
     for app in filtered_apps:
         cves = app["cves"]
-        
+
         # Check if app meets minimum severity requirement
         max_sev = max((_SEV_RANK[c.get("severity", "unknown")] for c in cves), default=0)
         if max_sev < min_rank:
             continue
-            
+
         cves_sorted = sorted(
             cves,
             key=lambda x: (
@@ -156,10 +173,7 @@ def apply_policy(data, policy: Policy):
     # Sort apps themselves by max severity/score
     out.sort(
         key=lambda a: max(
-            (
-                _SEV_RANK[c["severity"]] * 10 + int(c.get("cvss", 0))
-                for c in a["cves"]
-            ),
+            (_SEV_RANK[c["severity"]] * 10 + int(c.get("cvss", 0)) for c in a["cves"]),
             default=0,
         ),
         reverse=True,

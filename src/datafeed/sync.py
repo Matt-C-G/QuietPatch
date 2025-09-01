@@ -1,40 +1,57 @@
 from __future__ import annotations
-import gzip, io, json, time
+
+import gzip
+import io
+import json
+import time
 from pathlib import Path
-from typing import Dict, List
+
 import requests
 
 DB_DIR = Path("data/db")
 DB_DIR.mkdir(parents=True, exist_ok=True)
 CPE_TO_CVES = DB_DIR / "cpe_to_cves.json"
-CVE_META    = DB_DIR / "cve_meta.json"
-AFFECTS = DB_DIR / "affects.json"   # new: vendor/product -> list of rules
+CVE_META = DB_DIR / "cve_meta.json"
+AFFECTS = DB_DIR / "affects.json"  # new: vendor/product -> list of rules
+
 
 def _get(u: str, tries=5, backoff=1.6) -> bytes:
-    s = requests.Session(); s.headers["User-Agent"] = "QuietPatch/1.0"
+    s = requests.Session()
+    s.headers["User-Agent"] = "QuietPatch/1.0"
     for i in range(tries):
         r = s.get(u, timeout=60)
-        if r.ok and r.content: return r.content
+        if r.ok and r.content:
+            return r.content
         time.sleep(backoff**i)
     r.raise_for_status()
 
+
 def _gunzip(b: bytes) -> bytes:
-    with gzip.GzipFile(fileobj=io.BytesIO(b)) as z: return z.read()
+    with gzip.GzipFile(fileobj=io.BytesIO(b)) as z:
+        return z.read()
+
 
 def nvd_year_feed(year: int) -> str:
     return f"https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-{year}.json.gz"
+
+
 def nvd_recent_feed() -> str:
     return "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz"
+
+
 def kev_feed() -> str:
     return "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+
+
 def epss_feed() -> str:
     return "https://epss.cyentia.com/epss_scores-current.csv.gz"
 
+
 def _ingest_nvd_json(
     obj: dict,
-    cpe_to_cves: Dict[str, set],
-    cve_meta: Dict[str, dict],
-    affects: Dict[str, Dict[str, list]],
+    cpe_to_cves: dict[str, set],
+    cve_meta: dict[str, dict],
+    affects: dict[str, dict[str, list]],
 ) -> None:
     items = obj.get("CVE_Items") or obj.get("vulnerabilities") or []
     for it in items:
@@ -51,7 +68,11 @@ def _ingest_nvd_json(
             sev = "unknown"
             for k in ("baseMetricV31", "baseMetricV3", "baseMetricV2"):
                 if k in metrics:
-                    m = metrics[k].get("cvssV31") or metrics[k].get("cvssV30") or metrics[k].get("cvssV2")
+                    m = (
+                        metrics[k].get("cvssV31")
+                        or metrics[k].get("cvssV30")
+                        or metrics[k].get("cvssV2")
+                    )
                     if m:
                         cvss = m.get("baseScore")
                         sev = (m.get("baseSeverity") or "unknown").lower()
@@ -104,10 +125,15 @@ def _ingest_nvd_json(
 
         cve_meta.setdefault(cve, {"cvss": cvss, "severity": sev, "desc": desc})
 
+
 def _load_json(p: Path) -> dict:
-    if not p.exists(): return {}
-    try: return json.loads(p.read_text())
-    except Exception: return {}
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return {}
+
 
 def sync(years_back: int = 2) -> None:
     # load existing (if any)
@@ -120,29 +146,39 @@ def sync(years_back: int = 2) -> None:
     _ingest_nvd_json(json.loads(recent.decode("utf-8", "ignore")), cpe_to_cves, cve_meta, affects)
 
     from datetime import datetime
+
     y = datetime.utcnow().year
     for yr in range(y, y - years_back, -1):
         try:
             data = _gunzip(_get(nvd_year_feed(yr)))
-            _ingest_nvd_json(json.loads(data.decode("utf-8", "ignore")), cpe_to_cves, cve_meta, affects)
+            _ingest_nvd_json(
+                json.loads(data.decode("utf-8", "ignore")), cpe_to_cves, cve_meta, affects
+            )
         except Exception:
             pass  # keep going
 
     # KEV / EPSS ingestion stays as-is above this line in your file
     try:
-        kev = json.loads(_get(kev_feed()).decode("utf-8","ignore"))
-        kev_ids = {row.get("cveID") for row in kev.get("vulnerabilities",[]) if row.get("cveID")}
-        for k in kev_ids: cve_meta.setdefault(k,{}).update({"kev": True})
-    except Exception: pass
+        kev = json.loads(_get(kev_feed()).decode("utf-8", "ignore"))
+        kev_ids = {row.get("cveID") for row in kev.get("vulnerabilities", []) if row.get("cveID")}
+        for k in kev_ids:
+            cve_meta.setdefault(k, {}).update({"kev": True})
+    except Exception:
+        pass
     # EPSS
     try:
-        import csv, gzip as gz
+        import csv
+        import gzip as gz
+
         raw = _get(epss_feed())
         with gz.GzipFile(fileobj=io.BytesIO(raw)) as f:
             for row in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8")):
-                cid = row.get("cve");  epss = float((row.get("epss") or "0") or 0)
-                if cid: cve_meta.setdefault(cid,{}).update({"epss": epss})
-    except Exception: pass
+                cid = row.get("cve")
+                epss = float((row.get("epss") or "0") or 0)
+                if cid:
+                    cve_meta.setdefault(cid, {}).update({"epss": epss})
+    except Exception:
+        pass
 
     # write atomically
     CPE_TO_CVES.write_text(json.dumps({k: sorted(list(v)) for k, v in cpe_to_cves.items()}))

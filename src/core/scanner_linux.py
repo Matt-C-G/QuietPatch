@@ -17,7 +17,9 @@ def _scan_dpkg():
 
 def _scan_rpm():
     try:
-        output = subprocess.check_output(["rpm", "-qa", "--queryformat", "%{NAME} %{VERSION}\n"], text=True)
+        output = subprocess.check_output(
+            ["rpm", "-qa", "--queryformat", "%{NAME} %{VERSION}\n"], text=True
+        )
     except Exception:
         return []
     apps = []
@@ -41,5 +43,5 @@ def _scan_usr_bin():
 
 def collect_installed_apps():
     results = _scan_dpkg() + _scan_rpm() + _scan_usr_bin()
-    dedup = { (e["app"], e.get("version")): e for e in results }
+    dedup = {(e["app"], e.get("version")): e for e in results}
     return list(dedup.values())
