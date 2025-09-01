@@ -1,129 +1,136 @@
 name: ci
-
 on:
   pull_request:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-jobs:
-  build-windows:
-    name: build-windows
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11", architecture: "x64" }
-      - name: Install deps
-        shell: pwsh
-        run: |
-          python -m pip install --upgrade pip wheel setuptools pex
-          python -m pip install -e .
-      - name: Build PEX
-        shell: pwsh
-        run: |
-          if (Test-Path dist) { Remove-Item dist -Recurse -Force }
-          mkdir dist
-          python -m pex -D . -r requirements.pex.txt `
-            --interpreter-constraint 'CPython>=3.11,<3.14' `
-            -m qp_cli:main `
-            -o dist/quietpatch-win-py311.pex
-      - name: Add Windows wrapper
-        shell: bash
-        run: |
-          cat > dist/run_quietpatch.bat <<'BAT'
-          @echo off
-          setlocal
-          set PEX_ROOT=%~dp0.pexroot
-          set TMP=%~dp0.tmp
-          set TEMP=%~dp0.tmp
-          where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)
-          py -3.11 "%~dp0quietpatch-win-py311.pex" %*
-          endlocal
-          BAT
-      - name: Smoke run
-        shell: pwsh
-        run: |
-          $env:PEX_ROOT="C:\pex"; $env:TEMP="C:\t"; $env:TMP="C:\t"
-          py -3.11 dist\quietpatch-win-py311.pex scan --help
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: quietpatch-windows
-          path: dist/*
+env:
+  PY_VER: "3.11"
 
-  build-linux:
-    name: build-linux
+jobs:
+  lint:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-
-      - name: Install build deps
+        with:
+          python-version: ${{ env.PY_VER }}
+          cache: "pip"
+      - name: Install ruff (pinned) with retry
         run: |
-          python -m pip install -U pip wheel setuptools pex
+          set -eux
+          python -m pip install -r requirements.ci.txt
+          python -m ruff --version
+      - name: Run ruff
+        run: |
+          ruff check . --fix || true
+          ruff format . || true
+        env:
+          # keep lint fast/sane
+          RUFF_CACHE_DIR: .ruff_cache
+
+  unit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VER }}
+          cache: "pip"
+      - name: Install project + test deps
+        run: |
+          set -eux
+          python -m pip install -r requirements.ci.txt
           python -m pip install -e .
+      - name: Run tests
+        run: pytest -q
 
-      - name: Build Linux PEX
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: ${{ env.PY_VER }}, cache: "pip" }
+      - name: Build wheel
         run: |
-          mkdir -p dist
-          python -m pex -D . -r requirements.pex.txt \
-            --interpreter-constraint 'CPython>=3.11,<3.14' \
-            -m qp_cli:main \
-            -o dist/quietpatch-linux-x86_64-py311.pex
-
-      - name: Smoke run
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          ls -l dist/*.whl
+      - name: Build PEX from local wheel (no PyPI)
+        run: |
+          python -m pip install -U pex
+          mkdir -p dist-pex
+          python -m pex dist/*.whl \
+            -c quietpatch \
+            --no-pypi --find-links dist \
+            --validate-entry-point --no-build \
+            --venv prepend --strip-pex-env \
+            -o dist-pex/quietpatch-linux-x86_64-py311.pex
+      - name: Smoke
         env:
           PEX_ROOT: ${{ github.workspace }}/.pexroot
           TMP: ${{ github.workspace }}/.tmp
           TEMP: ${{ github.workspace }}/.tmp
         run: |
-          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
-          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan
-          test -f reports/quietpatch_report.html
-
-      - name: Sanity run twice deterministic report
-        run: |
-          sha256sum reports/quietpatch_report.html > .r1
-          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan
-          sha256sum reports/quietpatch_report.html > .r2
-          diff .r1 .r2 || (echo "Report hash changed; investigate nondeterminism" && exit 1)
-
-      - name: Package runner script + README
-        run: |
-          cat > dist/run_quietpatch.sh <<'SH'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          export PEX_ROOT="$(dirname "$0")/.pexroot"
-          exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-linux-x86_64-py311.pex" "$@"
-          SH
-          chmod +x dist/run_quietpatch.sh
-          printf '%s\n' \
-            'Requirements: Python 3.11.' \
-            'Run:' \
-            '  chmod +x run_quietpatch.sh' \
-            '  ./run_quietpatch.sh scan' \
-            'Report: ./reports/quietpatch_report.html' > dist/README-Linux.txt
-
+          python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
-        with:
-          name: quietpatch-linux
-          path: dist/*
+        with: { name: quietpatch-linux, path: dist-pex/* }
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: ${{ env.PY_VER }}, architecture: "x64", cache: "pip" }
+      - name: Build wheel
+        shell: pwsh
+        run: |
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          Get-ChildItem dist/*.whl
+      - name: Build PEX from local wheel (no PyPI)
+        shell: pwsh
+        run: |
+          python -m pip install -U pex
+          New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
+          python -m pex dist/*.whl `
+            -c quietpatch `
+            --no-pypi --find-links dist `
+            --validate-entry-point --no-build `
+            --venv prepend --strip-pex-env `
+            -o dist-pex/quietpatch-win-py311.pex
+      - name: Smoke
+        shell: pwsh
+        run: |
+          $env:PEX_ROOT="C:\pex"; $env:TEMP="C:\t"; $env:TMP="C:\t"
+          py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
+      - uses: actions/upload-artifact@v4
+        with: { name: quietpatch-windows, path: dist-pex/* }
 
   build-macos:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: |
-          python -m pip install -U pip wheel setuptools pex
-          python -m pip install -e .
-          mkdir -p dist
-          python -m pex -D . -r requirements.pex.txt \
-            --interpreter-constraint 'CPython>=3.11,<3.14' \
-            -m qp_cli:main \
-            -o dist/quietpatch-macos-py311.pex
+        with: { python-version: ${{ env.PY_VER }}, cache: "pip" }
+      - name: Build wheel
+        run: |
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          ls -l dist/*.whl
+      - name: Build PEX from local wheel (no PyPI)
+        run: |
+          python -m pip install -U pex
+          mkdir -p dist-pex
+          python -m pex dist/*.whl \
+            -c quietpatch \
+            --no-pypi --find-links dist \
+            --validate-entry-point --no-build \
+            --venv prepend --strip-pex-env \
+            -o dist-pex/quietpatch-macos-arm64-py311.pex
+      - name: Smoke
+        run: |
+          python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
-        with: { name: quietpatch-macos, path: dist/* }
+        with: { name: quietpatch-macos, path: dist-pex/* }

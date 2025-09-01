@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,17 +9,18 @@ description = "Vulnerability scanner for installed applications"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "requests>=2.31",
-    "cryptography>=42",
     "PyYAML==6.0.2",
+    "charset-normalizer==3.4.3",
+    "requests==2.32.3",
+    "cryptography>=42",
 ]
 
 [project.scripts]
-quietpatch = "qp_cli:main"
+quietpatch = "quietpatch.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*", "qp_cli*"]
+include = ["quietpatch*", "src*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yml", "*.yaml", "*.json", "*.csv"]
@@ -27,11 +28,8 @@ include = ["src*", "qp_cli*"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-exclude = ["dist",".venv",".ruff_cache",".pexroot"]
-
-[tool.ruff.lint]
 select = ["E","F","W","I","B","UP"]
-ignore = []
+exclude = ["dist",".venv",".ruff_cache",".pexroot",".tmp",".tox","build"]
 
 [tool.ruff.format]
 quote-style = "double"
