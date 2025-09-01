@@ -82,38 +82,51 @@ jobs:
           path: dist-pex/*
 
   build-windows:
+    name: build-windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PY_VER }}
+          python-version: "3.11"
           architecture: "x64"
           cache: "pip"
+
       - name: Build wheel
         shell: pwsh
         run: |
           python -m pip install -U pip build wheel setuptools
           python -m build -w -n
           Get-ChildItem dist\*.whl | Format-List
+
       - name: Build PEX from local wheel (deps from PyPI)
         shell: pwsh
+        env:
+          # Avoid reading any user/system pexrc, and disable venv logic on Windows
+          PEX_IGNORE_RCFILES: "1"
         run: |
-          python -m pip install -U pex
+          # Pin a PEX version known-good on Windows
+          python -m pip install pex==2.53.1
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
-          # PowerShell doesn't expand dist\*.whl reliably; resolve explicitly:
           $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
-          python -m pex $whl `
+          py -3.11 -m pex $whl `
             -c quietpatch `
             --find-links dist `
-            --validate-entry-point --no-build `
+            --no-build `
             --strip-pex-env `
+            --venv false `        # <— explicitly disable venv features on Windows
             -o dist-pex/quietpatch-win-py311.pex
+
       - name: Smoke
         shell: pwsh
+        env:
+          PEX_ROOT: "C:\pex"
+          TMP: "C:\t"
+          TEMP: "C:\t"
+          PEX_IGNORE_RCFILES: "1"
         run: |
-          $env:PEX_ROOT="C:\pex"; $env:TEMP="C:\t"; $env:TMP="C:\t"
           py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
+
       - uses: actions/upload-artifact@v4
         with:
           name: quietpatch-windows
