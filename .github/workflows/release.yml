@@ -1,175 +1,197 @@
-name: Build and Release
+name: release
+
 on:
   push:
-    tags: [ 'v*' ]
+    tags: ["v*.*.*"]   # tag like v0.3.1
+  workflow_dispatch:
+
+env:
+  PY_VER: "3.11"
 
 jobs:
-  build:
-    name: build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+  win:
+    name: build-windows
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          architecture: 'x64'
-
-      - name: Install build deps
+          python-version: ${{ env.PY_VER }}
+          architecture: "x64"
+      - shell: pwsh
         run: |
-          python -m pip install --upgrade pip wheel setuptools pex
-          pip install -e . PyYAML==6.0.2
-
-      - name: Build PEX
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            mkdir -p dist
-            python -m pex quietpatch -c quietpatch \
-              -o dist/quietpatch-win-py311.pex \
-              --validate-entry-point --no-build --venv prepend --strip-pex-env
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            python -m pex . -r requirements.pex.txt \
-              --interpreter-constraint 'CPython>=3.11,<3.14' \
-              -m qp_cli:main -o dist/quietpatch-macos.pex
-          else
-            python -m pex . -r requirements.pex.txt \
-              --interpreter-constraint 'CPython>=3.11,<3.14' \
-              -m qp_cli:main -o dist/quietpatch-linux-x64.pex
-          fi
-
-      - name: Package Windows Distribution
-        if: runner.os == 'Windows'
+          python -m pip install -U pip wheel setuptools pex
+          python -m pip install -e .
+          mkdir dist
+          python -m pex -D . -r requirements.pex.txt `
+            --interpreter-constraint 'CPython>=3.11,<3.14' `
+            -m qp_cli:main `
+            -o dist/quietpatch-win-py311.pex
+      - name: Package (wrapper + README)
         shell: pwsh
         run: |
-          # Copy Windows-specific files
-          Copy-Item "packaging/windows/run_quietpatch.bat" "dist/"
-          Copy-Item "packaging/windows/README-Windows.txt" "dist/"
-          
-          # Create catalog and policies directories
-          New-Item -ItemType Directory -Path "dist/catalog" -Force | Out-Null
-          New-Item -ItemType Directory -Path "dist/policies" -Force | Out-Null
-          
-          # Copy database files
-          Copy-Item "data/db/*.json" "dist/catalog/" -ErrorAction SilentlyContinue
-          Copy-Item "data/db/*.csv" "dist/catalog/" -ErrorAction SilentlyContinue
-          
-          # Copy policy files
-          Copy-Item "config/policy.yml" "dist/policies/" -ErrorAction SilentlyContinue
-          Copy-Item "config/aliases.yml" "dist/policies/" -ErrorAction SilentlyContinue
-          
-          # Create ZIP archive
-          $distName = "QuietPatch-Windows-v${{ github.ref_name }}"
-          Compress-Archive -Path "dist/*" -DestinationPath "dist/$distName.zip" -Force
-          
-          Write-Host "Windows distribution packaged: dist/$distName.zip"
-
-      - name: Smoke test (Linux/macOS)
-        if: runner.os != 'Windows'
-        env:
-          QP_OFFLINE: "1"
-          QP_DISABLE_AUTO_SYNC: "1"
-        run: |
-          ./dist/quietpatch-*.pex --help
-          ./dist/quietpatch-*.pex scan --also-report
-          test -s report.html
-
-      - name: Smoke test (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          QP_OFFLINE: "1"
-          QP_DISABLE_AUTO_SYNC: "1"
-          PEX_ROOT: "C:\\pex"
-          TEMP: "C:\\t"
-          TMP: "C:\\t"
-        run: |
-          python dist\quietpatch-win-py311.pex scan --help
-          python dist\quietpatch-win-py311.pex scan --also-report
-          if (!(Test-Path report.html)) { throw "No report.html" }
-
-      - name: Checksums
+          Set-Content -NoNewline -Path dist\run_quietpatch.bat -Value '@echo off
+          setlocal
+          set PEX_ROOT=%~dp0.pexroot
+          set TMP=%~dp0.tmp
+          set TEMP=%~dp0.tmp
+          where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)
+          py -3.11 "%~dp0quietpatch-win-py311.pex" %*
+          endlocal'
+          Set-Content -Path dist\README-Windows.txt -Value 'QuietPatch (Windows)
+          Requirements: Python 3.11 (64-bit)
+          Run: double-click run_quietpatch.bat
+          Report: .\reports\quietpatch_report.html'
+          if (Test-Path catalog) { Copy-Item -Recurse catalog dist/catalog }
+          if (Test-Path policies) { Copy-Item -Recurse policies dist/policies }
+      - name: Zip
         shell: bash
         run: |
-          cd dist
-          shasum -a 256 * > SHA256SUMS.txt || certutil -hashfile * SHA256 > NUL
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+          ver="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          (cd dist && zip -r9 "../release/quietpatch-${ver}-windows.zip" .)
+      - uses: actions/upload-artifact@v4
         with:
-          name: quietpatch-${{ runner.os }}
-          path: dist/*
+          name: win-zip
+          path: release/*.zip
 
-  db-snapshot:
-    name: Build DB Snapshot
-    runs-on: ubuntu-latest
-    needs: build
+  linux:
+    name: build-linux
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Python 3.13
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      
-      - name: Install dependencies
+          python-version: ${{ env.PY_VER }}
+      - run: |
+          python -m pip install -U pip wheel setuptools pex
+          python -m pip install -e .
+          mkdir -p dist
+          python -m pex -D . -r requirements.pex.txt \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
+            -m qp_cli:main \
+            -o dist/quietpatch-linux-x86_64-py311.pex
+          cat > dist/run_quietpatch.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          export PEX_ROOT="$(dirname "$0")/.pexroot"
+          exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-linux-x86_64-py311.pex" "$@"
+          SH
+          chmod +x dist/run_quietpatch.sh
+          printf '%s\n' \
+            'QuietPatch (Linux)' \
+            'Requirements: Python 3.11.' \
+            'Run:' \
+            '  chmod +x run_quietpatch.sh' \
+            '  ./run_quietpatch.sh scan' \
+            'Report: ./reports/quietpatch_report.html' > dist/README-Linux.txt
+          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
+          if [ -d policies ]; then cp -r policies dist/policies; fi
+      - name: Zip
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Build offline database snapshot
-        run: |
-          python tools/db_snapshot.py --years-back 5 --out dist
-          cd dist
-          shasum -a 256 db-*.tar.zst > db-*.tar.zst.sha256
-      
-      - name: Upload DB snapshot
-        uses: actions/upload-artifact@v4
+          ver="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          (cd dist && zip -r9 "../release/quietpatch-${ver}-linux-x86_64.zip" .)
+      - uses: actions/upload-artifact@v4
         with:
-          name: db-snapshot
-          path: dist/db-*.tar.zst*
+          name: linux-zip
+          path: release/*.zip
 
-  release:
-    needs: [build, db-snapshot]
+  macos:
+    name: build-macos
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VER }}
+      - run: |
+          python -m pip install -U pip wheel setuptools pex
+          python -m pip install -e .
+          mkdir -p dist
+          python -m pex -D . -r requirements.pex.txt \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
+            -m qp_cli:main \
+            -o dist/quietpatch-macos-arm64-py311.pex
+          cat > dist/run_quietpatch.command <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          export PEX_ROOT="$(dirname "$0")/.pexroot"
+          exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-macos-arm64-py311.pex" "$@"
+          SH
+          chmod +x dist/run_quietpatch.command
+          printf '%s\n' \
+            'QuietPatch (macOS, Apple Silicon)' \
+            'Requirements: Python 3.11 (brew install python@3.11).' \
+            'Run: double-click run_quietpatch.command' \
+            'Report: ./reports/quietpatch_report.html' > dist/README-macOS.txt
+          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
+          if [ -d policies ]; then cp -r policies dist/policies; fi
+      - name: Zip
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+          (cd dist && zip -r9 "../release/quietpatch-${ver}-macos-arm64.zip" .)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-zip
+          path: release/*.zip
+
+  publish:
+    name: publish
+    needs: [win, linux, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          path: dist_all
-      
-      - name: Flatten artifacts
+        with: { pattern: "*-zip", merge-multiple: true }
+      - name: Checksums
         run: |
-          mkdir -p rel
-          find dist_all -type f -maxdepth 2 -exec cp {} rel/ \;
-          ls -lh rel
-      
-      - name: Create GitHub Release
+          ls -l
+          sha256sum *.zip > SHA256SUMS
+      - name: Minisign sign (optional but recommended)
+        if: ${{ secrets.MINISIGN_SECRET_KEY != '' }}
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+        run: |
+          echo "$MINISIGN_SECRET_KEY" > key.txt
+          docker run --rm -v "$PWD:/w" -w /w ghcr.io/jedisct1/minisign minisign -S -s key.txt -m SHA256SUMS
+          rm -f key.txt
+      - name: Create VERIFY.md
+        run: |
+          cat > VERIFY.md << 'EOF'
+          # Verify QuietPatch release
+          
+          ## 1) Verify checksums
+          - **Linux/macOS**
+            ```sh
+            sha256sum -c SHA256SUMS
+            ```
+          - **Windows (PowerShell)**
+            ```powershell
+            Get-Content .\SHA256SUMS
+            # For a single file:
+            Get-FileHash .\quietpatch-<ver>-windows.zip -Algorithm SHA256
+            ```
+          
+          ## 2) Verify signature (if provided)
+          Install minisign:
+          - **macOS**: `brew install minisign`
+          - **Linux**: `sudo apt install minisign` or equivalent
+          - **Windows**: Download `minisign.exe`
+          
+          Verify:
+          ```sh
+          minisign -Vm SHA256SUMS -P <YOUR_PUBLIC_KEY>
+          ```
+          
+          **If checksum or signature fails: do not run the binaries—re-download from the Release page.**
+          EOF
+      - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: rel/*
-          draft: false
-          generate_release_notes: true
-          body: |
-            ## Downloads
-            - **macOS**: quietpatch-macos.pex
-            - **Linux x64**: quietpatch-linux-x64.pex  
-            - **Windows x64**: QuietPatch-Windows-v${{ github.ref_name }}.zip
-            
-            ## Offline DB Snapshot
-            - db-*.tar.zst (includes SHA256 checksums)
-            
-            ## Installation
-            - **Linux**: Run `sudo ./packaging/linux/install.sh`
-            - **Windows**: Extract the ZIP and double-click `run_quietpatch.bat`
-            
-            ## Windows Quick Start
-            1. Extract the Windows ZIP package
-            2. Double-click `run_quietpatch.bat` to run a scan
-            3. The report will open automatically in your browser
-            
-            See [PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for full details.
+          files: |
+            *.zip
+            SHA256SUMS
+            SHA256SUMS.minisig
+            VERIFY.md
 
