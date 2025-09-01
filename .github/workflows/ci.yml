@@ -61,9 +61,10 @@ jobs:
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
           mkdir -p dist
-          python -m pex quietpatch -c quietpatch \
-            -o dist/quietpatch-linux-x86_64-py311.pex \
-            --validate-entry-point --no-build --venv prepend --strip-pex-env
+          python -m pex -D . -r requirements.pex.txt \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
+            -m qp_cli:main \
+            -o dist/quietpatch-linux-x86_64-py311.pex
       - uses: actions/upload-artifact@v4
         with: { name: quietpatch-linux, path: dist/* }
 
@@ -77,8 +78,9 @@ jobs:
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
           mkdir -p dist
-          python -m pex quietpatch -c quietpatch \
-            -o dist/quietpatch-macos-py311.pex \
-            --validate-entry-point --no-build --venv prepend --strip-pex-env
+          python -m pex -D . -r requirements.pex.txt \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
+            -m qp_cli:main \
+            -o dist/quietpatch-macos-py311.pex
       - uses: actions/upload-artifact@v4
         with: { name: quietpatch-macos, path: dist/* }
