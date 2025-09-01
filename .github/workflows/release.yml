@@ -193,7 +193,7 @@ jobs:
           ls -l
           sha256sum *.zip > SHA256SUMS
       - name: Minisign sign (optional but recommended)
-        if: ${{ secrets.MINISIGN_SECRET_KEY != '' }}
+        if: secrets.MINISIGN_SECRET_KEY != ''
         env:
           MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
         run: |
