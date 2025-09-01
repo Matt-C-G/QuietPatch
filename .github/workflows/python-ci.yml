@@ -9,46 +9,73 @@ on:
 
 jobs:
   sanity:
-    name: sanity
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          echo "CI wiring OK"
-          echo "ref=$GITHUB_REF event=$GITHUB_EVENT_NAME"
+      - run: echo "CI wiring OK: $GITHUB_REF $GITHUB_EVENT_NAME"
 
   lint:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: |
-          python -m pip install -U pip ruff
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install ruff (pinned) with retry
+        run: |
+          set -eux
+          python -m pip install -r requirements.ci.txt
+          python -m ruff --version
+      - name: Run ruff
+        run: |
           ruff check . --fix
           ruff format .
+        env:
+          # keep lint fast/sane
+          RUFF_CACHE_DIR: .ruff_cache
 
   unit:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: |
-          python -m pip install -U pip
-          python -m pip install -e . pytest
-          pytest -q
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install project + test deps
+        run: |
+          set -eux
+          python -m pip install -r requirements.ci.txt
+          python -m pip install -e .
+      - name: Run tests
+        run: pytest -q
 
   build-linux:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: |
-          python -m pip install -U pip wheel setuptools pex
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install build deps (pinned)
+        run: |
+          set -eux
+          python -m pip install -r requirements.ci.txt
           python -m pip install -e .
+      - name: Build PEX
+        run: |
+          set -eux
           mkdir -p dist
           python -m pex quietpatch -c quietpatch \
             -o dist/quietpatch-linux-x86_64-py311.pex \
             --validate-entry-point --no-build --venv prepend --strip-pex-env
+      - name: Smoke
+        env:
+          PEX_ROOT: ${{ github.workspace }}/.pexroot
+          TMP: ${{ github.workspace }}/.tmp
+          TEMP: ${{ github.workspace }}/.tmp
+        run: |
+          set -eux
+          python3.11 dist/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
