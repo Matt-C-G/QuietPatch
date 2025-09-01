@@ -2,7 +2,7 @@ name: release
 
 on:
   push:
-    tags: ["v*.*.*"]   # tag like v0.3.1
+    tags: ["v*.*.*"]
   workflow_dispatch:
 
 env:
@@ -18,32 +18,34 @@ jobs:
         with:
           python-version: ${{ env.PY_VER }}
           architecture: "x64"
-      - shell: pwsh
+      - name: Install deps
+        shell: pwsh
         run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
+      - name: Build PEX
+        shell: pwsh
+        run: |
           mkdir dist
           python -m pex -D . -r requirements.pex.txt `
             --interpreter-constraint 'CPython>=3.11,<3.14' `
             -m qp_cli:main `
             -o dist/quietpatch-win-py311.pex
-      - name: Package (wrapper + README)
+      - name: Package
         shell: pwsh
         run: |
-          Set-Content -NoNewline -Path dist\run_quietpatch.bat -Value '@echo off
-          setlocal
-          set PEX_ROOT=%~dp0.pexroot
-          set TMP=%~dp0.tmp
-          set TEMP=%~dp0.tmp
-          where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)
-          py -3.11 "%~dp0quietpatch-win-py311.pex" %*
-          endlocal'
-          Set-Content -Path dist\README-Windows.txt -Value 'QuietPatch (Windows)
-          Requirements: Python 3.11 (64-bit)
-          Run: double-click run_quietpatch.bat
-          Report: .\reports\quietpatch_report.html'
-          if (Test-Path catalog) { Copy-Item -Recurse catalog dist/catalog }
-          if (Test-Path policies) { Copy-Item -Recurse policies dist/policies }
+          echo '@echo off' > dist/run_quietpatch.bat
+          echo 'setlocal' >> dist/run_quietpatch.bat
+          echo 'set PEX_ROOT=%~dp0.pexroot' >> dist/run_quietpatch.bat
+          echo 'set TMP=%~dp0.tmp' >> dist/run_quietpatch.bat
+          echo 'set TEMP=%~dp0.tmp' >> dist/run_quietpatch.bat
+          echo 'where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)' >> dist/run_quietpatch.bat
+          echo 'py -3.11 "%~dp0quietpatch-win-py311.pex" %*' >> dist/run_quietpatch.bat
+          echo 'endlocal' >> dist/run_quietpatch.bat
+          echo 'QuietPatch (Windows)' > dist/README-Windows.txt
+          echo 'Requirements: Python 3.11 (64-bit)' >> dist/README-Windows.txt
+          echo 'Run: double-click run_quietpatch.bat' >> dist/README-Windows.txt
+          echo 'Report: .\reports\quietpatch_report.html' >> dist/README-Windows.txt
       - name: Zip
         shell: bash
         run: |
@@ -63,30 +65,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PY_VER }}
-      - run: |
+      - name: Install deps
+        run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
+      - name: Build PEX
+        run: |
           mkdir -p dist
           python -m pex -D . -r requirements.pex.txt \
             --interpreter-constraint 'CPython>=3.11,<3.14' \
             -m qp_cli:main \
             -o dist/quietpatch-linux-x86_64-py311.pex
-          cat > dist/run_quietpatch.sh <<'SH'
+      - name: Package
+        run: |
+          cat > dist/run_quietpatch.sh << 'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           export PEX_ROOT="$(dirname "$0")/.pexroot"
           exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-linux-x86_64-py311.pex" "$@"
-          SH
+          EOF
           chmod +x dist/run_quietpatch.sh
-          printf '%s\n' \
-            'QuietPatch (Linux)' \
-            'Requirements: Python 3.11.' \
-            'Run:' \
-            '  chmod +x run_quietpatch.sh' \
-            '  ./run_quietpatch.sh scan' \
-            'Report: ./reports/quietpatch_report.html' > dist/README-Linux.txt
-          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
-          if [ -d policies ]; then cp -r policies dist/policies; fi
+          echo 'QuietPatch (Linux)' > dist/README-Linux.txt
+          echo 'Requirements: Python 3.11.' >> dist/README-Linux.txt
+          echo 'Run:' >> dist/README-Linux.txt
+          echo '  chmod +x run_quietpatch.sh' >> dist/README-Linux.txt
+          echo '  ./run_quietpatch.sh scan' >> dist/README-Linux.txt
+          echo 'Report: ./reports/quietpatch_report.html' >> dist/README-Linux.txt
       - name: Zip
         run: |
           ver="${GITHUB_REF_NAME#v}"
@@ -105,28 +109,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PY_VER }}
-      - run: |
+      - name: Install deps
+        run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
+      - name: Build PEX
+        run: |
           mkdir -p dist
           python -m pex -D . -r requirements.pex.txt \
             --interpreter-constraint 'CPython>=3.11,<3.14' \
             -m qp_cli:main \
             -o dist/quietpatch-macos-arm64-py311.pex
-          cat > dist/run_quietpatch.command <<'SH'
+      - name: Package
+        run: |
+          cat > dist/run_quietpatch.command << 'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           export PEX_ROOT="$(dirname "$0")/.pexroot"
           exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-macos-arm64-py311.pex" "$@"
-          SH
+          EOF
           chmod +x dist/run_quietpatch.command
-          printf '%s\n' \
-            'QuietPatch (macOS, Apple Silicon)' \
-            'Requirements: Python 3.11 (brew install python@3.11).' \
-            'Run: double-click run_quietpatch.command' \
-            'Report: ./reports/quietpatch_report.html' > dist/README-macOS.txt
-          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
-          if [ -d policies ]; then cp -r policies dist/policies; fi
+          echo 'QuietPatch (macOS, Apple Silicon)' > dist/README-macOS.txt
+          echo 'Requirements: Python 3.11 (brew install python@3.11).' >> dist/README-macOS.txt
+          echo 'Run: double-click run_quietpatch.command' >> dist/README-macOS.txt
+          echo 'Report: ./reports/quietpatch_report.html' >> dist/README-macOS.txt
       - name: Zip
         run: |
           ver="${GITHUB_REF_NAME#v}"
@@ -143,19 +149,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with: { pattern: "*-zip", merge-multiple: true }
+        with:
+          pattern: "*-zip"
+          merge-multiple: true
       - name: Checksums
         run: |
           ls -l
           sha256sum *.zip > SHA256SUMS
-      - name: Minisign sign (optional but recommended)
-        if: ${{ secrets.MINISIGN_SECRET_KEY != '' }}
-        env:
-          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
-        run: |
-          echo "$MINISIGN_SECRET_KEY" > key.txt
-          docker run --rm -v "$PWD:/w" -w /w ghcr.io/jedisct1/minisign minisign -S -s key.txt -m SHA256SUMS
-          rm -f key.txt
       - name: Create VERIFY.md
         run: |
           cat > VERIFY.md << 'EOF'
@@ -192,6 +192,5 @@ jobs:
           files: |
             *.zip
             SHA256SUMS
-            SHA256SUMS.minisig
             VERIFY.md
 
