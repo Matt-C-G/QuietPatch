@@ -192,14 +192,15 @@ jobs:
         run: |
           ls -l
           sha256sum *.zip > SHA256SUMS
-      - name: Minisign sign (optional but recommended)
-        if: secrets.MINISIGN_SECRET_KEY != ''
-        env:
-          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
-        run: |
-          echo "$MINISIGN_SECRET_KEY" > key.txt
-          docker run --rm -v "$PWD:/w" -w /w ghcr.io/jedisct1/minisign minisign -S -s key.txt -m SHA256SUMS
-          rm -f key.txt
+      # Minisign signing temporarily disabled - can be re-enabled later
+      # - name: Minisign sign (optional but recommended)
+      #   if: ${{ secrets.MINISIGN_SECRET_KEY != '' }}
+      #   env:
+      #     MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+      #   run: |
+      #     echo "$MINISIGN_SECRET_KEY" > key.txt
+      #     docker run --rm -v "$PWD:/w" -w /w ghcr.io/jedisct1/minisign minisign -S -s key.txt -m SHA256SUMS
+      #     rm -f key.txt
       - name: Create VERIFY.md
         run: |
           cat > VERIFY.md << 'EOF'
@@ -237,7 +238,6 @@ jobs:
             *.zip
             db-*.tar.zst*
             SHA256SUMS
-            SHA256SUMS.minisig
             VERIFY.md
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
