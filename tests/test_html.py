@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from report.html import _action_cell, _first_cve, generate_report
+from quietpatch.report.html import _action_cell, _first_cve, generate_report
 
 
 def test_html_contains_action_cell():

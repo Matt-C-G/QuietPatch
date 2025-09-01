@@ -20,9 +20,16 @@ quietpatch = "quietpatch.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["quietpatch*", "src*", "report*"]
+include = ["quietpatch*", "src*"]
 
+# ship non-Python assets (HTML/CSS/templates/policies/catalog)
 [tool.setuptools.package-data]
+quietpatch = [
+  "report/templates/**/*",
+  "report/static/**/*",
+  "catalog/**/*",
+  "policies/**/*",
+]
 "*" = ["*.yml", "*.yaml", "*.json", "*.csv"]
 
 [tool.ruff]
