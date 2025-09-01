@@ -67,7 +67,7 @@ jobs:
             -c quietpatch \
             --find-links dist \
             --validate-entry-point --no-build \
-            --venv prepend --strip-pex-env \
+            --strip-pex-env \
             -o dist-pex/quietpatch-linux-x86_64-py311.pex
       - name: Smoke
         env:
@@ -107,7 +107,7 @@ jobs:
             -c quietpatch `
             --find-links dist `
             --validate-entry-point --no-build `
-            --venv prepend --strip-pex-env `
+            --strip-pex-env `
             -o dist-pex/quietpatch-win-py311.pex
       - name: Smoke
         shell: pwsh
@@ -140,7 +140,7 @@ jobs:
             -c quietpatch \
             --find-links dist \
             --validate-entry-point --no-build \
-            --venv prepend --strip-pex-env \
+            --strip-pex-env \
             -o dist-pex/quietpatch-macos-arm64-py311.pex
       - name: Smoke
         run: |

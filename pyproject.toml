@@ -20,7 +20,7 @@ quietpatch = "quietpatch.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["quietpatch*", "src*"]
+include = ["quietpatch*", "src*", "report*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yml", "*.yaml", "*.json", "*.csv"]
