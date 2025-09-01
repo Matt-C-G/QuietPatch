@@ -15,3 +15,4 @@ data/
 *.enc
 report.html
 unknown_apps.log
+# Trigger CI
