@@ -1,0 +1,2 @@
+[console_scripts]
+quietpatch = qp_cli:main

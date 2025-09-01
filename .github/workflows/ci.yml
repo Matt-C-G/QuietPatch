@@ -1,23 +1,84 @@
-name: CI
+name: ci
 
 on:
   pull_request:
   push:
-    branches: [ main, Quietpatch-update, "release/**" ]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  test:
-    name: test
-    runs-on: ubuntu-latest
+  build-windows:
+    name: build-windows
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        with: { python-version: "3.11", architecture: "x64" }
       - name: Install deps
+        shell: pwsh
         run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
-          pip install pytest
-      - name: Run tests
-        run: pytest -q
+          python -m pip install --upgrade pip wheel setuptools pex
+          python -m pip install -e .
+      - name: Build PEX
+        shell: pwsh
+        run: |
+          mkdir dist
+          python -m pex quietpatch -c quietpatch `
+            -o dist/quietpatch-win-py311.pex `
+            --validate-entry-point --no-build --venv prepend --strip-pex-env
+      - name: Add Windows wrapper
+        shell: bash
+        run: |
+          cat > dist/run_quietpatch.bat <<'BAT'
+          @echo off
+          setlocal
+          set PEX_ROOT=%~dp0.pexroot
+          set TMP=%~dp0.tmp
+          set TEMP=%~dp0.tmp
+          where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)
+          py -3.11 "%~dp0quietpatch-win-py311.pex" %*
+          endlocal
+          BAT
+      - name: Smoke run
+        shell: pwsh
+        run: |
+          $env:PEX_ROOT="C:\pex"; $env:TEMP="C:\t"; $env:TMP="C:\t"
+          py -3.11 dist\quietpatch-win-py311.pex scan --help
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quietpatch-windows
+          path: dist/*
+
+  # Optional: keep these if you already have them green
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: |
+          python -m pip install -U pip wheel setuptools pex
+          python -m pip install -e .
+          mkdir -p dist
+          python -m pex quietpatch -c quietpatch \
+            -o dist/quietpatch-linux-x86_64-py311.pex \
+            --validate-entry-point --no-build --venv prepend --strip-pex-env
+      - uses: actions/upload-artifact@v4
+        with: { name: quietpatch-linux, path: dist/* }
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: |
+          python -m pip install -U pip wheel setuptools pex
+          python -m pip install -e .
+          mkdir -p dist
+          python -m pex quietpatch -c quietpatch \
+            -o dist/quietpatch-macos-py311.pex \
+            --validate-entry-point --no-build --venv prepend --strip-pex-env
+      - uses: actions/upload-artifact@v4
+        with: { name: quietpatch-macos, path: dist/* }

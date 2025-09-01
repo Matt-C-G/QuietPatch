@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quietpatch"
+version = "0.2.2"
+description = "Vulnerability scanner for installed applications"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "requests>=2.31",
+    "cryptography>=42",
+    "PyYAML==6.0.2",
+]
+
+[project.scripts]
+quietpatch = "qp_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "qp_cli*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yml", "*.yaml", "*.json", "*.csv"]
