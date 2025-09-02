@@ -59,10 +59,15 @@ def _get_db_snapshot_date() -> str | None:
 def main():
     # Handle --version flag first, before parsing subcommands
     if "--version" in sys.argv:
+        # Try local development version first, then installed package
         try:
-            version = metadata.version("quietpatch")
-        except metadata.PackageNotFoundError:
-            version = "dev"
+            from quietpatch import __version__
+            version = __version__
+        except ImportError:
+            try:
+                version = metadata.version("quietpatch")
+            except metadata.PackageNotFoundError:
+                version = "dev"
         print(f"QuietPatch {version}")
         sys.exit(0)
     
@@ -295,10 +300,15 @@ def main():
 
     elif args.cmd == "version":
         db_date = _get_db_snapshot_date()
+        # Try local development version first, then installed package
         try:
-            version = metadata.version("quietpatch")
-        except metadata.PackageNotFoundError:
-            version = "dev"
+            from quietpatch import __version__
+            version = __version__
+        except ImportError:
+            try:
+                version = metadata.version("quietpatch")
+            except metadata.PackageNotFoundError:
+                version = "dev"
         print(f"QuietPatch {version}")
         if db_date:
             print(f"Database snapshot: {db_date}")

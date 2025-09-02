@@ -25,7 +25,7 @@ notes: ## Generate release notes for a tag (usage: make notes TAG=v0.2.6)
 
 test: ## Run all tests
 	@echo "Running tests..."
-	@python -m pytest -v
+	@python3 -m pytest -v
 
 test-release-notes: ## Test release notes generator
 	@echo "Testing release notes generator..."
@@ -40,22 +40,22 @@ clean: ## Clean build artifacts
 
 install: ## Install in development mode
 	@echo "Installing QuietPatch in development mode..."
-	@python -m pip install -e ".[test]"
+	@python3 -m pip install -e ".[test]"
 
 lint: ## Run linting
 	@echo "Running ruff linter..."
-	@python -m ruff check . --fix
+	@python3 -m ruff check . --fix
 	@echo "Running ruff formatter..."
-	@python -m ruff format .
+	@python3 -m ruff format .
 
 build: ## Build wheel and PEX locally
 	@echo "Building wheel..."
-	@python -m build -w -n
+	@python3 -m build -w -n
 	@echo "Building PEX..."
-	@python -m pip install pex
+	@python3 -m pip install pex
 	@mkdir -p dist-pex
 	@whl=$$(ls dist/*.whl | head -1); \
-	python -m pex $$whl -c quietpatch --find-links dist --no-build --strip-pex-env --venv prepend -o dist-pex/quietpatch-local.pex
+	python3 -m pex $$whl -c quietpatch --find-links dist --no-build --strip-pex-env --venv prepend -o dist-pex/quietpatch-local.pex
 	@echo "Built: dist-pex/quietpatch-local.pex"
 
 smoke: build ## Run smoke test on local PEX
