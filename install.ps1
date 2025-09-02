@@ -30,15 +30,18 @@ if (Select-String -Path "SHA256SUMS" -Pattern $Db -Quiet) {
   if ($dbHash -ne $refDb) { throw "Checksum mismatch for $Db" }
 }
 
-# Shim: adds a 'quietpatch' command
+# Shim: adds a 'quietpatch' command (tolerant to legacy PEX names)
 $shim = @'
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Env:PEX_ROOT = Join-Path $Root ".pexroot"
+$pexCandidates = @("quietpatch.pex","quietpatch-win-py311.pex","quietpatch-windows-x64.pex")
+$pex = $pexCandidates | Where-Object { Test-Path (Join-Path $Root $_) } | Select-Object -First 1
+if (-not $pex) { throw "PEX not found in $Root. Expected one of: quietpatch.pex, quietpatch-win-py311.pex, quietpatch-windows-x64.pex" }
 if (Get-Command py -ErrorAction SilentlyContinue) {
-  & py -3.11 (Join-Path $Root "quietpatch-win-py311.pex") @Args
+  & py -3.11 (Join-Path $Root $pex) @Args
 } else {
-  & python (Join-Path $Root "quietpatch-win-py311.pex") @Args
+  & python (Join-Path $Root $pex) @Args
 }
 '@
 $shimPath = Join-Path $Bin "quietpatch.ps1"
@@ -54,12 +57,17 @@ if ($UserPath -notlike "*$Bin*") {
 
 # Get version info for success message
 $VersionInfo = "QuietPatch"
-if (Test-Path (Join-Path $Bin "quietpatch-win-py311.pex")) {
+$__pex = $null
+foreach ($c in @("quietpatch.pex","quietpatch-win-py311.pex","quietpatch-windows-x64.pex")) {
+    $p = Join-Path $Bin $c
+    if (Test-Path $p) { $__pex = $p; break }
+}
+if ($__pex) {
     try {
         if (Get-Command py -ErrorAction SilentlyContinue) {
-            $VersionInfo = & py -3.11 (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
+            $VersionInfo = & py -3.11 $__pex --version 2>$null | Select-Object -First 1
         } else {
-            $VersionInfo = & python (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
+            $VersionInfo = & python $__pex --version 2>$null | Select-Object -First 1
         }
     } catch {
         $VersionInfo = "QuietPatch"
