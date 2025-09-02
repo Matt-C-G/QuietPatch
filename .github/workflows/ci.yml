@@ -155,3 +155,64 @@ jobs:
         with:
           name: quietpatch-macos
           path: dist-pex/*
+
+  smoke-install:
+    name: smoke-install
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            os: linux
+          - runner: macos-14
+            os: macos
+          - runner: windows-latest
+            os: windows
+    steps:
+      - name: Add local bin to PATH
+        if: matrix.os != 'windows'
+        run: echo "$HOME/.quietpatch/bin" >> $GITHUB_PATH
+
+      - name: Smoke install via API (curl)
+        if: matrix.os != 'windows'
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA:  ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            -H "User-Agent: gh-actions" \
+            "https://api.github.com/repos/${GH_REPO}/contents/install.sh?ref=${GH_SHA}" \
+          | /bin/bash
+          command -v quietpatch >/dev/null || { echo "quietpatch not on PATH"; exit 86; }
+          quietpatch --version
+
+      - name: Add local bin to PATH (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          echo "$env:USERPROFILE\.quietpatch\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding ascii -Append
+
+      - name: Smoke install via API (irm)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA:  ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $uri = "https://api.github.com/repos/$env:GH_REPO/contents/install.ps1?ref=$env:GH_SHA"
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept        = "application/vnd.github.v3.raw"
+            "User-Agent"  = "gh-actions"
+          }
+          irm $uri -Headers $headers | iex
+          if (-not (Get-Command quietpatch -ErrorAction SilentlyContinue)) { Write-Error "quietpatch not on PATH"; exit 86 }
+          quietpatch --version
