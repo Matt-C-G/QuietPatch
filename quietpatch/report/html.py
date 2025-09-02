@@ -372,6 +372,7 @@ def generate_report(input_path: str, output_path: str) -> str:
             color: white;
             border-color: #3b82f6;
         }}
+        .sort-hint { font-size: 12px; color: #6b7280; }
         
         table {{
             border-collapse: collapse;
@@ -568,6 +569,7 @@ def generate_report(input_path: str, output_path: str) -> str:
     
     <div class="toolbar">
         <input id="q" type="search" placeholder="Search app or CVE or summary">
+        <span class="sort-hint">Tip: click headers to sort</span>
         <div class="filter-pills">
             <button class="filter-pill active" data-filter="all">All</button>
             <button class="filter-pill" data-filter="low">Low</button>
@@ -576,20 +578,21 @@ def generate_report(input_path: str, output_path: str) -> str:
             <button class="filter-pill" data-filter="critical">Critical</button>
             <button class="filter-pill" data-filter="kev">KEV</button>
         </div>
+        <button class="copy-btn" onclick="qpToggleTheme()" title="Toggle theme">Toggle theme</button>
     </div>
     
     <table id="tbl">
         <thead>
             <tr>
-                <th>App</th>
-                <th>Version</th>
+                <th onclick="qpSort(0,false)">App</th>
+                <th onclick="qpSort(1,false)">Version</th>
                 <th>Action</th>
-                <th>CVE</th>
-                <th>CVSS</th>
-                <th>Severity</th>
-                <th>KEV</th>
-                <th>EPSS</th>
-                <th>Summary</th>
+                <th onclick="qpSort(3,false)">CVE</th>
+                <th onclick="qpSort(4,true)">CVSS</th>
+                <th onclick="qpSort(5,true)">Severity</th>
+                <th onclick="qpSort(6,true)">KEV</th>
+                <th onclick="qpSort(7,true)">EPSS</th>
+                <th onclick="qpSort(8,false)">Summary</th>
                 <th>Details</th>
             </tr>
         </thead>
@@ -599,6 +602,20 @@ def generate_report(input_path: str, output_path: str) -> str:
     </table>
 
 <script>
+    // theme persistence (toggle light/dark by html data-attr)
+    (function(){
+        try {
+            var key='qp-theme';
+            var t=localStorage.getItem(key)||'dark';
+            if(t==='light') document.documentElement.setAttribute('data-theme','light');
+            window.qpToggleTheme=function(){
+                var isLight=document.documentElement.getAttribute('data-theme')==='light';
+                var next=isLight?'dark':'light';
+                if(next==='light') document.documentElement.setAttribute('data-theme','light'); else document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem(key,next);
+            };
+        } catch(e) {}
+    })();
     const q = document.getElementById('q');
     const filterPills = document.querySelectorAll('.filter-pill');
     const tbody = document.querySelector('#tbl tbody');
@@ -709,6 +726,21 @@ def generate_report(input_path: str, output_path: str) -> str:
             setActiveFilter(pill.dataset.filter);
         }});
     }});
+    // simple table sort
+    function qpSort(colIndex, desc) {
+        const body = tbody;
+        const rows = Array.from(body.querySelectorAll('.data-row'));
+        rows.sort((a, b) => {
+            const ax = (a.children[colIndex]?.textContent || '').trim();
+            const bx = (b.children[colIndex]?.textContent || '').trim();
+            const na = Number(ax.replace(/[^0-9.]/g, ''));
+            const nb = Number(bx.replace(/[^0-9.]/g, ''));
+            let cmp;
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) cmp = na - nb; else cmp = ax.localeCompare(bx, undefined, { numeric: true, sensitivity: 'base' });
+            return desc ? -cmp : cmp;
+        });
+        for (const r of rows) { body.appendChild(r); const d=document.getElementById('details-'+r.id); if(d) body.appendChild(d); }
+    }
 </script>
 </body>
 </html>
