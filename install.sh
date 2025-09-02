@@ -1,98 +1,72 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OWNER="Matt-C-G"
-REPO="QuietPatch"
-PREFIX="${QUIETPATCH_PREFIX:-$HOME/.quietpatch}"
-BIN_DIR="$PREFIX/bin"
-DB_NAME="db-latest.tar.zst"
+OWNER="${OWNER:-Matt-C-G}"
+REPO="${REPO:-QuietPatch}"
+TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+API="https://api.github.com/repos/${OWNER}/${REPO}"
+UA="curl/quietpatch-installer"
 
-# Detect platform
-os="$(uname -s)"
-arch="$(uname -m)"
-case "$os" in
-  Darwin) asset="quietpatch-macos-arm64.zip"; ;;
-  Linux)  asset="quietpatch-linux-x86_64.zip"; ;;
-  *) echo "Unsupported OS: $os" >&2; exit 1;;
+need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing $1"; exit 127; }; }
+need curl
+need unzip
+need jq
+
+platform="$(
+  case "$(uname -s)-$(uname -m)" in
+    Darwin-arm64)  echo "macos-arm64" ;;
+    Linux-x86_64)  echo "linux_x86_64_legacy" ;; # see mapping below
+    Linux-x86-64)  echo "linux_x86_64_legacy" ;;
+    *) echo "unsupported" ;;
+  esac
+)"
+if [ "$platform" = "unsupported" ]; then echo "Unsupported platform" >&2; exit 1; fi
+
+# Asset names you publish
+case "$platform" in
+  macos-arm64)  ASSET="quietpatch-macos-arm64.zip" ;;
+  linux_x86_64_legacy) ASSET="quietpatch-linux-x86_64.zip" ;;
 esac
 
-mkdir -p "$BIN_DIR"
-cd "$BIN_DIR"
-
-echo "→ Downloading latest $asset..."
-curl -fsSL -O "https://github.com/$OWNER/$REPO/releases/latest/download/$asset"
-
-echo "→ Verifying checksum..."
-curl -fsSL -o SHA256SUMS "https://github.com/$OWNER/$REPO/releases/latest/download/SHA256SUMS"
-if command -v sha256sum >/dev/null 2>&1; then
-  grep " $asset$" SHA256SUMS | sha256sum -c -
-else
-  grep " $asset$" SHA256SUMS | shasum -a 256 -c -
-fi
-
-echo "→ Extracting…"
-unzip -q -o "$asset"
-
-echo "→ Fetching offline DB snapshot ($DB_NAME)…"
-curl -fsSL -O "https://github.com/$OWNER/$REPO/releases/latest/download/$DB_NAME"
-# optional: verify DB too
-if grep -q "$DB_NAME" SHA256SUMS; then
-  if command -v sha256sum >/dev/null 2>&1; then
-    grep " $DB_NAME$" SHA256SUMS | sha256sum -c -
+download() {
+  out="$1"
+  if [ -n "$TOKEN" ]; then
+    rel_json="$(curl -fsSL -H "Authorization: Bearer ${TOKEN}" -H "User-Agent: ${UA}" "${API}/releases/latest")"
+    id="$(printf '%s' "$rel_json" | jq -r --arg n "$ASSET" '.assets[]?|select(.name==$n)|.id')"
+    [ -n "$id" ] && [ "$id" != "null" ] || { echo "Asset $ASSET not found in latest release"; exit 66; }
+    curl -fL --retry 3 \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -H "Accept: application/octet-stream" \
+      -H "User-Agent: ${UA}" \
+      -o "$out" \
+      "${API}/releases/assets/${id}"
   else
-    grep " $DB_NAME$" SHA256SUMS | shasum -a 256 -c -
+    curl -fL --retry 3 -o "$out" \
+      "https://github.com/${OWNER}/${REPO}/releases/latest/download/${ASSET}"
   fi
-fi
+}
 
-# Create PATH shim
-cat > quietpatch <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PEX_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/quietpatch/.pexroot"
-if command -v python3.11 >/dev/null 2>&1; then PY=python3.11; else PY=python3; fi
-if [[ "$OSTYPE" == darwin* ]]; then
-  PEX="$ROOT/quietpatch-macos-arm64-py311.pex"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+echo "Downloading ${ASSET}..."
+download "${TMP}/${ASSET}"
+
+echo "Installing..."
+mkdir -p "${HOME}/.local/bin"
+unzip -q "${TMP}/${ASSET}" -d "${TMP}/pkg"
+
+# Install launcher as 'quietpatch'
+if [ -f "${TMP}/pkg/run_quietpatch.sh" ]; then
+  install -m 0755 "${TMP}/pkg/run_quietpatch.sh" "${HOME}/.local/bin/quietpatch"
+elif [ -f "${TMP}/pkg/quietpatch" ]; then
+  install -m 0755 "${TMP}/pkg/quietpatch" "${HOME}/.local/bin/quietpatch"
+elif [ -f "${TMP}/pkg/run_quietpatch.command" ]; then
+  install -m 0755 "${TMP}/pkg/run_quietpatch.command" "${HOME}/.local/bin/quietpatch"
 else
-  PEX="$ROOT/quietpatch-linux-x86_64-py311.pex"
-fi
-exec "$PY" "$PEX" "$@"
-SH
-chmod +x quietpatch
-
-# Try to symlink into /usr/local/bin if writable
-if [ -w /usr/local/bin ]; then
-  ln -sf "$BIN_DIR/quietpatch" /usr/local/bin/quietpatch
-  echo "✓ Installed: /usr/local/bin/quietpatch"
-else
-  echo "Add to PATH: export PATH=\"$BIN_DIR:\$PATH\""
+  echo "No launcher found in package" >&2; exit 65
 fi
 
-# Get version info for success message
-VERSION_INFO=""
-if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ] || [ -f "$BIN_DIR/quietpatch-linux-x86_64-py311.pex" ]; then
-    # Try to get version from the PEX
-    if command -v python3.11 >/dev/null 2>&1; then
-        PY=python3.11
-    else
-        PY=python3
-    fi
-    
-    if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ]; then
-        PEX="$BIN_DIR/quietpatch-macos-arm64-py311.pex"
-    else
-        PEX="$BIN_DIR/quietpatch-linux-x86_64-py311.pex"
-    fi
-    
-    VERSION_INFO=$($PY "$PEX" --version 2>/dev/null | head -n1 || echo "QuietPatch")
-else
-    VERSION_INFO="QuietPatch"
-fi
-
-echo ""
-echo "✓ $VERSION_INFO installed successfully!"
-echo ""
-echo "Try: quietpatch scan --also-report --open"
-echo "     (or: quietpatch scan --db \"$BIN_DIR/$DB_NAME\" --also-report --open)"
-echo ""
-echo "For help: quietpatch scan --help"
+echo "Installed to ${HOME}/.local/bin/quietpatch"
+echo "Version:"
+"${HOME}/.local/bin/quietpatch" --version || true
