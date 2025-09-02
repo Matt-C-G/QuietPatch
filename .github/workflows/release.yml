@@ -185,8 +185,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for release notes
       - uses: actions/download-artifact@v4
         with: { path: out }
+      - name: Compute previous tag
+        id: prev
+        run: |
+          git fetch --tags --force
+          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      - name: Generate release notes
+        run: |
+          bash tools/generate_release_notes.sh "${{ steps.prev.outputs.tag }}" "https://github.com/${{ github.repository }}"
       - name: Assemble SHA256SUMS (top-level)
         run: |
           cd out
@@ -196,6 +207,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
+          body_path: NOTES.md
           draft: false
           prerelease: false
           files: |
