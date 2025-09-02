@@ -11,11 +11,32 @@ $WithDb = $true   # set to $false to skip DB download
 # ---- Helpers ----
 function Note($msg){ Write-Host "==> $msg" -ForegroundColor Cyan }
 function Fatal($msg){ Write-Error $msg; exit 1 }
+function Get-Headers {
+  if ($env:GH_TOKEN) { return @{ Authorization = "Bearer $($env:GH_TOKEN)" } }
+  return $null
+}
+function Get-Json($url){
+  $headers = Get-Headers
+  try {
+    if ($headers) { return Invoke-RestMethod -Uri $url -Headers $headers -UseBasicParsing }
+    else { return Invoke-RestMethod -Uri $url -UseBasicParsing }
+  } catch {
+    if ($_.Exception.Response.StatusCode.Value__ -eq 403) {
+      Fatal "GitHub API rate-limited. Set GH_TOKEN to increase limits."
+    }
+    throw
+  }
+}
+function Get-File($url, $out){
+  $headers = Get-Headers
+  if ($headers) { Invoke-WebRequest -Uri $url -OutFile $out -Headers $headers -UseBasicParsing }
+  else { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing }
+}
 
 # GitHub API (no auth needed for public)
 try {
   Note "Fetching latest release metadata…"
-  $rel = Invoke-RestMethod -Uri $Api -UseBasicParsing
+  $rel = Get-Json $Api
 } catch {
   Fatal "GitHub API failed: $($_.Exception.Message)"
 }
@@ -47,12 +68,12 @@ Set-Location (New-Item -Force -ItemType Directory -Path ([System.IO.Path]::GetTe
 
 # Download asset
 Note "Downloading asset…"
-Invoke-WebRequest -Uri $assetUrl -OutFile ".\asset" -UseBasicParsing
+Get-File $assetUrl ".\asset"
 
 # Optional verify
 if ($sumUrl) {
   Note "Verifying SHA256…"
-  Invoke-WebRequest -Uri $sumUrl -OutFile ".\SHA256SUMS" -UseBasicParsing
+  Get-File $sumUrl ".\SHA256SUMS"
   $expected = (Get-Content .\SHA256SUMS | Select-String -SimpleMatch $asset.name | Select-Object -First 1).ToString().Split(' ')[0]
   if (-not $expected) { Note "No matching entry in SHA256SUMS; skipping verification." }
   else {
@@ -78,7 +99,7 @@ if ($asset.name -match '\.zip$') {
 if ($db) {
   Note "Downloading offline DB: $($db.name)"
   New-Item -Force -ItemType Directory -Path "$Root\db" | Out-Null
-  Invoke-WebRequest -Uri $db.browser_download_url -OutFile "$Root\db\$($db.name)" -UseBasicParsing
+  Get-File $db.browser_download_url "$Root\db\$($db.name)"
 }
 
 # Create shim on PATH

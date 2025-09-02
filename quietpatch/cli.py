@@ -155,6 +155,7 @@ def main():
     # self-update
     p_up = sub.add_parser("self-update", help="Update QuietPatch to the latest release")
     p_up.add_argument("--no-db", action="store_true", help="Skip downloading the offline DB snapshot")
+    p_up.add_argument("--check", action="store_true", help="Dry-run: print latest version and exit")
     p_up.add_argument("--prefix", help="Install root prefix (defaults to platform-specific)")
     p_up.add_argument("--bin-dir", help="Bin dir for shim (defaults to platform-specific)")
 
@@ -445,7 +446,11 @@ def main():
             return f"{os_tag}.+({arch_tag})"
 
         def _http_get(url: str, dest: Path | None = None) -> bytes | None:
-            req = urlrequest.Request(url, headers={"User-Agent": "quietpatch-self-update"})
+            headers = {"User-Agent": "quietpatch-self-update"}
+            token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+            req = urlrequest.Request(url, headers=headers)
             with urlrequest.urlopen(req) as resp:
                 data = resp.read()
             if dest is not None:
@@ -547,11 +552,24 @@ def main():
             print(f"GitHub API failed: {e}", file=sys.stderr)
             sys.exit(1)
 
+        # --check: print version and exit
+        if args.check:
+            tag = rel.get("tag_name") or rel.get("name") or "unknown"
+            print(f"latest version is {tag}")
+            return
+
+        # Respect env opt-out for DB
+        env_with_db = os.environ.get("WITH_DB") or os.environ.get("WithDb")
+        no_db = args.no_db or (
+            isinstance(env_with_db, str)
+            and env_with_db.lower() in {"0", "false", "no"}
+        )
+
         asset_url, sums_url, db_url = _find_asset(rel, pattern)
         print(f"==> Asset: {asset_url}")
         if sums_url:
             print(f"==> Checksums: {sums_url}")
-        if db_url and not args.no_db:
+        if db_url and not no_db:
             print(f"==> DB: {db_url}")
 
         with tempfile.TemporaryDirectory() as td:
@@ -571,7 +589,7 @@ def main():
             print(f"==> Installing to {install_root / 'current'}")
             _extract(asset_path, install_root)
 
-            if db_url and not args.no_db:
+            if db_url and not no_db:
                 print("==> Downloading offline DB…")
                 db_out_dir = install_root / "db"
                 db_out_dir.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,10 @@ PREFIX="${PREFIX:-$HOME/.quietpatch}"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
 WITH_DB="${WITH_DB:-1}"   # set WITH_DB=0 to skip DB download
 CURL="${CURL:-curl -fsSL}"
+AUTH_HEADER=()
+if [ -n "${GH_TOKEN:-}" ]; then
+  AUTH_HEADER=( -H "Authorization: Bearer ${GH_TOKEN}" )
+fi
 
 mkdir -p "$PREFIX" "$BIN_DIR"
 
@@ -69,7 +73,10 @@ note "Platform: ${OS}/${ARCH} → pattern: ${PATTERN}"
 
 # ---- Query latest release ----
 note "Fetching latest release metadata…"
-REL_JSON="$(${CURL} "${API}")" || fatal "GitHub API failed (releases/latest)"
+REL_JSON="$(${CURL} "${AUTH_HEADER[@]}" "${API}")" || fatal "GitHub API failed (releases/latest)"
+if printf '%s' "$REL_JSON" | grep -qi "rate limit"; then
+  fatal "GitHub API rate-limited. Set GH_TOKEN to increase limits."
+fi
 ASSET_URL="$(
   printf '%s' "$REL_JSON" | json_get ".assets[] | select(.name | test(\"${PATTERN}\"; \"i\")) | .browser_download_url" | head -n1
 )"
@@ -95,11 +102,11 @@ trap 'rm -rf "$tmp"' EXIT
 
 cd "$tmp"
 note "Downloading asset…"
-$CURL -o asset "$ASSET_URL"
+$CURL "${AUTH_HEADER[@]}" -o asset "$ASSET_URL"
 
 # Optional checksums
 if [ -n "$SUMS_URL" ] && (have shasum || have sha256sum); then
-  $CURL -o SHA256SUMS "$SUMS_URL"
+  $CURL "${AUTH_HEADER[@]}" -o SHA256SUMS "$SUMS_URL"
   if have shasum; then
     note "Verifying checksum with shasum…"
     grep -F "$(basename "$ASSET_URL")" SHA256SUMS > SUM
@@ -166,7 +173,7 @@ chmod +x "$BIN_DIR/quietpatch"
 if [ -n "$DB_URL" ]; then
   mkdir -p "$PREFIX/db"
   note "Downloading offline DB…"
-  $CURL -o "$PREFIX/db/$(basename "$DB_URL")" "$DB_URL"
+  $CURL "${AUTH_HEADER[@]}" -o "$PREFIX/db/$(basename "$DB_URL")" "$DB_URL"
 fi
 
 # PATH notice

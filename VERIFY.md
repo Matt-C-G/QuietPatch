@@ -30,7 +30,7 @@ minisign -Vm SHA256SUMS -P <YOUR_PUBLIC_KEY>
 ## 3) Quick verification
 ```bash
 # Download and verify in one go
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/quietpatch-linux-x86_64.zip
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
+curl -LO https://github.com/matt-c-g/quietpatch/releases/latest/download/quietpatch-linux-x86_64.zip
+curl -LO https://github.com/matt-c-g/quietpatch/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS
 ```
