@@ -14,6 +14,17 @@ fi
 
 COMMITS_RAW=$(git log --no-merges --pretty=format:%s "${RANGE}" || true)
 
+# Filter out noisy commit subjects
+COMMITS_RAW="$(printf '%s\n' "$COMMITS_RAW" | \
+  grep -Ev '^(merge branch|bump version|chore\(release\):|release:|version:)' || true)"
+
+# Fail if no meaningful changes
+if [ -z "$COMMITS_RAW" ]; then
+  echo "Error: No meaningful changes found since ${PREV_TAG}" >&2
+  echo "This usually means the tag range is empty or all commits were filtered out." >&2
+  exit 1
+fi
+
 # buckets
 declare -a feat fix build ci docs refactor perf test chore other
 feat=(); fix=(); build=(); ci=(); docs=(); refactor=(); perf=(); test=(); chore=(); other=()
@@ -54,17 +65,39 @@ else
   COMP_LINK="${REPO_URL}/commits/${NEW_TAG}"
 fi
 
+# Generate dynamic highlights from Features and Fixes (max 5)
+HIGHLIGHTS=()
+for item in "${feat[@]}" "${fix[@]}"; do
+  if [ ${#HIGHLIGHTS[@]} -lt 5 ]; then
+    # Clean up the commit message for highlights
+    clean_item=$(echo "$item" | sed 's/^[^:]*: *//' | sed 's/^[a-z]*: *//')
+    HIGHLIGHTS+=("$clean_item")
+  fi
+done
+
 cat > NOTES.md <<EOF
 # QuietPatch ${NEW_TAG}
 
 Cross-platform, offline-first vulnerability scanner with deterministic HTML reports and per-app remediation.
 
 ## ✨ Highlights
+EOF
+
+# Add dynamic highlights
+for highlight in "${HIGHLIGHTS[@]}"; do
+  echo "- ${highlight}" >> NOTES.md
+done
+
+# Add static highlights if we have room
+if [ ${#HIGHLIGHTS[@]} -lt 3 ]; then
+  cat >> NOTES.md <<'EOF'
 - Cross-platform single-file runners (Windows, Linux, macOS)
 - Wheel-first PEX builds; reproducible artifacts
-- Offline DB snapshot (\`db-latest.tar.*\`); no network required
-- Launchers included (\`.bat\`, \`.sh\`, \`.command\`)
-- Checksums in \`SHA256SUMS\`
+- Offline DB snapshot (`db-latest.tar.*`); no network required
+EOF
+fi
+
+cat >> NOTES.md <<'EOF'
 
 ## 🔄 Changes since ${PREV_TAG}
 (Compare: ${COMP_LINK})

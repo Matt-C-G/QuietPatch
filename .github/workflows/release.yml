@@ -5,6 +5,12 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Generate notes and build artifacts but skip publishing'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PY_VER: "3.11"
@@ -195,6 +201,17 @@ jobs:
         run: |
           git fetch --tags --force
           echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+      - name: Enforce semver vs BREAKING changes
+        run: |
+          git fetch --tags --force
+          prev=$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null || echo "")
+          range="${prev:+$prev..}${GITHUB_REF_NAME}"
+          if git log --grep='BREAKING CHANGE:' -E --oneline "$range" | grep -q .; then
+            if ! echo "${GITHUB_REF_NAME}" | grep -Eq '^v[1-9][0-9]*\.0\.0$'; then
+              echo "Found BREAKING CHANGE but tag is not a new major." >&2
+              exit 1
+            fi
+          fi
       - name: Generate release notes
         run: |
           bash tools/generate_release_notes.sh "${{ steps.prev.outputs.tag }}" "https://github.com/${{ github.repository }}"
@@ -202,7 +219,17 @@ jobs:
         run: |
           cd out
           sha256sum **/*.zip **/db-*.* 2>/dev/null >> SHA256SUMS || true
+      - name: Minisign SHA256SUMS
+        if: env.MINISIGN_PRIVATE_KEY
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$MINISIGN_KEY" > key.minisign
+          minisign -G -p pubkey.txt -s key.minisign -y || true
+          minisign -Sm out/SHA256SUMS -s key.minisign
+          rm -f key.minisign
       - name: Create GitHub Release (attach all assets)
+        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -214,3 +241,13 @@ jobs:
             out/**.zip
             out/**/db-*.tar.*
             out/SHA256SUMS
+            out/SHA256SUMS.minisig
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "## Dry Run Complete"
+          echo "Generated NOTES.md:"
+          cat NOTES.md
+          echo ""
+          echo "Artifacts built:"
+          ls -la out/
