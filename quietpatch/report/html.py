@@ -64,18 +64,35 @@ def _first_cve(rec: dict) -> tuple[str, str, str, str]:
     return (cve, cvss, sev, summary)
 
 
-def _sev_badge(sev: str) -> str:
+def _sev_badge(sev: str, inferred: bool = False) -> str:
     s = (sev or "").lower()
-    cls = {
-        "critical": "badge-crit",
+    if s not in {"critical", "high", "medium", "low", "none", "unknown"}:
+        s = "unknown"
+    # Normalize class names to new scheme while keeping legacy ones in CSS
+    cls_map = {
+        "critical": "badge-critical",
         "high": "badge-high",
-        "medium": "badge-med",
+        "medium": "badge-medium",
         "low": "badge-low",
         "none": "badge-none",
-        "unknown": "badge-unk",
-    }.get(s, "badge-unk")
-    label = sev.capitalize() if sev else "Unknown"
-    return f'<span class="badge {cls}">{html.escape(label)}</span>'
+        "unknown": "badge-unknown",
+    }
+    label_map = {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "none": "None",
+        "unknown": "Unknown",
+    }
+    label = label_map[s]
+    inferred_cls = " badge-inferred" if inferred else ""
+    title_text = f"Severity: {label}" + (" (inferred)" if inferred else "")
+    return (
+        f'<span class="badge {cls_map[s]}{inferred_cls}" '
+        f'aria-label="Severity: {html.escape(label)}" '
+        f'title="{html.escape(title_text)}">{html.escape(label)}</span>'
+    )
 
 
 def _action_cell(rec: dict) -> str:
@@ -128,6 +145,55 @@ def _action_cell(rec: dict) -> str:
             </button>
         </div>
     </td>"""
+
+
+def _compute_stats(items: list[dict]) -> dict:
+    """Compute top-line stats for the summary banner.
+
+    Returns keys: apps, vuln_apps, critical, high, medium, low, unknown, kev
+    """
+    total_apps = 0
+    vuln_apps = 0
+    sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "unknown": 0}
+    kev = 0
+
+    for rec in (items or []):
+        total_apps += 1
+        vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+        if vulns:
+            vuln_apps += 1
+        for v in vulns:
+            s = str((v or {}).get("severity") or "").lower()
+            if s not in sev_counts:
+                s = "unknown"
+            sev_counts[s] += 1
+            if (v or {}).get("is_kev") or (v or {}).get("kev"):
+                kev += 1
+
+    return {
+        "apps": total_apps,
+        "vuln_apps": vuln_apps,
+        **sev_counts,
+        "kev": kev,
+    }
+
+
+def _summary_banner_html(stats: dict) -> str:
+    """Render the summary banner HTML string."""
+    ua = stats.get("apps", 0)
+    va = stats.get("vuln_apps", 0)
+    crit = stats.get("critical", 0)
+    kev = stats.get("kev", 0)
+    unk = stats.get("unknown", 0)
+    unknown_str = "0 unknowns ✅" if unk == 0 else f"{unk} unknowns"
+    return (
+        f'<div class="summary-banner" role="region" aria-label="Scan summary">'
+        f'Scanned <strong>{ua}</strong> apps • '
+        f'<strong>{va}</strong> vulnerable • '
+        f'<strong>{crit}</strong> critical ({kev} KEV) • '
+        f'{unknown_str}'
+        f"</div>"
+    )
 
 
 def _generate_cve_details(rec: dict, row_id: str) -> str:
@@ -193,13 +259,17 @@ def generate_report(input_path: str, output_path: str) -> str:
         row_id = f"row-{i}"
         has_cves = bool(vulns)
 
+        # Determine severity for the main row and whether it's inferred
+        sev_source = sev or (rec.get("severity_label") or "")
+        inferred_flag = bool(not sev and rec.get("severity_label"))
+
         cells = [
             f'<td class="app-cell">{html.escape(str(app))}</td>',
             f'<td class="version-cell">{html.escape(str(ver))}</td>',
             _action_cell(rec),  # <-- Action column with copy buttons
             f'<td class="cve-cell">{html.escape(str(cve or "—"))}</td>',
             f'<td class="cvss-cell">{html.escape(str(cvss or "—"))}</td>',
-            f'<td class="severity-cell">{_sev_badge(sev or (rec.get("severity_label") or ""))}</td>',
+            f'<td class="severity-cell">{_sev_badge(sev_source, inferred=inferred_flag)}</td>',
             f'<td class="kev-cell">{html.escape(kev or "—")}</td>',
             f'<td class="epss-cell">{html.escape(epss or "—")}</td>',
             f'<td class="summary-cell">{html.escape(summary or "")}</td>',
@@ -234,6 +304,13 @@ def generate_report(input_path: str, output_path: str) -> str:
                     </td>
                 </tr>
             """)
+
+    # Precompute summary banner HTML
+    try:
+        _stats = _compute_stats(items)
+        _summary_html = _summary_banner_html(_stats)
+    except Exception:
+        _summary_html = ""
 
     html_out = f"""\
 <!doctype html>
@@ -435,17 +512,27 @@ def generate_report(input_path: str, output_path: str) -> str:
         }}
         
         .badge {{
-            padding: 2px 8px;
-            border-radius: 999px;
+            padding: 0 10px;
+            border-radius: 9999px;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
+            line-height: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid transparent;
         }}
-        .badge-crit {{ background:#7f1d1d; color:#fff; }}
-        .badge-high {{ background:#b91c1c; color:#fff; }}
-        .badge-med {{ background:#f59e0b; color:#111; }}
-        .badge-low {{ background:#10b981; color:#111; }}
-        .badge-none {{ background:#e5e7eb; color:#111; }}
-        .badge-unk {{ background:#e2e8f0; color:#111; }}
+        /* New accessible badge palette */
+        .badge-critical {{ background:#ffe5e5; color:#8b0000; border-color:#ffb3b3; }}
+        .badge-high {{ background:#fff0e6; color:#a14b00; border-color:#ffc299; }}
+        .badge-medium {{ background:#fff7e0; color:#866a00; border-color:#ffe08a; }}
+        .badge-low {{ background:#e9f8ec; color:#1e6b2d; border-color:#bde5c8; }}
+        .badge-unknown {{ background:#f1f3f5; color:#495057; border-color:#dde2e6; }}
+        .badge-inferred {{ border-style: dotted; }}
+        /* Legacy classes kept for compatibility (mapped to new look) */
+        .badge-crit {{ background:#ffe5e5; color:#8b0000; border:1px solid #ffb3b3; }}
+        .badge-med {{ background:#fff7e0; color:#866a00; border:1px solid #ffe08a; }}
+        .badge-unk {{ background:#f1f3f5; color:#495057; border:1px solid #dde2e6; }}
         
         .muted {{ color:#6b7280; }}
         
@@ -456,10 +543,23 @@ def generate_report(input_path: str, output_path: str) -> str:
         .hidden {{
             display: none !important;
         }}
+        /* Summary banner */
+        .summary-banner {{
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            margin: 12px 0 16px;
+        }}
+        .summary-banner strong {{ font-weight: 700; }}
     </style>
 </head>
 <body>
     <h1>QuietPatch – Vulnerability Report</h1>
+    {_summary_html}
     
     <div class="safety-banner">
         <strong>⚠️ Safety Notice:</strong> Commands are suggestions. Review before running. 
