@@ -125,7 +125,33 @@ cat >> NOTES.md <<'EOF'
 - Verification: `SHA256SUMS`
 
 ## ⚡ Quickstart
-See the README. Example (Linux):
+
+### One-command installation
+
+**macOS/Linux:**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"
+```
+
+**Windows:**
+```powershell
+irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
+```
+
+### Package managers
+
+**macOS (Homebrew):**
+```bash
+brew tap matt-c-g/quietpatch && brew install quietpatch
+```
+
+**Windows (Scoop):**
+```powershell
+scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
+scoop install quietpatch
+```
+
+### Manual installation
 ```bash
 curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/quietpatch-linux-x86_64.zip
 unzip quietpatch-linux-x86_64.zip

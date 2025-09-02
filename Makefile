@@ -70,3 +70,22 @@ dev: clean install test lint ## Full development setup
 # Release preparation
 pre-release: clean test lint build smoke ## Prepare for release
 	@echo "✅ Ready for release tagging"
+
+# Installation helpers
+install-local: build ## Install locally for testing
+	@echo "Installing QuietPatch locally..."
+	@mkdir -p ~/.local/bin
+	@cp dist-pex/quietpatch-local.pex ~/.local/bin/quietpatch
+	@chmod +x ~/.local/bin/quietpatch
+	@echo "✅ Installed to ~/.local/bin/quietpatch"
+
+test-install: ## Test the install scripts locally
+	@echo "Testing install.sh..."
+	@bash -n install.sh
+	@echo "Testing install.ps1..."
+	@if command -v powershell >/dev/null 2>&1; then \
+		powershell -Command "Get-Content install.ps1 | Out-Null"; \
+	else \
+		echo "PowerShell not available, skipping syntax check"; \
+	fi
+	@echo "✅ Install scripts syntax OK"

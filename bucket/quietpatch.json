@@ -1,0 +1,29 @@
+{
+  "version": "0.2.5",
+  "homepage": "https://github.com/Matt-C-G/QuietPatch",
+  "license": "MIT",
+  "description": "Privacy-first vulnerability scanner (single-file PEX + offline DB)",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/Matt-C-G/QuietPatch/releases/download/v0.2.5/quietpatch-0.2.5-windows.zip",
+      "hash": "<REPLACE_SHA256>"
+    }
+  },
+  "bin": [
+    ["run_quietpatch.bat", "quietpatch"]
+  ],
+  "persist": [
+    ".pexroot"
+  ],
+  "post_install": [
+    "Write-Host 'QuietPatch installed. Run: quietpatch scan --help' -ForegroundColor Green"
+  ],
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/Matt-C-G/QuietPatch/releases/download/v$version/quietpatch-$version-windows.zip"
+      }
+    }
+  }
+}

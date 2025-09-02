@@ -251,3 +251,60 @@ jobs:
           echo ""
           echo "Artifacts built:"
           ls -la out/
+
+  update-package-managers:
+    name: Update Brew/Scoop
+    runs-on: ubuntu-latest
+    needs: [build-pex, build-db]
+    if: ${{ !inputs.dry_run }}
+    steps:
+      - name: Setup git
+        run: |
+          git config --global user.name "quietpatch-bot"
+          git config --global user.email "bot@quietpatch.dev"
+
+      - name: Get tag + hashes
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          echo "ver=$VER" >> $GITHUB_OUTPUT
+          curl -fsSL -o SHA256SUMS "https://github.com/${{ github.repository }}/releases/download/$TAG/SHA256SUMS"
+          mac_hash=$(grep "quietpatch-$VER-macos-arm64.zip" SHA256SUMS | awk '{print $1}')
+          win_hash=$(grep "quietpatch-$VER-windows.zip" SHA256SUMS | awk '{print $1}')
+          echo "mac_hash=$mac_hash" >> $GITHUB_OUTPUT
+          echo "win_hash=$win_hash" >> $GITHUB_OUTPUT
+
+      - name: Bump Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
+        run: |
+          if [ -n "${{ secrets.GH_TOKEN_RELEASE }}" ]; then
+            gh repo clone Matt-C-G/homebrew-quietpatch tap
+            cd tap/Formula
+            sed -i "s/version \".*\"/version \"${{ steps.meta.outputs.ver }}\"/" quietpatch.rb
+            sed -i "s/sha256 \".*\"/sha256 \"${{ steps.meta.outputs.mac_hash }}\"/" quietpatch.rb
+            git commit -am "quietpatch ${{ steps.meta.outputs.ver }}" || true
+            git push origin HEAD:brew-bump-${{ steps.meta.outputs.ver }} || true
+            gh pr create -R Matt-C-G/homebrew-quietpatch -B main -H brew-bump-${{ steps.meta.outputs.ver }} -t "Bump quietpatch to ${{ steps.meta.outputs.ver }}" -b "Automated bump" || true
+          else
+            echo "GH_TOKEN_RELEASE not set, skipping Homebrew update"
+          fi
+
+      - name: Bump Scoop manifest
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
+        run: |
+          if [ -n "${{ secrets.GH_TOKEN_RELEASE }}" ]; then
+            gh repo clone Matt-C-G/scoop-quietpatch bucket
+            cd bucket/bucket
+            jq --arg v "${{ steps.meta.outputs.ver }}" \
+               --arg h "${{ steps.meta.outputs.win_hash }}" \
+               '.version=$v | .architecture."64bit".url=("https://github.com/Matt-C-G/QuietPatch/releases/download/v"+$v+"/quietpatch-"+$v+"-windows.zip") | .architecture."64bit".hash=$h' \
+               quietpatch.json > quietpatch.json.tmp && mv quietpatch.json.tmp quietpatch.json
+            git commit -am "quietpatch ${{ steps.meta.outputs.ver }}" || true
+            git push origin HEAD:scoop-bump-${{ steps.meta.outputs.ver }} || true
+            gh pr create -R Matt-C-G/scoop-quietpatch -B main -H scoop-bump-${{ steps.meta.outputs.ver }} -t "Bump quietpatch to ${{ steps.meta.outputs.ver }}" -b "Automated bump" || true
+          else
+            echo "GH_TOKEN_RELEASE not set, skipping Scoop update"
+          fi
