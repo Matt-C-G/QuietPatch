@@ -51,6 +51,19 @@ def _zstd_open(fileobj, level: int = 19):
     return gzip.GzipFile(fileobj=fileobj, mode="wb", compresslevel=9)
 
 
+def _copy_db(src: Path, dst: Path) -> None:
+    dst.mkdir(parents=True, exist_ok=True)
+    if not src.exists():
+        return
+    for p in src.glob("*"):
+        tgt = dst / p.name
+        if p.is_dir():
+            import shutil
+            shutil.copytree(p, tgt, dirs_exist_ok=True)
+        else:
+            tgt.write_bytes(p.read_bytes())
+
+
 def _run_sync(years_back: int, tmp_out: Path) -> None:
     """Try to run your repo's network sync; otherwise copy current DB."""
     tmp_out.mkdir(parents=True, exist_ok=True)
@@ -58,8 +71,9 @@ def _run_sync(years_back: int, tmp_out: Path) -> None:
         from src.datafeed.sync import sync  # your existing feed sync (if present)
 
         print(f"[db-snapshot] Running online sync for last {years_back} years …")
-        sync(years_back=years_back, outdir=str(tmp_out))
-        # Expect it to populate cpe_to_cves.json, cve_meta.json, kev.json, epss.json, etc.
+        # Our sync writes to data/db; call it and then copy artifacts into tmp_out
+        sync(years_back=years_back)
+        _copy_db(DEFAULT_DB_DIR, tmp_out)
     except Exception as e:
         print(
             f"[db-snapshot] Online sync not available or failed ({e!r})."
@@ -67,14 +81,90 @@ def _run_sync(years_back: int, tmp_out: Path) -> None:
         )
         if not DEFAULT_DB_DIR.exists():
             raise SystemExit("No data/db available to bundle; aborting.")
-        for p in DEFAULT_DB_DIR.glob("*"):
-            tgt = tmp_out / p.name
-            if p.is_dir():
-                import shutil
+        _copy_db(DEFAULT_DB_DIR, tmp_out)
 
-                shutil.copytree(p, tgt, dirs_exist_ok=True)
+
+def _derive_severity_from_score(score) -> str:
+    try:
+        s = float(score)
+    except Exception:
+        return "unknown"
+    if s == 0:
+        return "none"
+    if s >= 9.0:
+        return "critical"
+    if s >= 7.0:
+        return "high"
+    if s >= 4.0:
+        return "medium"
+    return "low"
+
+
+def _normalize_severities(db_dir: Path) -> None:
+    """Ensure every CVE in cve_meta.json has a concrete severity; never 'unknown'.
+    Adds a 'severity_source' field explaining provenance.
+    Guardrails: raise if any invalid value remains.
+    """
+    meta_path = db_dir / "cve_meta.json"
+    if not meta_path.exists():
+        return
+    try:
+        meta = json.loads(meta_path.read_text())
+    except Exception as e:
+        raise SystemExit(f"[db-snapshot] Failed to read {meta_path}: {e}")
+
+    changed = 0
+    for _cid, row in meta.items():
+        sev = (row.get("severity") or "").lower()
+        if sev in ("critical", "high", "medium", "low", "none"):
+            # keep existing, but ensure canonical
+            row["severity"] = sev
+            continue
+
+        # 1) CVSS base score mapping
+        sc = row.get("cvss")
+        if sc is not None:
+            new_sev = _derive_severity_from_score(sc)
+            if new_sev != "unknown":
+                row["severity"] = new_sev
+                row["severity_source"] = "cvss"
+                changed += 1
+                continue
+
+        # 2) KEV signal => at least high
+        if row.get("kev"):
+            row["severity"] = "high"
+            row["severity_source"] = "kev"
+            changed += 1
+            continue
+
+        # 3) EPSS thresholds
+        epss = row.get("epss")
+        if isinstance(epss, (int, float)):
+            if epss >= 0.70:
+                row["severity"] = "high"
+                row["severity_source"] = "epss"
+            elif epss >= 0.30:
+                row["severity"] = "medium"
+                row["severity_source"] = "epss"
             else:
-                tgt.write_bytes(p.read_bytes())
+                row["severity"] = "low"
+                row["severity_source"] = "epss"
+            changed += 1
+            continue
+
+        # 4) Absolute floor
+        row["severity"] = "low"
+        row["severity_source"] = "floor"
+        changed += 1
+
+    meta_path.write_text(json.dumps(meta))
+
+    # Guardrail
+    invalid = [r for r in meta.values() if (r.get("severity") not in {"none","low","medium","high","critical"})]
+    if invalid:
+        raise SystemExit("[snapshot] invalid severity value present after normalization")
+    print(f"[db-snapshot] Normalized severities for {changed} CVEs")
 
 
 def _write_manifest(tmp_out: Path, years_back: int) -> None:
@@ -104,6 +194,7 @@ def build_snapshot(years_back: int, out_dir: Path) -> Path:
 
     try:
         _run_sync(years_back, tmp_out)
+        _normalize_severities(tmp_out)
         _write_manifest(tmp_out, years_back)
 
         stamp = dt.datetime.utcnow().strftime("%Y%m%d")

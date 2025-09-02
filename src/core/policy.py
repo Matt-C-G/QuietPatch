@@ -58,6 +58,7 @@ class Policy:
     only_with_cves: bool
     limit_per_app: int
     treat_unknown_as: str
+    unknown_strategy: str = "infer"  # infer | drop | fail
 
 
 DEFAULT_POLICY = Policy(
@@ -67,6 +68,7 @@ DEFAULT_POLICY = Policy(
     only_with_cves=True,
     limit_per_app=50,
     treat_unknown_as="low",
+    unknown_strategy="infer",
 )
 
 
@@ -75,6 +77,10 @@ def load_policy(path: str | Path = "config/policy.yml") -> Policy:
     if not p.exists():
         return DEFAULT_POLICY
     data = yaml.safe_load(p.read_text()) or {}
+    # sanitize unknown_strategy
+    raw_strategy = str(data.get("unknown_strategy", DEFAULT_POLICY.unknown_strategy)).strip().lower()
+    if raw_strategy not in ("infer", "drop", "fail"):
+        raw_strategy = DEFAULT_POLICY.unknown_strategy
     return Policy(
         allow=[str(x) for x in (data.get("allow") or [])],
         deny=[str(x) for x in (data.get("deny") or [])],
@@ -84,6 +90,7 @@ def load_policy(path: str | Path = "config/policy.yml") -> Policy:
         treat_unknown_as=_coerce_sev_label(
             data.get("treat_unknown_as", DEFAULT_POLICY.treat_unknown_as)
         ),
+        unknown_strategy=raw_strategy,
     )
 
 

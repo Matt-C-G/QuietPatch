@@ -3,6 +3,7 @@ allow:            []   # e.g., ["apple:safari", "microsoft:word"] or ["Safari"] 
 deny:             []   # e.g., ["games:*", "raycast:*"] or ["Hidden Folks"] (app name)
 min_severity:     low   # one of: none, low, medium, high, critical
 treat_unknown_as: low   # how to treat apps with unknown severity
+unknown_strategy: infer # infer | drop | fail — how to handle unknowns at report time
 only_with_cves:   true     # hide apps that have zero CVEs
 # Optional: cap output size
 limit_per_app:    50      # keep top-N CVEs per app (by risk)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import html
 import json
 from pathlib import Path
+from typing import Any
 
 # Decryptor import (v3 first, fallback to v2 if present)
 try:
@@ -171,8 +172,49 @@ def _generate_cve_details(rec: dict, row_id: str) -> str:
     """
 
 
+def _sanitize_unknowns(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    """Ensure no 'unknown' severities leak into rendering by applying policy.
+    Returns (items, unknown_count_before).
+    """
+    # Lazy import to avoid heavy deps at import time
+    try:
+        from src.core.policy import load_policy
+    except Exception:  # pragma: no cover
+        load_policy = None  # type: ignore
+
+    policy = load_policy().__dict__ if load_policy else {"unknown_strategy": "infer", "treat_unknown_as": "low"}
+    strategy = policy.get("unknown_strategy", "infer")
+    treat_as = policy.get("treat_unknown_as", "low")
+
+    unknown = 0
+    for app in items:
+        vulns = app.get("vulnerabilities") or app.get("cves") or []
+        cleaned = []
+        for v in vulns:
+            sev = str(v.get("severity", "unknown")).lower()
+            if sev == "unknown":
+                unknown += 1
+                if strategy == "fail":
+                    raise SystemExit("[policy] unknown severities present")
+                if strategy == "drop":
+                    continue
+                # infer: remap to treat_unknown_as and tag inferred
+                v["severity"] = str(treat_as).lower()
+                tags = set(v.get("tags") or [])
+                tags.add("inferred")
+                v["tags"] = sorted(tags)
+            cleaned.append(v)
+        # write back possibly filtered list preserving original key
+        if app.get("vulnerabilities") is not None:
+            app["vulnerabilities"] = cleaned
+        else:
+            app["cves"] = cleaned
+    return items, unknown
+
+
 def generate_report(input_path: str, output_path: str) -> str:
     items = _load_items(input_path)
+    items, unknown_count = _sanitize_unknowns(items)
 
     # Build table rows (one row per app, show first CVE + action preview)
     rows = []
@@ -193,13 +235,19 @@ def generate_report(input_path: str, output_path: str) -> str:
         row_id = f"row-{i}"
         has_cves = bool(vulns)
 
+        # check inferred tag for badge styling
+        inferred = False
+        vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+        if vulns:
+            inferred = bool(set(vulns[0].get("tags") or []).intersection({"inferred"}))
+
         cells = [
             f'<td class="app-cell">{html.escape(str(app))}</td>',
             f'<td class="version-cell">{html.escape(str(ver))}</td>',
             _action_cell(rec),  # <-- Action column with copy buttons
             f'<td class="cve-cell">{html.escape(str(cve or "—"))}</td>',
             f'<td class="cvss-cell">{html.escape(str(cvss or "—"))}</td>',
-            f'<td class="severity-cell">{_sev_badge(sev or (rec.get("severity_label") or ""))}</td>',
+            f'<td class="severity-cell">{_sev_badge(sev or (rec.get("severity_label") or ""))}{"<sup title=\"inferred from policy\">*</sup>" if inferred else ""}</td>',
             f'<td class="kev-cell">{html.escape(kev or "—")}</td>',
             f'<td class="epss-cell">{html.escape(epss or "—")}</td>',
             f'<td class="summary-cell">{html.escape(summary or "")}</td>',
@@ -241,6 +289,7 @@ def generate_report(input_path: str, output_path: str) -> str:
 <head>
     <meta charset="utf-8">
     <title>QuietPatch – Vulnerability Report</title>
+    <meta name="unknown-count" content="{unknown_count}">
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
@@ -464,6 +513,7 @@ def generate_report(input_path: str, output_path: str) -> str:
     <div class="safety-banner">
         <strong>⚠️ Safety Notice:</strong> Commands are suggestions. Review before running. 
         Never execute commands without understanding what they do.
+        <div class="muted">Unknown severities sanitized by policy; set unknown_strategy: fail to enforce.</div>
     </div>
     
     <div class="toolbar">

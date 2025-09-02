@@ -115,6 +115,19 @@ def main():
     # version (detailed version info)
     p_version = sub.add_parser("version", help="Show detailed version information")
 
+    # doctor
+    p_doctor = sub.add_parser("doctor", help="Environment checks")
+    p_doctor.add_argument("--db", help="Path to db snapshot", default=None)
+    p_doctor.add_argument("--output", default="reports")
+    p_doctor.add_argument("--max-db-age-days", type=int, default=30)
+
+    # update-db
+    p_update_db = sub.add_parser("update-db", help="Download/verify latest offline DB snapshot")
+    p_update_db.add_argument("--dest", default=".")
+
+    # update
+    sub.add_parser("update", help="How to update QuietPatch")
+
     # clean (cache and database cleanup)
     p_clean = sub.add_parser("clean", help="Clean cache and database files")
     p_clean.add_argument("--cache", action="store_true", help="Clean PEX cache directory")
@@ -306,6 +319,84 @@ def main():
             print("Database snapshot: Not found")
         print(f"Python: {sys.version.split()[0]}")
         print(f"Platform: {sys.platform}")
+
+    elif args.cmd == "doctor":
+        problems = 0
+        if not (sys.version_info.major == 3 and sys.version_info.minor == 11):
+            print("[warn] Python != 3.11; runners expect 3.11")
+        db = Path(args.db) if args.db else None
+        if not db or not db.exists():
+            print("[error] DB snapshot missing. Use: quietpatch update-db")
+            problems += 1
+        else:
+            manifest = db.with_name("db-manifest.json")
+            if manifest.exists():
+                try:
+                    j = json.loads(manifest.read_text())
+                    # try parse generated_at_utc if present
+                    ts = j.get("generated_at_utc")
+                    import time
+                    from datetime import datetime
+                    if ts:
+                        try:
+                            # if stored as ISO string, approximate age; ignore parsing failure
+                            t = datetime.fromisoformat(ts.rstrip("Z")).timestamp()
+                            age_days = (time.time() - float(t)) / 86400
+                            if age_days > args.max_db_age_days:
+                                print(f"[warn] DB snapshot older than {args.max_db_age_days}d")
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        out = Path(args.output)
+        try:
+            out.mkdir(parents=True, exist_ok=True)
+            (out/"__qp_test").write_text("ok"); (out/"__qp_test").unlink()
+        except Exception as e:
+            print(f"[error] cannot write to output: {out} ({e})"); problems += 1
+        if os.name == "nt" and "py" not in os.environ.get("PATH",""):
+            print("[hint] Install Python 3.11 x64 and ensure `py -3.11` works")
+        print("Doctor:", "OK" if problems == 0 else f"{problems} problem(s) found")
+
+    elif args.cmd == "update-db":
+        import hashlib, shutil, urllib.request
+        base = "https://github.com/Matt-C-G/QuietPatch/releases/latest/download"
+        target_dir = Path(args.dest).expanduser().resolve()
+        target_dir.mkdir(parents=True, exist_ok=True)
+        sums = target_dir / "SHA256SUMS"
+        dbname = "db-latest.tar.zst"
+
+        def dl(url, out):
+            with urllib.request.urlopen(url) as r, open(out, "wb") as f:
+                shutil.copyfileobj(r, f)
+
+        print("→ downloading SHA256SUMS…"); dl(f"{base}/SHA256SUMS", sums)
+        print("→ downloading DB snapshot…")
+        dbpath = target_dir / dbname
+        dl(f"{base}/{dbname}", dbpath)
+        line = next((l for l in sums.read_text().splitlines() if l.endswith(f" {dbname}")), None)
+        if not line:
+            print("No checksum entry for db-latest", file=sys.stderr)
+            sys.exit(2)
+        expected = line.split()[0].lower()
+        h = hashlib.sha256()
+        with open(dbpath, "rb") as f:
+            for chunk in iter(lambda: f.read(1<<20), b""): h.update(chunk)
+        got = h.hexdigest().lower()
+        if got != expected:
+            try:
+                dbpath.unlink()
+            except Exception:
+                pass
+            print(f"Checksum mismatch for {dbname}", file=sys.stderr)
+            sys.exit(2)
+        print(f"✓ DB saved to {dbpath}")
+
+    elif args.cmd == "update":
+        print("QuietPatch doesn’t auto-update the runner (by design).")
+        print("Install updates via package manager or installer:")
+        print("- macOS/Linux: brew upgrade quietpatch  OR  reinstall with install.sh")
+        print("- Windows: scoop update quietpatch  OR  reinstall with install.ps1")
 
     elif args.cmd == "clean":
         cleaned = []
