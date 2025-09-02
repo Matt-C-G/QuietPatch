@@ -23,38 +23,50 @@ jobs:
         run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
-      - name: Build PEX
+      - name: Build wheel
         shell: pwsh
         run: |
-          if (Test-Path dist) { Remove-Item dist -Recurse -Force }
-          mkdir dist
-          python -m pex -D . -r requirements.pex.txt `
-            --interpreter-constraint 'CPython>=3.11,<3.14' `
-            -m qp_cli:main `
-            -o dist/quietpatch-win-py311.pex
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          Get-ChildItem dist\*.whl | Format-List
+
+      - name: Build PEX from local wheel (deps from PyPI)
+        shell: pwsh
+        env:
+          PEX_IGNORE_RCFILES: '1'
+        run: |
+          python -m pip install pex==2.54.2
+          New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
+          $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
+          py -3.11 -m pex $whl `
+            -c quietpatch `
+            --find-links dist `
+            --no-build `
+            --strip-pex-env `
+            -o dist-pex\quietpatch-win-py311.pex
       - name: Package
         shell: pwsh
         run: |
-          echo '@echo off' > dist/run_quietpatch.bat
-          echo 'setlocal' >> dist/run_quietpatch.bat
-          echo 'set PEX_ROOT=%~dp0.pexroot' >> dist/run_quietpatch.bat
-          echo 'set TMP=%~dp0.tmp' >> dist/run_quietpatch.bat
-          echo 'set TEMP=%~dp0.tmp' >> dist/run_quietpatch.bat
-          echo 'where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)' >> dist/run_quietpatch.bat
-          echo 'py -3.11 "%~dp0quietpatch-win-py311.pex" %*' >> dist/run_quietpatch.bat
-          echo 'endlocal' >> dist/run_quietpatch.bat
-          echo 'QuietPatch (Windows)' > dist/README-Windows.txt
-          echo 'Requirements: Python 3.11 (64-bit)' >> dist/README-Windows.txt
-          echo 'Run: double-click run_quietpatch.bat' >> dist/README-Windows.txt
-          echo 'Report: .\reports\quietpatch_report.html' >> dist/README-Windows.txt
-          if (Test-Path catalog) { Copy-Item -Recurse catalog dist/catalog }
-          if (Test-Path policies) { Copy-Item -Recurse policies dist/policies }
+          echo '@echo off' > dist-pex/run_quietpatch.bat
+          echo 'setlocal' >> dist-pex/run_quietpatch.bat
+          echo 'set PEX_ROOT=%~dp0.pexroot' >> dist-pex/run_quietpatch.bat
+          echo 'set TMP=%~dp0.tmp' >> dist-pex/run_quietpatch.bat
+          echo 'set TEMP=%~dp0.tmp' >> dist-pex/run_quietpatch.bat
+          echo 'where py >nul 2>&1 || (echo Install Python 3.11 (64-bit) and retry.& exit /b 86)' >> dist-pex/run_quietpatch.bat
+          echo 'py -3.11 "%~dp0quietpatch-win-py311.pex" %*' >> dist-pex/run_quietpatch.bat
+          echo 'endlocal' >> dist-pex/run_quietpatch.bat
+          echo 'QuietPatch (Windows)' > dist-pex/README-Windows.txt
+          echo 'Requirements: Python 3.11 (64-bit)' >> dist-pex/README-Windows.txt
+          echo 'Run: double-click run_quietpatch.bat' >> dist-pex/README-Windows.txt
+          echo 'Report: .\reports\quietpatch_report.html' >> dist-pex/README-Windows.txt
+          if (Test-Path catalog) { Copy-Item -Recurse catalog dist-pex/catalog }
+          if (Test-Path policies) { Copy-Item -Recurse policies dist-pex/policies }
       - name: Zip
         shell: pwsh
         run: |
           $ver = $env:GITHUB_REF_NAME -replace '^v', ''
           New-Item -ItemType Directory -Path release -Force | Out-Null
-          Compress-Archive -Path dist\* -DestinationPath "release\quietpatch-${ver}-windows.zip" -Force
+          Compress-Archive -Path dist-pex\* -DestinationPath "release\quietpatch-${ver}-windows.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: win-zip
@@ -72,35 +84,46 @@ jobs:
         run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
-      - name: Build PEX
+      - name: Build wheel
         run: |
-          mkdir -p dist
-          python -m pex -D . -r requirements.pex.txt \
-            --interpreter-constraint 'CPython>=3.11,<3.14' \
-            -m qp_cli:main \
-            -o dist/quietpatch-linux-x86_64-py311.pex
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          ls -la dist/*.whl
+
+      - name: Build PEX from local wheel (deps from PyPI)
+        run: |
+          python -m pip install pex
+          mkdir -p dist-pex
+          whl=$(ls dist/*.whl | head -1)
+          python -m pex $whl \
+            -c quietpatch \
+            --find-links dist \
+            --no-build \
+            --strip-pex-env \
+            --venv prepend \
+            -o dist-pex/quietpatch-linux-x86_64-py311.pex
       - name: Package
         run: |
-          cat > dist/run_quietpatch.sh << 'EOF'
+          cat > dist-pex/run_quietpatch.sh << 'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           export PEX_ROOT="$(dirname "$0")/.pexroot"
           exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-linux-x86_64-py311.pex" "$@"
           EOF
-          chmod +x dist/run_quietpatch.sh
-          echo 'QuietPatch (Linux)' > dist/README-Linux.txt
-          echo 'Requirements: Python 3.11.' >> dist/README-Linux.txt
-          echo 'Run:' >> dist/README-Linux.txt
-          echo '  chmod +x run_quietpatch.sh' >> dist/README-Linux.txt
-          echo '  ./run_quietpatch.sh scan' >> dist/README-Linux.txt
-          echo 'Report: ./reports/quietpatch_report.html' >> dist/README-Linux.txt
-          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
-          if [ -d policies ]; then cp -r policies dist/policies; fi
+          chmod +x dist-pex/run_quietpatch.sh
+          echo 'QuietPatch (Linux)' > dist-pex/README-Linux.txt
+          echo 'Requirements: Python 3.11.' >> dist-pex/README-Linux.txt
+          echo 'Run:' >> dist-pex/README-Linux.txt
+          echo '  chmod +x run_quietpatch.sh' >> dist-pex/README-Linux.txt
+          echo '  ./run_quietpatch.sh scan' >> dist-pex/README-Linux.txt
+          echo 'Report: ./reports/quietpatch_report.html' >> dist-pex/README-Linux.txt
+          if [ -d catalog ]; then cp -r catalog dist-pex/catalog; fi
+          if [ -d policies ]; then cp -r policies dist-pex/policies; fi
       - name: Zip
         run: |
           ver="${GITHUB_REF_NAME#v}"
           mkdir -p release
-          (cd dist && zip -r9 "../release/quietpatch-${ver}-linux-x86_64.zip" .)
+          (cd dist-pex && zip -r9 "../release/quietpatch-${ver}-linux-x86_64.zip" .)
       - uses: actions/upload-artifact@v4
         with:
           name: linux-zip
@@ -118,33 +141,44 @@ jobs:
         run: |
           python -m pip install -U pip wheel setuptools pex
           python -m pip install -e .
-      - name: Build PEX
+      - name: Build wheel
         run: |
-          mkdir -p dist
-          python -m pex -D . -r requirements.pex.txt \
-            --interpreter-constraint 'CPython>=3.11,<3.14' \
-            -m qp_cli:main \
-            -o dist/quietpatch-macos-arm64-py311.pex
+          python -m pip install -U pip build wheel setuptools
+          python -m build -w -n
+          ls -la dist/*.whl
+
+      - name: Build PEX from local wheel (deps from PyPI)
+        run: |
+          python -m pip install pex
+          mkdir -p dist-pex
+          whl=$(ls dist/*.whl | head -1)
+          python -m pex $whl \
+            -c quietpatch \
+            --find-links dist \
+            --no-build \
+            --strip-pex-env \
+            --venv prepend \
+            -o dist-pex/quietpatch-macos-arm64-py311.pex
       - name: Package
         run: |
-          cat > dist/run_quietpatch.command << 'EOF'
+          cat > dist-pex/run_quietpatch.command << 'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           export PEX_ROOT="$(dirname "$0")/.pexroot"
           exec /usr/bin/env python3.11 "$(dirname "$0")/quietpatch-macos-arm64-py311.pex" "$@"
           EOF
-          chmod +x dist/run_quietpatch.command
-          echo 'QuietPatch (macOS, Apple Silicon)' > dist/README-macOS.txt
-          echo 'Requirements: Python 3.11 (brew install python@3.11).' >> dist/README-macOS.txt
-          echo 'Run: double-click run_quietpatch.command' >> dist/README-macOS.txt
-          echo 'Report: ./reports/quietpatch_report.html' >> dist/README-macOS.txt
-          if [ -d catalog ]; then cp -r catalog dist/catalog; fi
-          if [ -d policies ]; then cp -r policies dist/policies; fi
+          chmod +x dist-pex/run_quietpatch.command
+          echo 'QuietPatch (macOS, Apple Silicon)' > dist-pex/README-macOS.txt
+          echo 'Requirements: Python 3.11 (brew install python@3.11).' >> dist-pex/README-macOS.txt
+          echo 'Run: double-click run_quietpatch.command' >> dist-pex/README-macOS.txt
+          echo 'Report: ./reports/quietpatch_report.html' >> dist-pex/README-macOS.txt
+          if [ -d catalog ]; then cp -r catalog dist-pex/catalog; fi
+          if [ -d policies ]; then cp -r policies dist-pex/policies; fi
       - name: Zip
         run: |
           ver="${GITHUB_REF_NAME#v}"
           mkdir -p release
-          (cd dist && zip -r9 "../release/quietpatch-${ver}-macos-arm64.zip" .)
+          (cd dist-pex && zip -r9 "../release/quietpatch-${ver}-macos-arm64.zip" .)
       - uses: actions/upload-artifact@v4
         with:
           name: mac-zip
