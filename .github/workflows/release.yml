@@ -1,5 +1,9 @@
 name: release
 
+concurrency:
+  group: release
+  cancel-in-progress: true
+
 on:
   push:
     tags:
@@ -183,6 +187,60 @@ jobs:
         with:
           name: db
           path: dist/*
+
+  build-win-embedded:
+    name: build-windows-embedded
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VER }}
+
+      - name: Install build tools
+        shell: pwsh
+        run: |
+          py -3.11 -m pip install -U pip wheel setuptools pyinstaller
+
+      - name: Build embedded exe (PyInstaller)
+        shell: pwsh
+        run: |
+          py -3.11 -m PyInstaller --onefile --name quietpatch `
+            --add-data "quietpatch/report/templates;quietpatch/report/templates" `
+            --add-data "quietpatch/report/static;quietpatch/report/static" `
+            --add-data "catalog;catalog" `
+            --add-data "policies;policies" `
+            quietpatch/cli.py
+          Get-ChildItem dist\quietpatch.exe | Format-List
+
+      - name: Authenticode sign (optional)
+        if: ${{ secrets.WIN_CERT_BASE64 && secrets.WIN_CERT_PASSWORD }}
+        shell: pwsh
+        env:
+          WIN_CERT_BASE64: ${{ secrets.WIN_CERT_BASE64 }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("code-signing.pfx", [Convert]::FromBase64String($env:WIN_CERT_BASE64))
+          $sigtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+          if (-not $sigtool) { throw "signtool.exe not found on runner" }
+          & $sigtool sign /fd sha256 /f code-signing.pfx /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td sha256 dist\quietpatch.exe
+
+      - name: Package embedded exe (versioned + latest)
+        shell: pwsh
+        run: |
+          $ver = "$env:GITHUB_REF_NAME"
+          Compress-Archive -Path dist\quietpatch.exe -DestinationPath quietpatch-$ver-windows-embedded.zip -Force
+          Copy-Item quietpatch-$ver-windows-embedded.zip quietpatch-windows-embedded.zip -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-embedded
+          path: |
+            quietpatch-${{ github.ref_name }}-windows-embedded.zip
+            quietpatch-windows-embedded.zip
 
   publish:
     name: publish-release
