@@ -7,6 +7,13 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import re
+import shutil
+import tempfile
+import hashlib
+import platform as py_platform
+from urllib import request as urlrequest
+from urllib.error import URLError, HTTPError
 from datetime import datetime
 from importlib import metadata
 
@@ -144,6 +151,12 @@ def main():
     db_refresh.add_argument("--tor", help="SOCKS5h host:port (e.g. 127.0.0.1:9050)")
     db_refresh.add_argument("--privacy", default="strict", choices=["strict", "normal"])
     db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
+
+    # self-update
+    p_up = sub.add_parser("self-update", help="Update QuietPatch to the latest release")
+    p_up.add_argument("--no-db", action="store_true", help="Skip downloading the offline DB snapshot")
+    p_up.add_argument("--prefix", help="Install root prefix (defaults to platform-specific)")
+    p_up.add_argument("--bin-dir", help="Bin dir for shim (defaults to platform-specific)")
 
     args = p.parse_args()
 
@@ -397,6 +410,206 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+
+    elif args.cmd == "self-update":
+        def _have(cmd: str) -> bool:
+            return shutil.which(cmd) is not None
+
+        def _default_paths() -> tuple[Path, Path]:
+            if os.name == "nt":
+                root = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "QuietPatch"
+                bin_dir = root / "current"
+                return root, bin_dir
+            else:
+                root = Path(os.environ.get("PREFIX") or str(Path.home() / ".quietpatch"))
+                bin_dir = Path(os.environ.get("BIN_DIR") or str(Path.home() / ".local" / "bin"))
+                return root, bin_dir
+
+        def _detect_pattern() -> str:
+            system = py_platform.system()
+            machine = py_platform.machine().lower()
+            if system == "Darwin":
+                os_tag = "macos"
+            elif system == "Linux":
+                os_tag = "linux"
+            elif system == "Windows":
+                os_tag = "windows"
+            else:
+                raise RuntimeError(f"Unsupported OS: {system}")
+            if any(x in machine for x in ["arm64", "aarch64"]):
+                arch_tag = "arm64"
+            elif any(x in machine for x in ["x86_64", "amd64", "x64"]):
+                arch_tag = "x86_64|amd64|x64"
+            else:
+                raise RuntimeError(f"Unsupported arch: {machine}")
+            return f"{os_tag}.+({arch_tag})"
+
+        def _http_get(url: str, dest: Path | None = None) -> bytes | None:
+            req = urlrequest.Request(url, headers={"User-Agent": "quietpatch-self-update"})
+            with urlrequest.urlopen(req) as resp:
+                data = resp.read()
+            if dest is not None:
+                dest.write_bytes(data)
+                return None
+            return data
+
+        def _select_asset(rel: dict, regex: str) -> dict | None:
+            assets = rel.get("assets", [])
+            for a in assets:
+                name = a.get("name", "")
+                if re.search(regex, name, flags=re.I):
+                    return a
+            return None
+
+        def _find_asset(rel: dict, pat: str) -> tuple[str, str | None, str | None]:
+            asset = _select_asset(rel, pat)
+            if not asset:
+                raise RuntimeError(f"No asset matched: {pat}")
+            url = asset.get("browser_download_url")
+            sums = _select_asset(rel, r"SHA256SUMS")
+            sums_url = sums.get("browser_download_url") if sums else None
+            db = None if args.no_db else _select_asset(rel, r"^db-.*\.(tar\.(zst|gz))$")
+            db_url = db.get("browser_download_url") if db else None
+            return url, sums_url, db_url
+
+        def _verify(path: Path, sums_path: Path, filename: str) -> None:
+            try:
+                line = None
+                for l in sums_path.read_text().splitlines():
+                    if filename in l:
+                        line = l.strip()
+                        break
+                if not line:
+                    print("No matching entry in SHA256SUMS; skipping verification.")
+                    return
+                expected = line.split()[0].lower()
+                h = hashlib.sha256()
+                with path.open("rb") as f:
+                    for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                        h.update(chunk)
+                actual = h.hexdigest().lower()
+                if actual != expected:
+                    raise RuntimeError(f"Checksum mismatch: expected={expected} actual={actual}")
+                print("Checksum OK.")
+            except Exception as e:
+                raise
+
+        def _extract(asset_path: Path, install_root: Path) -> None:
+            install_current = install_root / "current"
+            install_current.mkdir(parents=True, exist_ok=True)
+            name = asset_path.name.lower()
+            if name.endswith(".zip"):
+                import zipfile
+                with zipfile.ZipFile(asset_path) as zf:
+                    zf.extractall(install_current)
+            elif name.endswith(".tar.gz") or name.endswith(".tgz"):
+                import tarfile
+                with tarfile.open(asset_path, mode="r:gz") as tf:
+                    tf.extractall(install_current)
+            elif name.endswith(".tar.zst"):
+                # Try system unzstd -> tar
+                if not _have("unzstd"):
+                    raise RuntimeError("unzstd not found; cannot extract .tar.zst")
+                with tempfile.TemporaryDirectory() as td:
+                    tmp_tar = Path(td) / "out.tar"
+                    with tmp_tar.open("wb") as w:
+                        p = subprocess.Popen(["unzstd", "-c", str(asset_path)], stdout=w)
+                        p.wait()
+                        if p.returncode != 0:
+                            raise RuntimeError("unzstd failed")
+                    import tarfile
+                    with tarfile.open(tmp_tar, mode="r:") as tf:
+                        tf.extractall(install_current)
+            elif name.endswith(".pex"):
+                target = install_current / "quietpatch.pex"
+                shutil.copy2(asset_path, target)
+                target.chmod(0o755)
+            else:
+                # Fallback: drop the file
+                shutil.copy2(asset_path, install_current / asset_path.name)
+
+        # Execution begins here
+        REPO = "matt-c-g/quietpatch"
+        API = f"https://api.github.com/repos/{REPO}/releases/latest"
+        prefix_default, bin_dir_default = _default_paths()
+        install_root = Path(args.prefix) if args.prefix else prefix_default
+        bin_dir = Path(args.bin_dir) if args.bin_dir else bin_dir_default
+
+        print("==> Detecting platform…")
+        pattern = _detect_pattern()
+        print(f"==> Pattern: {pattern}")
+
+        print("==> Fetching latest release metadata…")
+        try:
+            rel_bytes = _http_get(API)
+            rel = json.loads(rel_bytes.decode("utf-8"))
+        except (URLError, HTTPError) as e:
+            print(f"GitHub API failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        asset_url, sums_url, db_url = _find_asset(rel, pattern)
+        print(f"==> Asset: {asset_url}")
+        if sums_url:
+            print(f"==> Checksums: {sums_url}")
+        if db_url and not args.no_db:
+            print(f"==> DB: {db_url}")
+
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            asset_path = td_path / "asset"
+            print("==> Downloading asset…")
+            _http_get(asset_url, asset_path)
+
+            if sums_url:
+                sums_path = td_path / "SHA256SUMS"
+                _http_get(sums_url, sums_path)
+                try:
+                    _verify(asset_path, sums_path, Path(asset_url).name)
+                except Exception as e:
+                    print(f"WARNING: Checksum verification failed: {e}", file=sys.stderr)
+
+            print(f"==> Installing to {install_root / 'current'}")
+            _extract(asset_path, install_root)
+
+            if db_url and not args.no_db:
+                print("==> Downloading offline DB…")
+                db_out_dir = install_root / "db"
+                db_out_dir.mkdir(parents=True, exist_ok=True)
+                _http_get(db_url, db_out_dir / Path(db_url).name)
+
+        # Create shim if missing (best-effort)
+        try:
+            if os.name != "nt":
+                shim_path = (Path(os.environ.get("BIN_DIR") or bin_dir) if args.bin_dir else Path.home() / ".local" / "bin") / "quietpatch"
+                if not shim_path.exists():
+                    shim_path.parent.mkdir(parents=True, exist_ok=True)
+                    shim_path.write_text(
+                        """#!/usr/bin/env bash
+set -euo pipefail
+ROOT=\"${HOME}/.quietpatch/current\"
+export PEX_ROOT=\"${HOME}/.quietpatch/.pexroot\"
+if [ -x \"${ROOT}/run_quietpatch.sh\" ]; then
+  exec \"${ROOT}/run_quietpatch.sh\" \"$@\"
+elif ls \"${ROOT}\"/quietpatch*.pex >/dev/null 2>&1; then
+  PY=\"${PYTHON:-$(command -v python3.11 || command -v python3 || command -v python)}\"
+  [ -n \"$PY\" ] || { echo \"Python not found. Install Python 3.11+.\"; exit 86; }
+  PEX=\"$(ls \"${ROOT}\"/quietpatch*.pex 2>/dev/null | head -n1)\"
+  exec \"$PY\" \"$PEX\" \"$@\"
+elif [ -x \"${ROOT}/quietpatch\" ]; then
+  exec \"${ROOT}/quietpatch\" \"$@\"
+else
+  echo \"QuietPatch runtime not found in ${ROOT}\" >&2
+  exit 1
+fi
+""",
+                        encoding="utf-8",
+                    )
+                    shim_path.chmod(0o755)
+        except Exception:
+            pass
+
+        print("✅ Updated. Run: quietpatch scan --also-report --open")
+        return
 
 
 if __name__ == "__main__":

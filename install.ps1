@@ -1,75 +1,115 @@
-$ErrorActionPreference = "Stop"
+#Requires -Version 5.1
+$ErrorActionPreference = 'Stop'
 
-$Owner = "Matt-C-G"
-$Repo  = "QuietPatch"
-$Prefix = if ($Env:QUIETPATCH_PREFIX) { $Env:QUIETPATCH_PREFIX } else { "$Env:LOCALAPPDATA\QuietPatch" }
-$Bin = Join-Path $Prefix "bin"
-$Asset = "quietpatch-windows-x64.zip"
-$Db = "db-latest.tar.zst"
+# ---- Config ----
+$Repo = 'matt-c-g/quietpatch'
+$Api  = "https://api.github.com/repos/$Repo/releases/latest"
+$Root = "$env:LOCALAPPDATA\QuietPatch"
+$Bin  = "$Root\current"
+$WithDb = $true   # set to $false to skip DB download
 
-New-Item -ItemType Directory -Force -Path $Bin | Out-Null
-Set-Location $Bin
+# ---- Helpers ----
+function Note($msg){ Write-Host "==> $msg" -ForegroundColor Cyan }
+function Fatal($msg){ Write-Error $msg; exit 1 }
 
-Write-Host "→ Downloading latest $Asset..."
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/$Asset" -OutFile $Asset
-
-Write-Host "→ Verifying checksum..."
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/SHA256SUMS" -OutFile "SHA256SUMS"
-$zipHash = (Get-FileHash $Asset -Algorithm SHA256).Hash.ToLower()
-$refHash = (Select-String -Path "SHA256SUMS" -Pattern "$Asset").Line.Split()[0].ToLower()
-if ($zipHash -ne $refHash) { throw "Checksum mismatch for $Asset" }
-
-Write-Host "→ Extracting…"
-Expand-Archive -Path $Asset -DestinationPath $Bin -Force
-
-Write-Host "→ Downloading offline DB ($Db)…"
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/$Db" -OutFile $Db
-if (Select-String -Path "SHA256SUMS" -Pattern $Db -Quiet) {
-  $dbHash = (Get-FileHash $Db -Algorithm SHA256).Hash.ToLower()
-  $refDb  = (Select-String -Path "SHA256SUMS" -Pattern $Db).Line.Split()[0].ToLower()
-  if ($dbHash -ne $refDb) { throw "Checksum mismatch for $Db" }
+# GitHub API (no auth needed for public)
+try {
+  Note "Fetching latest release metadata…"
+  $rel = Invoke-RestMethod -Uri $Api -UseBasicParsing
+} catch {
+  Fatal "GitHub API failed: $($_.Exception.Message)"
 }
 
-# Shim: adds a 'quietpatch' command
-$shim = @'
-$ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Env:PEX_ROOT = Join-Path $Root ".pexroot"
-if (Get-Command py -ErrorAction SilentlyContinue) {
-  & py -3.11 (Join-Path $Root "quietpatch-win-py311.pex") @Args
+# Detect arch
+$arch = if ($env:PROCESSOR_ARCHITECTURE -match 'ARM64') { 'arm64' } else { 'x64|amd64' }
+$pattern = "windows.+($arch)"
+Note "Pattern: $pattern"
+
+# Select asset
+$asset = $rel.assets | Where-Object { $_.name -match $pattern } | Select-Object -First 1
+if (-not $asset) { Fatal "No asset matched: $pattern" }
+$assetUrl = $asset.browser_download_url
+Note "Asset: $($asset.name)"
+
+# Optional: SHA256SUMS
+$sum = $rel.assets | Where-Object { $_.name -match 'SHA256SUMS' } | Select-Object -First 1
+$sumUrl = $sum.browser_download_url
+
+# Optional: DB snapshot
+$db = $null
+if ($WithDb) {
+  $db = $rel.assets | Where-Object { $_.name -match '^db-.*\.(tar\.(zst|gz))$' } | Select-Object -First 1
+}
+
+# Prep dirs
+New-Item -Force -ItemType Directory -Path $Bin | Out-Null
+Set-Location (New-Item -Force -ItemType Directory -Path ([System.IO.Path]::GetTempPath() + '\qp-inst') )
+
+# Download asset
+Note "Downloading asset…"
+Invoke-WebRequest -Uri $assetUrl -OutFile ".\asset" -UseBasicParsing
+
+# Optional verify
+if ($sumUrl) {
+  Note "Verifying SHA256…"
+  Invoke-WebRequest -Uri $sumUrl -OutFile ".\SHA256SUMS" -UseBasicParsing
+  $expected = (Get-Content .\SHA256SUMS | Select-String -SimpleMatch $asset.name | Select-Object -First 1).ToString().Split(' ')[0]
+  if (-not $expected) { Note "No matching entry in SHA256SUMS; skipping verification." }
+  else {
+    $actual = (Get-FileHash .\asset -Algorithm SHA256).Hash.ToLower()
+    if ($actual -ne $expected.ToLower()) { Fatal "Checksum mismatch! expected=$expected actual=$actual" }
+  }
 } else {
-  & python (Join-Path $Root "quietpatch-win-py311.pex") @Args
-}
-'@
-$shimPath = Join-Path $Bin "quietpatch.ps1"
-$shim | Out-File -FilePath $shimPath -Encoding ASCII
-
-# Add to PATH (User)
-$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($UserPath -notlike "*$Bin*") {
-  [Environment]::SetEnvironmentVariable("Path", "$UserPath;$Bin", "User")
-  $Env:Path = "$Env:Path;$Bin"
-  Write-Host "✓ Updated PATH for current user"
+  Note "No SHA256SUMS found; skipping verification."
 }
 
-# Get version info for success message
-$VersionInfo = "QuietPatch"
-if (Test-Path (Join-Path $Bin "quietpatch-win-py311.pex")) {
-    try {
-        if (Get-Command py -ErrorAction SilentlyContinue) {
-            $VersionInfo = & py -3.11 (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
-        } else {
-            $VersionInfo = & python (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
-        }
-    } catch {
-        $VersionInfo = "QuietPatch"
-    }
+# Expand/install
+Note "Installing to $Bin"
+if ($asset.name -match '\.zip$') {
+  Expand-Archive -Path .\asset -DestinationPath $Bin -Force
+} elseif ($asset.name -match '\.pex$') {
+  Copy-Item .\asset "$Bin\quietpatch-win-py311.pex"
+} else {
+  # fallback: try to treat it as zip
+  try { Expand-Archive -Path .\asset -DestinationPath $Bin -Force } catch { Copy-Item .\asset "$Bin\$($asset.name)" }
+}
+
+# Optional DB
+if ($db) {
+  Note "Downloading offline DB: $($db.name)"
+  New-Item -Force -ItemType Directory -Path "$Root\db" | Out-Null
+  Invoke-WebRequest -Uri $db.browser_download_url -OutFile "$Root\db\$($db.name)" -UseBasicParsing
+}
+
+# Create shim on PATH
+$UserBin = "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps"
+$Shim = Join-Path $UserBin 'quietpatch.cmd'
+Note "Creating launcher: $Shim"
+@"
+@echo off
+set PEX_ROOT=$Root\.pexroot
+if exist "$Bin\run_quietpatch.bat" (
+  call "$Bin\run_quietpatch.bat" %*
+  exit /b %ERRORLEVEL%
+)
+for %%F in ("$Bin\quietpatch*.pex") do (
+  where py >nul 2>&1 || (echo Install Python 3.11+ and retry.& exit /b 86)
+  py -3.11 "%%~fF" %*
+  exit /b %ERRORLEVEL%
+)
+echo QuietPatch runtime not found in $Bin
+exit /b 1
+"@ | Out-File -Encoding ASCII -FilePath $Shim -Force
+
+# Ensure Bin is on PATH for current user (in case WindowsApps is blocked)
+$needPath = -not ($env:PATH -split ';' | Where-Object { $_ -eq $Bin })
+if ($needPath) {
+  Note "Adding $Bin to your user PATH"
+  $newPath = ([Environment]::GetEnvironmentVariable('PATH','User') + ";$Bin").Trim(';')
+  [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
 }
 
 Write-Host ""
-Write-Host "✓ $VersionInfo installed successfully!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Try: quietpatch scan --also-report --open"
-Write-Host "     (or: quietpatch scan --db $Db --also-report --open)"
-Write-Host ""
-Write-Host "For help: quietpatch scan --help"
+Write-Host "✅ Installed. Open a NEW PowerShell and run:" -ForegroundColor Green
+Write-Host "  quietpatch scan --also-report --open"
+if ($db) { Write-Host "  (offline DB at $Root\db\$($db.name))" }
