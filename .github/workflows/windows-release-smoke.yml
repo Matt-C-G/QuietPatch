@@ -1,0 +1,124 @@
+name: Windows Release + Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload assets to (must exist and be the latest you want)"
+        required: true
+        default: "v0.2.5"
+
+jobs:
+  build-windows-zip:
+    name: Build Windows ZIP (standardized)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade build pex
+
+      - name: Build wheel
+        shell: powershell
+        run: |
+          python -m build -w -n
+
+      - name: Build PEX (quietpatch.pex)
+        shell: powershell
+        run: |
+          $whl = Get-ChildItem dist\*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $whl) { throw "No wheel found in dist/" }
+          python -m pex "$($whl.FullName)" `
+            --find-links dist `
+            -c quietpatch `
+            --no-build `
+            --strip-pex-env `
+            -o dist\quietpatch.pex
+
+      - name: Prepare launcher
+        shell: powershell
+        run: |
+          Copy-Item -Force packaging\windows\run_quietpatch.bat .
+
+      - name: Create ZIP
+        shell: powershell
+        run: |
+          if (Test-Path dist\quietpatch-windows-x64.zip) { Remove-Item dist\quietpatch-windows-x64.zip -Force }
+          Compress-Archive -Force -Path dist\quietpatch.pex, .\run_quietpatch.bat -DestinationPath dist\quietpatch-windows-x64.zip
+
+      - name: SHA256SUMS
+        shell: powershell
+        run: |
+          Set-Location dist
+          $h = Get-FileHash quietpatch-windows-x64.zip -Algorithm SHA256
+          "$($h.Hash.ToLower())  quietpatch-windows-x64.zip" | Out-File -Encoding ascii -Append SHA256SUMS
+          Get-Content SHA256SUMS
+          Set-Location ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-assets
+          path: |
+            dist/quietpatch-windows-x64.zip
+            dist/SHA256SUMS
+
+  publish-to-release:
+    name: Publish assets to Release
+    needs: build-windows-zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-assets
+          path: dist
+
+      - name: Upload to Release (clobber)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.inputs.tag }}" \
+            "dist/quietpatch-windows-x64.zip#quietpatch-windows-x64.zip" \
+            "dist/SHA256SUMS#SHA256SUMS" \
+            --clobber
+
+      - name: Mark as latest (optional)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.event.inputs.tag }}" --latest
+
+      - name: Sanity check assets on latest
+        run: |
+          curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest \
+            | jq -r '.assets[].name'
+
+  smoke-windows-oneliner:
+    name: Windows one-liner smoke
+    needs: publish-to-release
+    runs-on: windows-latest
+    steps:
+      - name: One-liner install
+        shell: powershell
+        run: |
+          irm https://raw.githubusercontent.com/${{ github.repository }}/main/install.ps1 | iex
+
+      - name: Version check
+        shell: powershell
+        run: |
+          quietpatch --version
+
