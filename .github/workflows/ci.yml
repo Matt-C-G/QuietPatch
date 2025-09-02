@@ -31,12 +31,22 @@ jobs:
           RUFF_CACHE_DIR: .ruff_cache
 
   unit:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            py: '3.11'
+          - runner: ubuntu-22.04
+            py: '3.12'
+          - runner: ubuntu-22.04
+            py: '3.13'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PY_VER }}
+          python-version: ${{ matrix.py }}
           cache: "pip"
       - name: Install project + test deps
         run: |
@@ -68,6 +78,7 @@ jobs:
             --find-links dist \
             --validate-entry-point --no-build \
             --venv prepend --strip-pex-env \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
             -o dist-pex/quietpatch-linux-x86_64-py311.pex
       - name: Smoke
         env:
@@ -75,7 +86,7 @@ jobs:
           TMP: ${{ github.workspace }}/.tmp
           TEMP: ${{ github.workspace }}/.tmp
         run: |
-          python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
+          python3 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: quietpatch-linux
@@ -87,13 +98,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11", architecture: "x64", cache: "pip" }
+        with: { python-version: "3.13", architecture: "x64", cache: "pip" }
 
       - name: Build wheel
         shell: pwsh
         run: |
-          py -3.11 -m pip install -U pip build wheel setuptools
-          py -3.11 -m build -w -n
+          py -3.13 -m pip install -U pip build wheel setuptools
+          py -3.13 -m build -w -n
           Get-ChildItem dist\*.whl | Format-List
 
       - name: Build PEX from local wheel (deps from PyPI)
@@ -101,14 +112,15 @@ jobs:
         env:
           PEX_IGNORE_RCFILES: '1'
         run: |
-          py -3.11 -m pip install pex==2.54.2
+          py -3.13 -m pip install pex==2.54.2
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
           $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
-          py -3.11 -m pex $whl `
+          py -3.13 -m pex $whl `
             -c quietpatch `
             --find-links dist `
             --no-build `
             --strip-pex-env `
+            --interpreter-constraint 'CPython>=3.11,<3.14' `
             -o dist-pex\quietpatch-win-py311.pex
 
       - name: Smoke
@@ -120,7 +132,7 @@ jobs:
           TEMP: 'C:\t'
           PEX_IGNORE_RCFILES: '1'
         run: |
-          py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
+          py -3.13 dist-pex\quietpatch-win-py311.pex scan --help >$null
 
       - uses: actions/upload-artifact@v4
         with: { name: quietpatch-windows, path: dist-pex/* }
@@ -147,10 +159,11 @@ jobs:
             --find-links dist \
             --validate-entry-point --no-build \
             --venv prepend --strip-pex-env \
+            --interpreter-constraint 'CPython>=3.11,<3.14' \
             -o dist-pex/quietpatch-macos-arm64-py311.pex
       - name: Smoke
         run: |
-          python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null
+          python3 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: quietpatch-macos

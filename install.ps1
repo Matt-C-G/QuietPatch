@@ -35,11 +35,12 @@ $shim = @'
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Env:PEX_ROOT = Join-Path $Root ".pexroot"
-if (Get-Command py -ErrorAction SilentlyContinue) {
-  & py -3.11 (Join-Path $Root "quietpatch-win-py311.pex") @Args
-} else {
-  & python (Join-Path $Root "quietpatch-win-py311.pex") @Args
+foreach ($v in '3.13','3.12','3.11') {
+  if (Get-Command py -ErrorAction SilentlyContinue) {
+    try { & py -$v -c "import sys" 2>$null; if ($LASTEXITCODE -eq 0) { & py -$v (Join-Path $Root "quietpatch-win-py311.pex") @Args; exit $LASTEXITCODE } } catch {}
+  }
 }
+& python (Join-Path $Root "quietpatch-win-py311.pex") @Args
 '@
 $shimPath = Join-Path $Bin "quietpatch.ps1"
 $shim | Out-File -FilePath $shimPath -Encoding ASCII

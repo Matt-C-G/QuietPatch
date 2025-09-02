@@ -85,7 +85,7 @@ sha256sum -c SHA256SUMS
 
 ## 📋 Requirements
 
-- **Python 3.11** (required for PEX execution)
+- **Python 3.11–3.13** (required for PEX execution)
 - **Internet connection** (for initial download and database updates)
 - **Offline operation** supported with local database
 
@@ -108,8 +108,8 @@ make pre-release
 ## 🆘 Troubleshooting
 
 ### Python Not Found
-Ensure Python 3.11 is installed and in your PATH:
-- **macOS**: `brew install python@3.11`
+Ensure Python 3.11–3.13 is installed and in your PATH (newest preferred):
+- **macOS**: `brew install python@3.13`
 - **Linux**: Use your distribution's package manager
 - **Windows**: Download from [python.org](https://python.org)
 

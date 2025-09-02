@@ -30,16 +30,16 @@ jobs:
             zip_name: quietpatch-${{ github.ref_name }}-linux-x86_64.zip
             latest_zip: quietpatch-linux-x86_64.zip
             shell: bash
-            smoke: "python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null"
-            flags: "--find-links dist --no-build --strip-pex-env --venv prepend"
+            smoke: "python3 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null"
+            flags: "--find-links dist --no-build --strip-pex-env --venv prepend --interpreter-constraint 'CPython>=3.11,<3.14'"
           - os: macos-arm64
             runner: macos-14
             pex_name: quietpatch-macos-arm64-py311.pex
             zip_name: quietpatch-${{ github.ref_name }}-macos-arm64.zip
             latest_zip: quietpatch-macos-arm64.zip
             shell: bash
-            smoke: "python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null"
-            flags: "--find-links dist --no-build --strip-pex-env --venv prepend"
+            smoke: "python3 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null"
+            flags: "--find-links dist --no-build --strip-pex-env --venv prepend --interpreter-constraint 'CPython>=3.11,<3.14'"
           - os: windows-x64
             runner: windows-latest
             pex_name: quietpatch-win-py311.pex
@@ -48,8 +48,8 @@ jobs:
             shell: pwsh
             smoke: |
               $env:PEX_ROOT='C:\pex'; $env:TEMP='C:\t'; $env:TMP='C:\t'; $env:PEX_IGNORE_RCFILES='1'
-              py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
-            flags: "--find-links dist --no-build --strip-pex-env"
+              py -3.13 dist-pex\quietpatch-win-py311.pex scan --help >$null
+            flags: "--find-links dist --no-build --strip-pex-env --interpreter-constraint 'CPython>=3.11,<3.14'"
 
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
 
       - name: Install PEX (Windows pin)
         if: matrix.os == 'windows-x64'
-        run: py -3.11 -m pip install pex==${{ env.PEX_WIN }}
+        run: py -3.13 -m pip install pex==${{ env.PEX_WIN }}
         shell: pwsh
 
       - name: Build PEX from local wheel
@@ -86,7 +86,7 @@ jobs:
           if [ "${{ matrix.shell }}" = "bash" ]; then
             python -m pex $WHL -c quietpatch ${{ matrix.flags }} -o dist-pex/${{ matrix.pex_name }}
           else
-            py -3.11 -m pex $WHL -c quietpatch ${{ matrix.flags }} -o dist-pex\${{ matrix.pex_name }}
+            py -3.13 -m pex $WHL -c quietpatch ${{ matrix.flags }} -o dist-pex\${{ matrix.pex_name }}
           fi
 
       - name: Smoke
@@ -106,7 +106,7 @@ jobs:
               #!/usr/bin/env bash
               set -euo pipefail
               export PEX_ROOT="$(dirname "$0")/.pexroot"
-              exec /usr/bin/env python3.11 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
+              exec /usr/bin/env python3 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
               SH
               chmod +x pkg/run_quietpatch.sh
             else
@@ -114,7 +114,7 @@ jobs:
               #!/usr/bin/env bash
               set -euo pipefail
               export PEX_ROOT="$(dirname "$0")/.pexroot"
-              exec /usr/bin/env python3.11 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
+              exec /usr/bin/env python3 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
               SH
               chmod +x pkg/run_quietpatch.command
             fi
@@ -126,11 +126,17 @@ jobs:
             set PEX_ROOT=%~dp0.pexroot
             set TMP=%~dp0.tmp
             set TEMP=%~dp0.tmp
-            where py >nul 2>&1 && (
-              py -3.11 "%~dp0${{ matrix.pex_name }}" %*
-            ) || (
-              python "%~dp0${{ matrix.pex_name }}" %*
+            for %%V in (3.13 3.12 3.11) do (
+              py -%%V -c "import sys" >nul 2>&1
+              if not errorlevel 1 (
+                py -%%V "%~dp0${{ matrix.pex_name }}" %*
+                goto :eof
+              )
             )
+            echo QuietPatch requires Python 3.11–3.13 (64-bit) on Windows.
+            echo Install from https://www.python.org/downloads/windows/ or via winget:
+            echo   winget install --id=Python.Python.3.13 -e
+            exit /b 86
             endlocal
             '@ | Out-File -FilePath pkg\run_quietpatch.bat -Encoding ASCII
           fi

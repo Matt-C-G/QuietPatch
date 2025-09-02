@@ -50,7 +50,7 @@ cat > quietpatch <<'SH'
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PEX_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/quietpatch/.pexroot"
-if command -v python3.11 >/dev/null 2>&1; then PY=python3.11; else PY=python3; fi
+PY=python3
 if [[ "$OSTYPE" == darwin* ]]; then
   PEX="$ROOT/quietpatch-macos-arm64-py311.pex"
 else
@@ -72,11 +72,7 @@ fi
 VERSION_INFO=""
 if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ] || [ -f "$BIN_DIR/quietpatch-linux-x86_64-py311.pex" ]; then
     # Try to get version from the PEX
-    if command -v python3.11 >/dev/null 2>&1; then
-        PY=python3.11
-    else
-        PY=python3
-    fi
+    PY=python3
     
     if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ]; then
         PEX="$BIN_DIR/quietpatch-macos-arm64-py311.pex"

@@ -55,12 +55,12 @@ build: ## Build wheel and PEX locally
 	@python -m pip install pex
 	@mkdir -p dist-pex
 	@whl=$$(ls dist/*.whl | head -1); \
-	python -m pex $$whl -c quietpatch --find-links dist --no-build --strip-pex-env --venv prepend -o dist-pex/quietpatch-local.pex
+	python -m pex $$whl -c quietpatch --find-links dist --no-build --strip-pex-env --venv prepend --interpreter-constraint 'CPython>=3.11,<3.14' -o dist-pex/quietpatch-local.pex
 	@echo "Built: dist-pex/quietpatch-local.pex"
 
 smoke: build ## Run smoke test on local PEX
 	@echo "Running smoke test..."
-	@python3.11 dist-pex/quietpatch-local.pex scan --help >/dev/null
+	@python3 dist-pex/quietpatch-local.pex scan --help >/dev/null
 	@echo "✅ Smoke test passed"
 
 # Development workflow
