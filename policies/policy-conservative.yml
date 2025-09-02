@@ -1,0 +1,12 @@
+# Enterprise-friendly, fewer findings
+allow: []
+deny:  []
+min_severity: high
+treat_unknown_as: low
+max_unknown_ratio: 0.0
+unknown_strategy: infer
+only_with_cves: true
+limit_per_app: 30
+sort:
+  kev_first: true
+  by: [severity, epss_desc, cvss_desc, cve_id_asc]

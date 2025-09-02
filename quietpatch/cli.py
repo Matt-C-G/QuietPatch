@@ -86,6 +86,7 @@ def main():
     p_scan.add_argument(
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
+    p_scan.add_argument("--json-out", metavar="PATH", help="Also write machine-readable JSON report")
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -234,6 +235,35 @@ def main():
             print(f"Report generated: {html_out}")
             if args.open:
                 _open_file(str(html_out))
+
+        # Optional JSON export alongside HTML/plain mapping
+        if getattr(args, "json_out", None):
+            try:
+                from quietpatch.report.jsonout import to_json
+                try:
+                    from src.core.policy import load_policy
+                except Exception:
+                    load_policy = None  # type: ignore
+
+                src_json = outdir / "vuln_log.json"
+                if src_json.exists():
+                    apps_data = json.loads(src_json.read_text())
+                else:
+                    apps_data = []
+
+                policy_doc = {}
+                if load_policy:
+                    try:
+                        from dataclasses import asdict
+                        policy_doc = asdict(load_policy())
+                    except Exception:
+                        policy_doc = {}
+                meta = {"db_snapshot": _get_db_snapshot_date() or ""}
+
+                Path(args.json_out).write_text(to_json(apps_data, policy_doc, meta), encoding="utf-8")
+                print(f"JSON report written: {args.json_out}")
+            except Exception as e:
+                print(f"Warning: Could not write JSON report: {e}")
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level
