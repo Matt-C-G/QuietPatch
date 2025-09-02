@@ -193,13 +193,21 @@ def generate_report(input_path: str, output_path: str) -> str:
         row_id = f"row-{i}"
         has_cves = bool(vulns)
 
+        # Compute severity badge and inferred star separately
+        inferred = bool(
+            rec.get("inferred")
+            or (rec.get("severity_source") in {"vector", "vendor", "epss", "kev", "cwe", "floor"})
+        )
+        badge = _sev_badge(sev or (rec.get("severity_label") or ""))
+        sup = '<sup title="inferred from policy">*</sup>' if inferred else ""
+
         cells = [
             f'<td class="app-cell">{html.escape(str(app))}</td>',
             f'<td class="version-cell">{html.escape(str(ver))}</td>',
             _action_cell(rec),  # <-- Action column with copy buttons
             f'<td class="cve-cell">{html.escape(str(cve or "—"))}</td>',
             f'<td class="cvss-cell">{html.escape(str(cvss or "—"))}</td>',
-            f'<td class="severity-cell">{_sev_badge(sev or (rec.get("severity_label") or ""))}</td>',
+            f'<td class="severity-cell">{badge}{sup}</td>',
             f'<td class="kev-cell">{html.escape(kev or "—")}</td>',
             f'<td class="epss-cell">{html.escape(epss or "—")}</td>',
             f'<td class="summary-cell">{html.escape(summary or "")}</td>',
