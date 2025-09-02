@@ -1,7 +1,5 @@
 $ErrorActionPreference = "Stop"
 
-$Owner = "Matt-C-G"
-$Repo  = "QuietPatch"
 $Prefix = if ($Env:QUIETPATCH_PREFIX) { $Env:QUIETPATCH_PREFIX } else { "$Env:LOCALAPPDATA\QuietPatch" }
 $Bin = Join-Path $Prefix "bin"
 
@@ -14,33 +12,28 @@ if (-not (Test-Path $Bin)) {
     exit 0
 }
 
-# Remove from PATH (User)
+Write-Host "→ Removing QuietPatch from $Bin"
+Remove-Item -Recurse -Force $Bin -ErrorAction SilentlyContinue
+
+# Remove PATH entry if present
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -like "*$Bin*") {
-    Write-Host "→ Removing from PATH..."
-    $NewPath = ($UserPath -split ';' | Where-Object { $_ -ne $Bin }) -join ';'
+    $NewPath = ($UserPath.Split(';') | Where-Object { $_ -ne $Bin }) -join ';'
     [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
-    Write-Host "✓ Removed from PATH"
+    Write-Host "✓ Removed PATH entry"
 }
 
-# Remove the installation directory
-Write-Host "→ Removing installation directory: $Bin"
-Remove-Item -Path $Bin -Recurse -Force
-
-# Remove cache directory
-$CacheDir = Join-Path $Env:LOCALAPPDATA "quietpatch"
-if (Test-Path $CacheDir) {
-    Write-Host "→ Removing cache directory: $CacheDir"
-    Remove-Item -Path $CacheDir -Recurse -Force
+# Cache cleanup
+$Cache = Join-Path $Env:LOCALAPPDATA "quietpatch"
+if (Test-Path $Cache) {
+    Remove-Item -Recurse -Force $Cache
+    Write-Host "✓ Removed cache $Cache"
 }
 
 # Remove the parent directory if it's empty
 if ((Test-Path $Prefix) -and ((Get-ChildItem $Prefix -Force | Measure-Object).Count -eq 0)) {
-    Write-Host "→ Removing empty parent directory: $Prefix"
     Remove-Item -Path $Prefix -Force
+    Write-Host "✓ Removed empty parent directory: $Prefix"
 }
 
-Write-Host ""
-Write-Host "✓ QuietPatch uninstalled successfully!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Note: You may need to restart your terminal or run 'refreshenv' to clear command cache."
+Write-Host "✓ QuietPatch uninstalled" -ForegroundColor Green

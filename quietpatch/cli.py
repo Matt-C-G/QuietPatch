@@ -8,11 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 from datetime import datetime
-
-from quietpatch import __version__, __build_tag__
-from quietpatch.report.html import generate_report  # assumes you have generate_report(input_json, out_html)
-from src.config.encryptor_v3 import decrypt_file  # for report
-from src.core.cve_mapper_new import run as run_mapping  # scan path
+from importlib import metadata
 
 
 def _open_file(path: str) -> None:
@@ -61,12 +57,18 @@ def _get_db_snapshot_date() -> str | None:
 
 
 def main():
+    # Handle --version flag first, before parsing subcommands
+    if "--version" in sys.argv:
+        try:
+            version = metadata.version("quietpatch")
+        except metadata.PackageNotFoundError:
+            version = "dev"
+        print(f"QuietPatch {version}")
+        sys.exit(0)
+    
     p = argparse.ArgumentParser(
         prog="quietpatch", description="Local CVE tracker with encrypted outputs."
     )
-    
-    # Add version flag
-    p.add_argument("--version", action="version", version=f"QuietPatch {__version__} ({__build_tag__})")
     
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -113,6 +115,12 @@ def main():
     # version (detailed version info)
     p_version = sub.add_parser("version", help="Show detailed version information")
 
+    # clean (cache and database cleanup)
+    p_clean = sub.add_parser("clean", help="Clean cache and database files")
+    p_clean.add_argument("--cache", action="store_true", help="Clean PEX cache directory")
+    p_clean.add_argument("--db", action="store_true", help="Clean database files")
+    p_clean.add_argument("--all", action="store_true", help="Clean everything (cache + db)")
+
     # db
     db = sub.add_parser("db", help="Database actions")
     db_sub = db.add_subparsers(dest="db_cmd", required=True)
@@ -134,6 +142,9 @@ def main():
     args = p.parse_args()
 
     if args.cmd == "scan":
+        # Import here to avoid loading heavy dependencies at module level
+        from src.core.cve_mapper_new import run as run_mapping
+        
         # Handle rollback operations first
         if args.snapshot:
             from src.core.scanner_helper import get_scanner
@@ -199,6 +210,10 @@ def main():
         print(json.dumps(locs, indent=2))
 
         if args.also_report:
+            # Import here to avoid loading heavy dependencies at module level
+            from src.config.encryptor_v3 import decrypt_file
+            from quietpatch.report.html import generate_report
+            
             # prefer plaintext if present; else decrypt
             src_json = outdir / "vuln_log.json"
             if not src_json.exists():
@@ -216,6 +231,10 @@ def main():
                 _open_file(str(html_out))
 
     elif args.cmd == "report":
+        # Import here to avoid loading heavy dependencies at module level
+        from src.config.encryptor_v3 import decrypt_file
+        from quietpatch.report.html import generate_report
+        
         inp = Path(args.input)
         html_out = Path(args.output)
         html_out.parent.mkdir(parents=True, exist_ok=True)
@@ -276,7 +295,11 @@ def main():
 
     elif args.cmd == "version":
         db_date = _get_db_snapshot_date()
-        print(f"QuietPatch {__version__} ({__build_tag__})")
+        try:
+            version = metadata.version("quietpatch")
+        except metadata.PackageNotFoundError:
+            version = "dev"
+        print(f"QuietPatch {version}")
         if db_date:
             print(f"Database snapshot: {db_date}")
         else:
@@ -284,7 +307,47 @@ def main():
         print(f"Python: {sys.version.split()[0]}")
         print(f"Platform: {sys.platform}")
 
+    elif args.cmd == "clean":
+        cleaned = []
+        
+        # Clean cache if requested
+        if args.cache or args.all:
+            cache_dir = Path(os.environ.get("PEX_ROOT", ""))
+            if not cache_dir:
+                # Default cache locations
+                if sys.platform == "win32":
+                    cache_dir = Path(os.environ.get("LOCALAPPDATA", "")) / "quietpatch" / ".pexroot"
+                else:
+                    cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quietpatch" / ".pexroot"
+            
+            if cache_dir.exists():
+                import shutil
+                shutil.rmtree(cache_dir)
+                cleaned.append(f"Cache: {cache_dir}")
+        
+        # Clean database if requested
+        if args.db or args.all:
+            data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
+            db_files = list(data_dir.glob("db-*.tar.*"))
+            if db_files:
+                for db_file in db_files:
+                    db_file.unlink()
+                    cleaned.append(f"Database: {db_file.name}")
+        
+        if cleaned:
+            print("✓ Cleaned:")
+            for item in cleaned:
+                print(f"  - {item}")
+        else:
+            print("Nothing to clean. Use --cache, --db, or --all")
+        
+        if not (args.cache or args.db or args.all):
+            print("Specify what to clean: --cache, --db, or --all")
+
     elif args.cmd == "show":
+        # Import here to avoid loading heavy dependencies at module level
+        from src.config.encryptor_v3 import decrypt_file
+        
         raw = decrypt_file(args.path)
         try:
             obj = json.loads(raw.decode())
