@@ -18,8 +18,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -eux
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/matt-c-g/quietpatch/main/install.sh)"
+          set -euo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/$GITHUB_SHA/install.sh" | /bin/bash
           export PATH="$HOME/.local/bin:$PATH"
           quietpatch --version | cat
 
@@ -31,5 +31,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          irm https://raw.githubusercontent.com/matt-c-g/quietpatch/main/install.ps1 | iex
+          $ErrorActionPreference = 'Stop'
+          irm "https://raw.githubusercontent.com/${{ github.repository }}/$env:GITHUB_SHA/install.ps1" | iex
           quietpatch --version | Out-Host

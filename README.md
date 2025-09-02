@@ -15,12 +15,12 @@
 
    macOS / Linux
    ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/matt-c-g/quietpatch/main/install.sh)"
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"
    ```
 
    Windows (PowerShell)
    ```powershell
-   irm https://raw.githubusercontent.com/matt-c-g/quietpatch/main/install.ps1 | iex
+   irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
    ```
 
 2. Run a scan
