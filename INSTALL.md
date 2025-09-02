@@ -124,6 +124,44 @@ If the `quietpatch` command isn't found after installation:
 - **Linux/macOS**: Add the installation directory to your PATH
 - **Windows**: Restart your terminal or run `refreshenv`
 
+## 🗑️ Uninstallation
+
+### One-Command Uninstall
+
+**macOS & Linux:**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/uninstall.sh)"
+```
+
+**Windows:**
+```powershell
+irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/uninstall.ps1 | iex
+```
+
+### Package Manager Uninstall
+
+**Homebrew:**
+```bash
+brew uninstall quietpatch
+```
+
+**Scoop:**
+```powershell
+scoop uninstall quietpatch
+```
+
+### Manual Uninstall
+
+1. Remove the installation directory:
+   - **macOS/Linux**: `~/.quietpatch/` or `$QUIETPATCH_PREFIX`
+   - **Windows**: `%LOCALAPPDATA%\QuietPatch\` or `$env:QUIETPATCH_PREFIX`
+
+2. Remove cache directories:
+   - **macOS/Linux**: `~/.cache/quietpatch/`
+   - **Windows**: `%LOCALAPPDATA%\quietpatch\`
+
+3. Remove PATH entries if manually added
+
 ## 🔄 Updates
 
 ### Package Managers

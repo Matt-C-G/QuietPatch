@@ -1,48 +1,304 @@
-<!doctype html><html lang="en"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QuietPatch</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#0b0e14;color:#e6e6e6}
-  .wrap{max-width:860px;margin:40px auto;padding:0 16px}
-  h1{font-size:28px;margin:0 0 8px}
-  .sub{color:#9aa4b2;margin:0 0 24px}
-  .card{background:#141925;border:1px solid #1d2331;border-radius:14px;padding:18px;margin:12px 0}
-  .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #2a3246;text-decoration:none;color:#e6e6e6;margin-right:8px}
-  .btn:hover{background:#1a2131}
-  code{background:#1a2131;padding:2px 6px;border-radius:6px}
-  ul{margin:8px 0 0 18px}
-  footer{margin:32px 0 12px;color:#8b96a8;font-size:13px}
-</style>
-<div class="wrap">
-  <h1>QuietPatch</h1>
-  <p class="sub">Privacy-first, offline patch advisor. Signed catalogs. Deterministic, board-ready reports.</p>
-
-  <div class="card">
-    <b>Why it's different</b>
-    <ul>
-      <li>Offline by default (zero telemetry).</li>
-      <li>Signature-enforced remediation with rollback rehearsal.</li>
-      <li>Deterministic reports (stable hash in footer).</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <a class="btn" href="../releases/latest">Download</a>
-    <a class="btn" href="../VERIFY.md">Verify</a>
-    <a class="btn" href="https://forms.gle/">Pilot with us</a>
-    <div style="margin-top:10px;color:#9aa4b2">No installer required: <code>python3 quietpatch.pyz -h</code></div>
-  </div>
-
-  <div class="card">
-    <b>Quick start</b>
-    <pre><code># scan + encrypt
-python3 quietpatch.pyz scan -o data --age-recipient &lt;AGE_PUBKEY&gt;
-
-# generate HTML report
-python3 quietpatch.pyz report -i data/vuln_log.json.enc -o report.html
-</code></pre>
-  </div>
-
-  <footer>© QuietPatch — privacy-first by design.</footer>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuietPatch - Privacy-First Vulnerability Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 3rem;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .description {
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            color: #555;
+        }
+        
+        .install-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .install-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+        
+        .install-command {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+            word-break: break-all;
+            position: relative;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .copy-btn:hover {
+            background: #2d3748;
+        }
+        
+        .copy-btn.copied {
+            background: #38a169;
+        }
+        
+        .platform-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            gap: 0.5rem;
+        }
+        
+        .tab {
+            padding: 0.5rem 1rem;
+            background: #e2e8f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+        
+        .feature {
+            text-align: left;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .feature-desc {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .links {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .link:hover {
+            color: #5a67d8;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 2rem 1rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .platform-tabs {
+                flex-direction: column;
+            }
+            
+            .links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔒 QuietPatch</div>
+        <div class="tagline">Privacy-First Vulnerability Scanner</div>
+        <div class="description">
+            Cross-platform, offline-first vulnerability scanner with deterministic HTML reports and per-app remediation.
+        </div>
+        
+        <div class="install-section">
+            <div class="install-title">🚀 One-Command Installation</div>
+            
+            <div class="platform-tabs">
+                <button class="tab active" onclick="showTab('unix')">macOS & Linux</button>
+                <button class="tab" onclick="showTab('windows')">Windows</button>
+            </div>
+            
+            <div id="unix" class="tab-content active">
+                <div class="install-command">
+                    <button class="copy-btn" onclick="copyToClipboard('unix-cmd')">Copy</button>
+                    <span id="unix-cmd">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"</span>
+                </div>
+            </div>
+            
+            <div id="windows" class="tab-content">
+                <div class="install-command">
+                    <button class="copy-btn" onclick="copyToClipboard('windows-cmd')">Copy</button>
+                    <span id="windows-cmd">irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-title">Offline-First</div>
+                <div class="feature-desc">Works without internet after initial setup. Download vulnerability database once, scan anywhere.</div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🛡️</div>
+                <div class="feature-title">Privacy-Focused</div>
+                <div class="feature-desc">No telemetry, no data collection. All processing happens locally on your machine.</div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">Rich Reports</div>
+                <div class="feature-desc">Beautiful HTML reports with CVSS scores, EPSS data, and actionable remediation steps.</div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Cross-Platform</div>
+                <div class="feature-desc">Single-file executables for Windows, macOS, and Linux. No complex dependencies.</div>
+            </div>
+        </div>
+        
+        <div class="links">
+            <a href="https://github.com/Matt-C-G/QuietPatch" class="link">📁 GitHub</a>
+            <a href="https://github.com/Matt-C-G/QuietPatch/releases" class="link">📦 Releases</a>
+            <a href="https://github.com/Matt-C-G/QuietPatch/blob/main/INSTALL.md" class="link">📖 Installation Guide</a>
+            <a href="https://github.com/Matt-C-G/QuietPatch/issues" class="link">🐛 Issues</a>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = element.parentElement.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+    </script>
+</body>
 </html>

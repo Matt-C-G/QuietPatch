@@ -88,4 +88,21 @@ test-install: ## Test the install scripts locally
 	else \
 		echo "PowerShell not available, skipping syntax check"; \
 	fi
-	@echo "✅ Install scripts syntax OK"
+	@echo "Testing uninstall.sh..."
+	@bash -n uninstall.sh
+	@echo "Testing uninstall.ps1..."
+	@if command -v powershell >/dev/null 2>&1; then \
+		powershell -Command "Get-Content uninstall.ps1 | Out-Null"; \
+	else \
+		echo "PowerShell not available, skipping syntax check"; \
+	fi
+	@echo "✅ All install/uninstall scripts syntax OK"
+
+serve-docs: ## Serve the landing page locally
+	@echo "Serving docs at http://localhost:8000"
+	@cd docs && python3 -m http.server 8000
+
+test-version: build ## Test the version command
+	@echo "Testing version command..."
+	@python3 dist-pex/quietpatch-local.pex --version
+	@python3 dist-pex/quietpatch-local.pex version

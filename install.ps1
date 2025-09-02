@@ -52,4 +52,24 @@ if ($UserPath -notlike "*$Bin*") {
   Write-Host "✓ Updated PATH for current user"
 }
 
-Write-Host "Done. New session: run `quietpatch scan --db $Db --also-report --open`"
+# Get version info for success message
+$VersionInfo = "QuietPatch"
+if (Test-Path (Join-Path $Bin "quietpatch-win-py311.pex")) {
+    try {
+        if (Get-Command py -ErrorAction SilentlyContinue) {
+            $VersionInfo = & py -3.11 (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
+        } else {
+            $VersionInfo = & python (Join-Path $Bin "quietpatch-win-py311.pex") --version 2>$null | Select-Object -First 1
+        }
+    } catch {
+        $VersionInfo = "QuietPatch"
+    }
+}
+
+Write-Host ""
+Write-Host "✓ $VersionInfo installed successfully!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Try: quietpatch scan --also-report --open"
+Write-Host "     (or: quietpatch scan --db $Db --also-report --open)"
+Write-Host ""
+Write-Host "For help: quietpatch scan --help"

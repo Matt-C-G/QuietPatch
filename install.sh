@@ -68,4 +68,31 @@ else
   echo "Add to PATH: export PATH=\"$BIN_DIR:\$PATH\""
 fi
 
-echo "Done. Try: quietpatch scan --db \"$BIN_DIR/$DB_NAME\" --also-report --open"
+# Get version info for success message
+VERSION_INFO=""
+if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ] || [ -f "$BIN_DIR/quietpatch-linux-x86_64-py311.pex" ]; then
+    # Try to get version from the PEX
+    if command -v python3.11 >/dev/null 2>&1; then
+        PY=python3.11
+    else
+        PY=python3
+    fi
+    
+    if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ]; then
+        PEX="$BIN_DIR/quietpatch-macos-arm64-py311.pex"
+    else
+        PEX="$BIN_DIR/quietpatch-linux-x86_64-py311.pex"
+    fi
+    
+    VERSION_INFO=$($PY "$PEX" --version 2>/dev/null | head -n1 || echo "QuietPatch")
+else
+    VERSION_INFO="QuietPatch"
+fi
+
+echo ""
+echo "✓ $VERSION_INFO installed successfully!"
+echo ""
+echo "Try: quietpatch scan --also-report --open"
+echo "     (or: quietpatch scan --db \"$BIN_DIR/$DB_NAME\" --also-report --open)"
+echo ""
+echo "For help: quietpatch scan --help"

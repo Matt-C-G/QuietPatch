@@ -7,7 +7,9 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime
 
+from quietpatch import __version__, __build_tag__
 from quietpatch.report.html import generate_report  # assumes you have generate_report(input_json, out_html)
 from src.config.encryptor_v3 import decrypt_file  # for report
 from src.core.cve_mapper_new import run as run_mapping  # scan path
@@ -30,10 +32,42 @@ def _open_file(path: str) -> None:
         print(f"Report ready: file://{Path(path).resolve()}")
 
 
+def _get_db_snapshot_date() -> str | None:
+    """Try to determine the DB snapshot date from available sources."""
+    try:
+        # Check for db-latest.tar.* in current directory or data directory
+        data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
+        for ext in [".tar.zst", ".tar.gz", ".tar.bz2"]:
+            db_file = data_dir / f"db-latest{ext}"
+            if db_file.exists():
+                # Get file modification time as a proxy for snapshot date
+                mtime = db_file.stat().st_mtime
+                return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+        
+        # Check for any db-*.tar.* files
+        for db_file in data_dir.glob("db-*.tar.*"):
+            if db_file.name.startswith("db-") and len(db_file.name) > 10:
+                # Try to extract date from filename (db-YYYYMMDD.tar.*)
+                name_part = db_file.stem.split('.')[0]  # Remove .tar extension
+                if len(name_part) >= 8 and name_part[2:8].isdigit():
+                    date_str = name_part[2:8]  # YYYYMMDD
+                    try:
+                        return datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
+                    except ValueError:
+                        continue
+    except Exception:
+        pass
+    return None
+
+
 def main():
     p = argparse.ArgumentParser(
         prog="quietpatch", description="Local CVE tracker with encrypted outputs."
     )
+    
+    # Add version flag
+    p.add_argument("--version", action="version", version=f"QuietPatch {__version__} ({__build_tag__})")
+    
     sub = p.add_subparsers(dest="cmd", required=True)
 
     # scan
@@ -75,6 +109,9 @@ def main():
     p_show = sub.add_parser("show", help="Decrypt and print a file (e.g., data/vuln_log.json.enc)")
     p_show.add_argument("path", help="Path to encrypted file")
     p_show.add_argument("--pretty", action="store_true", help="Pretty-print JSON if applicable")
+
+    # version (detailed version info)
+    p_version = sub.add_parser("version", help="Show detailed version information")
 
     # db
     db = sub.add_parser("db", help="Database actions")
@@ -236,6 +273,16 @@ def main():
         )
         print(json.dumps(info, indent=2))
         return
+
+    elif args.cmd == "version":
+        db_date = _get_db_snapshot_date()
+        print(f"QuietPatch {__version__} ({__build_tag__})")
+        if db_date:
+            print(f"Database snapshot: {db_date}")
+        else:
+            print("Database snapshot: Not found")
+        print(f"Python: {sys.version.split()[0]}")
+        print(f"Platform: {sys.platform}")
 
     elif args.cmd == "show":
         raw = decrypt_file(args.path)

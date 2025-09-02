@@ -1,3 +1,5 @@
-"""QuietPatch - Vulnerability scanner for installed applications."""
+"""QuietPatch - Privacy-first vulnerability scanner with deterministic HTML reports."""
 
-__version__ = "0.2.2"
+__version__ = "0.2.5"
+__build_tag__ = "v0.2.5"  # This will be updated by CI
+__db_snapshot_date__ = None  # This will be populated at runtime if available
