@@ -87,6 +87,7 @@ def main():
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
     p_scan.add_argument("--json-out", metavar="PATH", help="Also write machine-readable JSON report")
+    p_scan.add_argument("--sarif-out", metavar="PATH", help="Also write SARIF v2.1.0 report")
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -264,6 +265,37 @@ def main():
                 print(f"JSON report written: {args.json_out}")
             except Exception as e:
                 print(f"Warning: Could not write JSON report: {e}")
+
+        # Optional SARIF export
+        if getattr(args, "sarif_out", None):
+            try:
+                from quietpatch.report.jsonout import _normalize_apps  # reuse normalization
+                from quietpatch.report.sarif import to_sarif
+                try:
+                    from src.core.policy import load_policy
+                except Exception:
+                    load_policy = None  # type: ignore
+
+                src_json = outdir / "vuln_log.json"
+                if src_json.exists():
+                    apps_data = json.loads(src_json.read_text())
+                else:
+                    apps_data = []
+                norm = _normalize_apps(apps_data)
+
+                policy_doc = {}
+                if load_policy:
+                    try:
+                        from dataclasses import asdict
+                        policy_doc = asdict(load_policy())
+                    except Exception:
+                        policy_doc = {}
+                meta = {"db_snapshot": _get_db_snapshot_date() or ""}
+
+                Path(args.sarif_out).write_text(to_sarif(norm, policy_doc, meta), encoding="utf-8")
+                print(f"SARIF report written: {args.sarif_out}")
+            except Exception as e:
+                print(f"Warning: Could not write SARIF report: {e}")
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level
