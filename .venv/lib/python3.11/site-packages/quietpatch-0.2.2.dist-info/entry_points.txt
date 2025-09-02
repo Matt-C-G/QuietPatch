@@ -1,2 +1,0 @@
-[console_scripts]
-quietpatch = quietpatch.cli:main

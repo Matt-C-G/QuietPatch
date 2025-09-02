@@ -16,6 +16,7 @@ quietpatch/config/encryptor_new.py
 quietpatch/config/encryptor_v3.py
 quietpatch/report/__init__.py
 quietpatch/report/html.py
+quietpatch/report/jsonout.py
 src/__init__.py
 src/cli_main.py
 src/config/config_new.py
