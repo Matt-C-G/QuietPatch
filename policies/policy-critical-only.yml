@@ -1,0 +1,12 @@
+# Triage mode, only critical (KEV promoted)
+allow: []
+deny:  []
+min_severity: critical
+treat_unknown_as: low
+max_unknown_ratio: 0.0
+unknown_strategy: infer
+only_with_cves: true
+limit_per_app: 20
+sort:
+  kev_first: true
+  by: [kev_desc, cvss_desc, epss_desc, cve_id_asc]

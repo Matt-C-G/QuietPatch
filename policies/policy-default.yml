@@ -1,0 +1,12 @@
+# Default, balanced
+allow: []
+deny:  []
+min_severity: medium         # low | medium | high | critical
+treat_unknown_as: low        # legacy floor; DB build should already eliminate "unknown"
+max_unknown_ratio: 0.0       # enforce zero unknowns in reports
+unknown_strategy: infer      # infer | drop | fail
+only_with_cves: true
+limit_per_app: 50
+sort:
+  kev_first: true
+  by: [severity, cvss_desc, epss_desc, cve_id_asc]
