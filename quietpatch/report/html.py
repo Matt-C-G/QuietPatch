@@ -756,6 +756,10 @@ def generate_report(input_path: str, output_path: str) -> str:
 </html>
 """
 
+    # Inject table rows into the template (replace placeholder literal)
+    table_rows = "".join(rows) if rows else '<tr><td colspan="10" class="muted">No data</td></tr>'
+    placeholder = '{"".join(rows) if rows else \'<tr><td colspan="10" class="muted">No data</td></tr>\'}'
+    html_final = html_out.replace(placeholder, table_rows)
     out = Path(output_path)
-    out.write_text(html_out, encoding="utf-8")
+    out.write_text(html_final, encoding="utf-8")
     return str(out)
