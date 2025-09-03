@@ -556,6 +556,16 @@ def generate_report(input_path: str, output_path: str) -> str:
             margin: 12px 0 16px;
         }}
         .summary-banner strong {{ font-weight: 700; }}
+        /* Dark theme overrides (active when html lacks data-theme='light') */
+        html:not([data-theme='light']) body { background:#0b1220; color:#e2e8f0; }
+        html:not([data-theme='light']) th { background:#111827; color:#e2e8f0; }
+        html:not([data-theme='light']) .details-row { background:#0f172a; }
+        html:not([data-theme='light']) .action-url { color:#93c5fd; }
+        html:not([data-theme='light']) .command { background:#1f2937; color:#e2e8f0; }
+        html:not([data-theme='light']) .cve-item { background:#0f172a; border-color:#22304d; }
+        html:not([data-theme='light']) .cvss,
+        html:not([data-theme='light']) .epss { background:#1a243a; color:#94a3b8; }
+        html:not([data-theme='light']) .summary-banner { background:#111827; border-color:#22304d; }
     </style>
 </head>
 <body>
