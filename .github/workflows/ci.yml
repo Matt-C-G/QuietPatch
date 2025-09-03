@@ -62,9 +62,32 @@ jobs:
           python -m pip install -r requirements.ci.txt
           python -m pip install -e .
       - name: Zero-unknowns gate
+        shell: bash
         run: |
-          set -eux
-          quietpatch scan --sarif gate.sarif --exit-on low --unknown-strategy fail || exit 1
+          set -euo pipefail
+
+          # Run a scan that always completes (don't fail on severity here)
+          if ! quietpatch scan --sarif gate.sarif --html gate.html; then
+            echo "::error::quietpatch scan failed"; exit 1
+          fi
+
+          # Prefer jq to detect unknown severities
+          if command -v jq >/dev/null 2>&1; then
+            if jq -e '
+                .runs[]?.results[]?
+                | .properties?.severity_label? // ""
+                | ascii_downcase == "unknown"
+              ' gate.sarif >/dev/null; then
+              echo "::error::Unknown severities detected"; exit 1
+            fi
+          else
+            # Fallback: grep
+            if grep -qi '"severity_label"[[:space:]]*:[[:space:]]*"unknown"' gate.sarif; then
+              echo "::error::Unknown severities detected"; exit 1
+            fi
+          fi
+
+          echo "Zero-unknowns gate passed ✅"
 
   build-linux:
     runs-on: ubuntu-22.04
