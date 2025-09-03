@@ -1,8 +1,9 @@
 name: ci
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
   push:
-    branches: [ main, ci-fix ]
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -10,6 +11,7 @@ env:
 
 jobs:
   lint:
+    name: lint
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +33,7 @@ jobs:
           RUFF_CACHE_DIR: .ruff_cache
 
   unit:
+    name: unit
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +94,7 @@ jobs:
           echo "Zero-unknowns gate passed ✅"
 
   build-linux:
+    name: build-linux
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -170,6 +174,7 @@ jobs:
         with: { name: quietpatch-windows, path: dist-pex/* }
 
   build-macos:
+    name: build-macos
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
