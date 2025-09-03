@@ -21,6 +21,8 @@ Dynamic: license-file
 [![CI](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+## 🚀 Latest Release: QuietPatch v0.3.0
+
 > Privacy-first vulnerability scanner.  
 > Runs fully offline, cross-platform (macOS · Linux · Windows), produces a clean HTML report with clear remediation steps.  
 > No telemetry · No auto-patching · Deterministic results.
@@ -40,6 +42,12 @@ Dynamic: license-file
    ```powershell
    irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
    ```
+
+   Manual download (latest):
+   - macOS: https://github.com/Matt-C-G/quietpatch-dist/releases/latest/download/quietpatch-macos-arm64-latest.zip
+   - Linux: https://github.com/Matt-C-G/quietpatch-dist/releases/latest/download/quietpatch-linux-x86_64-latest.zip
+   - Windows: https://github.com/Matt-C-G/quietpatch-dist/releases/latest/download/quietpatch-windows-x64-latest.zip
+   - Offline DB: https://github.com/Matt-C-G/quietpatch-dist/releases/latest/download/db-latest.tar.zst
 
    Or via package managers
 
@@ -156,6 +164,22 @@ macOS notarization
 spctl --assess -vv quietpatch-macos-arm64.zip   # Expect: accepted
 xcrun stapler validate quietpatch-macos-arm64.zip  # Expect: The validate action worked!
 ```
+
+---
+
+## 🧰 Troubleshooting
+
+**macOS**
+- If the app is blocked by Gatekeeper, run: `xattr -cr ~/.quietpatch/bin/*`
+
+**PATH**
+- If `quietpatch` is not found, add: `export PATH="$HOME/.quietpatch/bin:$PATH"`
+
+**Windows**
+- Open a new PowerShell after install to pick up PATH changes.
+
+**Offline DB**
+- Provide `db-latest.tar.zst` alongside the binary; run with `--db <path>` or set `QP_OFFLINE=1`.
 
 ---
 

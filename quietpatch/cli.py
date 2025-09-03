@@ -97,6 +97,12 @@ def main():
         choices=["low", "medium", "high", "critical"],
         help="Exit non-zero if any finding meets or exceeds this severity",
     )
+    p_scan.add_argument(
+        "--unknown-strategy",
+        choices=["infer", "drop", "fail"],
+        default="infer",
+        help="How to handle findings with unknown severity (default: infer)",
+    )
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -246,6 +252,42 @@ def main():
                 vuln_data_with_actions = decorate_actions(vuln_data, actions_map)
                 vuln_path.write_text(json.dumps(vuln_data_with_actions, indent=2))
                 print(f"Actions applied to {len(vuln_data_with_actions)} apps")
+                # Enforce unknown severity strategy
+                try:
+                    def _apply_unknown_strategy(data: list[dict], strategy: str) -> tuple[list[dict], bool]:
+                        def has_unknown(vuln: dict) -> bool:
+                            sev = (vuln.get("severity") or "").lower()
+                            return sev == "unknown"
+
+                        unknown_found = False
+                        transformed: list[dict] = []
+                        for rec in data:
+                            vulns = rec.get("vulnerabilities") or []
+                            if not isinstance(vulns, list):
+                                transformed.append(rec)
+                                continue
+                            if strategy == "drop":
+                                kept = [v for v in vulns if not has_unknown(v)]
+                                if any(has_unknown(v) for v in vulns):
+                                    unknown_found = True
+                                new_rec = dict(rec)
+                                new_rec["vulnerabilities"] = kept
+                                transformed.append(new_rec)
+                            else:
+                                if any(has_unknown(v) for v in vulns):
+                                    unknown_found = True
+                                transformed.append(rec)
+                        return transformed, unknown_found
+
+                    strategy = getattr(args, "unknown_strategy", "infer")
+                    transformed, unknown_found = _apply_unknown_strategy(vuln_data_with_actions, strategy)
+                    if strategy == "drop":
+                        vuln_path.write_text(json.dumps(transformed, indent=2))
+                    elif strategy == "fail" and unknown_found:
+                        print("Unknown severities detected; failing due to --unknown-strategy fail", file=sys.stderr)
+                        sys.exit(2)
+                except Exception as ee:
+                    print(f"Warning: Unknown-strategy handling failed: {ee}")
         except Exception as e:
             print(f"Warning: Could not apply actions: {e}")
 
