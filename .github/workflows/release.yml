@@ -308,3 +308,24 @@ jobs:
           else
             echo "GH_TOKEN_RELEASE not set, skipping Scoop update"
           fi
+
+      - name: Generate WinGet manifests and create PR
+        if: ${{ secrets.GH_TOKEN_RELEASE }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/quietpatch-${VER}-windows.zip"
+          SHA="${{ steps.meta.outputs.win_hash }}"
+          python3 tools/generate_winget_manifests.py --out winget --version "$VER" --sha256 "$SHA" --url "$URL"
+          gh repo clone microsoft/winget-pkgs -- --depth 1
+          cd winget-pkgs
+          BR="quietpatch-${VER}"
+          git checkout -b "$BR"
+          mkdir -p $(dirname ../winget/q/QuietPatch/QuietPatch/${VER}/x)
+          rsync -a ../winget/q/QuietPatch/QuietPatch/${VER}/ manifests/q/QuietPatch/QuietPatch/${VER}/
+          git add manifests/q/QuietPatch/QuietPatch/${VER}
+          git commit -m "QuietPatch ${VER}"
+          git push -u origin "$BR"
+          gh pr create -R microsoft/winget-pkgs -B master -H "$BR" -t "QuietPatch ${VER}" -b "Automated submission via CI"

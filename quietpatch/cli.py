@@ -145,6 +145,12 @@ def main():
     db_refresh.add_argument("--privacy", default="strict", choices=["strict", "normal"])
     db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
 
+    # doctor
+    p_doc = sub.add_parser("doctor", help="Diagnose environment and provide fixes")
+    p_doc.add_argument("--db", help="Path to db snapshot (optional)")
+    p_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
+    p_doc.add_argument("--open-check", action="store_true", help="Check if default browser is available")
+
     args = p.parse_args()
 
     if args.cmd == "scan":
@@ -397,6 +403,12 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+
+    elif args.cmd == "doctor":
+        from quietpatch.commands.doctor import run as doctor_run
+        # Create parser lazily (argparse already parsed). To keep structure, we add earlier.
+        # Execute
+        sys.exit(doctor_run(db=getattr(args, "db", None), out_dir=getattr(args, "out_dir", None), open_check=getattr(args, "open_check", False)))
 
 
 if __name__ == "__main__":
