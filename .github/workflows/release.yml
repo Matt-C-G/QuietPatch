@@ -168,6 +168,13 @@ jobs:
             ${{ matrix.zip_name }}
             ${{ matrix.latest_zip }}
 
+      - name: SBOM scan canary (CycloneDX)
+        if: matrix.os == 'linux-x86_64'
+        shell: bash
+        run: |
+          python3.11 dist-pex/${{ matrix.pex_name }} scan --sbom examples/cyclonedx-example.json --csv canary.csv --sarif canary.sarif
+          test -s canary.csv
+
   build-db:
     name: build-db
     runs-on: ubuntu-latest

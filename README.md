@@ -23,6 +23,13 @@
    irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
    ```
 
+   Windows (no Python needed)
+   ```powershell
+   # Download quietpatch-windows-x64.exe from the latest Release
+   # Then run a scan directly
+   .\quietpatch-windows-x64.exe scan --also-report --open
+   ```
+
 2. Run a scan
 
    ```bash
@@ -101,6 +108,18 @@ shasum -a 256 -c SHA256SUMS
 ```
 
 Optional: verify Minisign signatures (VERIFY.md).
+
+Windows Authenticode
+```powershell
+Get-AuthenticodeSignature .\quietpatch-windows-x64.exe | Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
+# Expect Status: Valid
+```
+
+macOS notarization
+```bash
+spctl --assess -vv quietpatch-macos-arm64.zip   # Expect: accepted
+xcrun stapler validate quietpatch-macos-arm64.zip  # Expect: The validate action worked!
+```
 
 ---
 
