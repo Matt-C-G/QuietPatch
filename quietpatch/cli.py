@@ -87,6 +87,16 @@ def main():
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
     p_scan.add_argument("--json-out", metavar="PATH", help="Also write machine-readable JSON report")
+    p_scan.add_argument("--sarif", metavar="PATH", help="Write SARIF v2.1.0 file for CI")
+    p_scan.add_argument("--csv", metavar="PATH", help="Write CSV export")
+    p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
+    p_scan.add_argument("--out", metavar="PATH", help="Write HTML report to this path (implies --also-report)")
+    p_scan.add_argument(
+        "--exit-on",
+        metavar="SEVERITY",
+        choices=["low", "medium", "high", "critical"],
+        help="Exit non-zero if any finding meets or exceeds this severity",
+    )
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -145,6 +155,12 @@ def main():
     db_refresh.add_argument("--privacy", default="strict", choices=["strict", "normal"])
     db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
 
+    # doctor
+    p_doc = sub.add_parser("doctor", help="Diagnose environment and provide fixes")
+    p_doc.add_argument("--db", help="Path to db snapshot (optional)")
+    p_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
+    p_doc.add_argument("--open-check", action="store_true", help="Check if default browser is available")
+
     args = p.parse_args()
 
     if args.cmd == "scan":
@@ -194,7 +210,27 @@ def main():
         except Exception:
             pass
 
-        locs = run_mapping(str(outdir))
+        # Main mapping flow (host or SBOM mode)
+        if getattr(args, "sbom", None):
+            try:
+                # SBOM mode: parse CycloneDX and map to CVEs
+                from quietpatch.sbom.cyclonedx import load_components
+                from src.core.cve_mapper_new import map_apps_to_cves
+                from src.config.config_new import load_config
+
+                components = load_components(args.sbom)
+                seed_apps = [{"app": c.get("name") or "", "version": c.get("version") or ""} for c in components]
+                cfg = load_config()
+                mapping = map_apps_to_cves(seed_apps, cfg)
+                vuln_path = outdir / "vuln_log.json"
+                vuln_path.write_text(json.dumps(mapping, indent=2))
+                # Provide similar locator structure as run_mapping
+                locs = {"apps": str(outdir / "apps.json"), "vulns": str(vuln_path)}
+            except Exception as e:
+                print(f"SBOM mapping failed: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            locs = run_mapping(str(outdir))
 
         # Apply actions to the scan results
         try:
@@ -215,7 +251,7 @@ def main():
 
         print(json.dumps(locs, indent=2))
 
-        if args.also_report:
+        if args.also_report or getattr(args, "out", None):
             # Import here to avoid loading heavy dependencies at module level
             from src.config.encryptor_v3 import decrypt_file
             from quietpatch.report.html import generate_report
@@ -230,7 +266,8 @@ def main():
                     sys.exit(1)
                 raw = decrypt_file(str(enc), age_identity=os.environ.get("AGE_IDENTITY") or None)
                 src_json.write_bytes(raw)
-            html_out = outdir / "report.html"
+            html_out = Path(args.out) if getattr(args, "out", None) else (outdir / "report.html")
+            html_out.parent.mkdir(parents=True, exist_ok=True)
             generate_report(str(src_json), str(html_out))
             print(f"Report generated: {html_out}")
             if args.open:
@@ -264,6 +301,50 @@ def main():
                 print(f"JSON report written: {args.json_out}")
             except Exception as e:
                 print(f"Warning: Could not write JSON report: {e}")
+
+        # CSV/SARIF exports
+        if getattr(args, "csv", None) or getattr(args, "sarif", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                if getattr(args, "csv", None):
+                    from quietpatch.report.exports import write_csv
+                    write_csv(apps_data, args.csv)
+                    print(f"CSV report written: {args.csv}")
+                if getattr(args, "sarif", None):
+                    from quietpatch.report.exports import write_sarif
+                    try:
+                        tool_ver = metadata.version("quietpatch")
+                    except metadata.PackageNotFoundError:
+                        tool_ver = "dev"
+                    write_sarif(apps_data, args.sarif, tool_name="QuietPatch", tool_version=tool_ver)
+                    print(f"SARIF report written: {args.sarif}")
+            except Exception as e:
+                print(f"Warning: Could not write exports: {e}")
+
+        # Exit-on severity threshold (after outputs are written)
+        if getattr(args, "exit_on", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+                threshold = rank[args.exit_on]
+                hit = False
+                for app in apps_data or []:
+                    vulns = app.get("vulnerabilities") or app.get("cves") or []
+                    for v in vulns:
+                        sev = str((v or {}).get("severity") or "unknown").lower()
+                        if rank.get(sev, 0) >= threshold:
+                            hit = True
+                            break
+                    if hit:
+                        break
+                sys.exit(2 if hit else 0)
+            except Exception:
+                # On error evaluating threshold, do not fail the run
+                sys.exit(0)
+        else:
+            sys.exit(0)
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level
@@ -397,6 +478,12 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+
+    elif args.cmd == "doctor":
+        from quietpatch.commands.doctor import run as doctor_run
+        # Create parser lazily (argparse already parsed). To keep structure, we add earlier.
+        # Execute
+        sys.exit(doctor_run(db=getattr(args, "db", None), out_dir=getattr(args, "out_dir", None), open_check=getattr(args, "open_check", False)))
 
 
 if __name__ == "__main__":

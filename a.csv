@@ -1,0 +1,4 @@
+app,version,cve,severity,cvss,epss,kev,summary,action
+OpenSSL,3.0.12,,unknown,,,False,,
+curl,8.7.1,,unknown,,,False,,
+zlib,1.2.13,,unknown,,,False,,
