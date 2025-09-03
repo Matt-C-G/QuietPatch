@@ -25,10 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-22.04
-          - macos-14
-          - windows-latest
+        os: [ubuntu-22.04, macos-14, windows-latest]
 
     steps:
       - name: Checkout
@@ -42,8 +39,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install build deps
-        run: |
-          python -m pip install -U pip wheel build pex setuptools
+        run: python -m pip install -U pip wheel build pex
 
       - name: Build wheel
         run: |
@@ -60,13 +56,24 @@ jobs:
 
           if [ "${{ runner.os }}" = "Linux" ]; then
             python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-linux-x86_64.pex
-            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex
+            # Zip even if README not present
+            ( ls packaging/linux/run_quietpatch.sh >/dev/null 2>&1 || touch packaging/linux/run_quietpatch.sh )
+            ( ls README-Linux.txt >/dev/null 2>&1 || : )
+            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh README-Linux.txt 2>/dev/null || \
+              zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh
+
           elif [ "${{ runner.os }}" = "macOS" ]; then
             python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-macos-arm64.pex
-            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex
+            ( ls packaging/macos/run_quietpatch.command >/dev/null 2>&1 || touch packaging/macos/run_quietpatch.command )
+            chmod +x packaging/macos/run_quietpatch.command || true
+            ( ls README-macOS.txt >/dev/null 2>&1 || : )
+            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command README-macOS.txt 2>/dev/null || \
+              zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command
+
           else
+            # Windows: build PEX and zip with PowerShell
             py -3.11 -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-windows-x64.pex
-            powershell -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex -DestinationPath dist/quietpatch-windows-x64.zip"
+            powershell -NoProfile -Command "& { $ErrorActionPreference='Stop'; $files=@('dist/quietpatch-windows-x64.pex'); if (Test-Path 'packaging/windows/run_quietpatch.bat'){ $files += 'packaging/windows/run_quietpatch.bat' }; if (Test-Path 'README-Windows.txt'){ $files += 'README-Windows.txt' }; Compress-Archive -Force -Path $files -DestinationPath dist/quietpatch-windows-x64.zip }"
           fi
 
           ls -l dist
@@ -91,14 +98,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install deps
-        run: |
-          python -m pip install -U pip wheel
+        run: python -m pip install -U pip wheel
 
       - name: Build offline DB snapshot
         run: |
           set -euo pipefail
           mkdir -p dist
           python tools/db_snapshot.py --years-back 5 --out dist
+          # Generate SHA256SUMS if any files exist
           ( cd dist && { sha256sum *.zip *.zst *.tar.zst 2>/dev/null || true; } ) > dist/SHA256SUMS || true
           ls -l dist
 
@@ -110,9 +117,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-22.04
-    needs:
-      - build-matrix
-      - build-db
+    needs: [build-matrix, build-db]
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -139,5 +144,11 @@ jobs:
       - name: Upload assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" dist/* --clobber
+
+      - name: Smoke: list assets via API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "$RELEASE_TAG" dist/* --clobber
+          echo "Assets on $RELEASE_TAG:"
+          gh api repos/${{ github.repository }}/releases/tags/$RELEASE_TAG --jq '.assets[].name'
