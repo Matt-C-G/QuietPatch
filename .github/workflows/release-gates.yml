@@ -45,6 +45,48 @@ jobs:
         run: |
           python tools/selfcheck.py --strict
 
+      - name: Zero-unknowns gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          workdir="$(mktemp -d)"
+          sarif="$workdir/gate.sarif"
+
+          echo "Running quietpatch scan → SARIF only…"
+          if ! quietpatch scan --sarif "$sarif"; then
+            echo "::warning::quietpatch scan returned non-zero; continuing to inspect SARIF output"
+          fi
+
+          if [ ! -s "$sarif" ]; then
+            echo "::error::No SARIF produced by quietpatch"; exit 1
+          fi
+
+          if command -v jq >/dev/null 2>&1; then
+            unknown_cnt="$(jq '
+              [ .runs[]?.results[]?
+                | ( .properties?.severity_label? // "" | ascii_downcase )
+                | select(. == "unknown")
+              ] | length
+            ' "$sarif")"
+            echo "Unknown findings: $unknown_cnt"
+            if [ "${unknown_cnt:-0}" -gt 0 ]; then
+              echo "::error::Unknown severities detected ($unknown_cnt). Failing gate."
+              jq -r '
+                .runs[]?.results[]?
+                | select((.properties?.severity_label? // "" | ascii_downcase) == "unknown")
+                | "\(.ruleId // \"rule?\") - \(.message.text // \"unknown\")"
+              ' "$sarif" | sed 's/^/::notice file=gate.sarif::/'
+              exit 1
+            fi
+          else
+            if grep -qi '"severity_label"[[:space:]]*:[[:space:]]*"unknown"' "$sarif"; then
+              echo "::error::Unknown severities detected. Failing gate."; exit 1
+            fi
+          fi
+
+          echo "Zero-unknowns gate passed ✅"
+
       - name: Coverage gate
         run: |
           set -e
