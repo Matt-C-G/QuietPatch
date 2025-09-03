@@ -19,9 +19,9 @@ import hashlib
 import io
 import json
 import os
+import sys
 import tarfile
 from pathlib import Path
-import sys
 
 # Add repo root if needed when running the script directly
 if __package__ is None and str(Path(__file__).resolve().parents[1]) not in sys.path:

@@ -63,13 +63,13 @@ jobs:
 
           if [ "${{ runner.os }}" = "Linux" ]; then
             python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-linux-x86_64.pex
-            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh README-Linux.txt
+            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh packaging/linux/README-Linux.txt
           elif [ "${{ runner.os }}" = "macOS" ]; then
             python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-macos-arm64.pex
-            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command README-macOS.txt
+            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command packaging/macos/README-macOS.txt
           else
             py -3.11 -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-windows-x64.pex
-            pwsh -NoLogo -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex, packaging/windows/run_quietpatch.bat, README-Windows.txt -DestinationPath dist/quietpatch-windows-x64.zip"
+            pwsh -NoLogo -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex, packaging/windows/run_quietpatch.bat, packaging/windows/README-Windows.txt -DestinationPath dist/quietpatch-windows-x64.zip"
           fi
 
           ls -l dist

@@ -4,8 +4,8 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add repo root if needed when running the script directly
 if __package__ is None and str(Path(__file__).resolve().parents[1]) not in sys.path:
@@ -16,7 +16,6 @@ from src.datafeed.snapshot_manifest import (
 	SnapshotManifest,
 	sha256_file,
 )
-
 
 
 def _maybe_gzip(path: Path, gz: bool) -> Path:

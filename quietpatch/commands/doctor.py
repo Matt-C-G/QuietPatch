@@ -5,25 +5,24 @@ import sys
 import time
 import webbrowser
 from pathlib import Path
-from typing import Tuple
 
 MIN_PY = (3, 11)
 MAX_PY = (3, 14)  # support 3.11–3.13 inclusive of minors, exclusive of 3.14
 
 
-def _ok(msg: str) -> Tuple[str, str]:
+def _ok(msg: str) -> tuple[str, str]:
 	return ("OK", msg)
 
 
-def _warn(msg: str) -> Tuple[str, str]:
+def _warn(msg: str) -> tuple[str, str]:
 	return ("WARN", msg)
 
 
-def _fail(msg: str) -> Tuple[str, str]:
+def _fail(msg: str) -> tuple[str, str]:
 	return ("FAIL", msg)
 
 
-def _check_python() -> Tuple[str, str, int | None]:
+def _check_python() -> tuple[str, str, int | None]:
 	v = sys.version_info
 	ver = (v.major, v.minor)
 	if MIN_PY <= ver < MAX_PY:
@@ -44,7 +43,7 @@ def _resolve_pex_root() -> Path:
 	return cache_home / "quietpatch" / ".pexroot"
 
 
-def _check_pex_env() -> Tuple[str, str, int | None]:
+def _check_pex_env() -> tuple[str, str, int | None]:
 	pex_root = _resolve_pex_root()
 	try:
 		pex_root.mkdir(parents=True, exist_ok=True)
@@ -73,7 +72,7 @@ def _find_db_file(explicit: str | None) -> Path | None:
 	return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
-def _check_db_freshness(explicit: str | None) -> Tuple[str, str, int | None]:
+def _check_db_freshness(explicit: str | None) -> tuple[str, str, int | None]:
 	p = _find_db_file(explicit)
 	if explicit and (not p or not p.exists()):
 		# user requested a specific DB path but it's missing
@@ -88,7 +87,7 @@ def _check_db_freshness(explicit: str | None) -> Tuple[str, str, int | None]:
 	return (*_ok(f"DB snapshot OK ({age_days:.0f} days old): {p.name}"), None)
 
 
-def _check_report_dir(out_dir: str | None) -> Tuple[str, str, int | None]:
+def _check_report_dir(out_dir: str | None) -> tuple[str, str, int | None]:
 	out = Path(out_dir or "./reports")
 	try:
 		out.mkdir(parents=True, exist_ok=True)
@@ -101,7 +100,7 @@ def _check_report_dir(out_dir: str | None) -> Tuple[str, str, int | None]:
 		return (*_fail(f"Report dir not writable: {out} ({e})"), 3)
 
 
-def _check_open(open_check: bool) -> Tuple[str, str, int | None]:
+def _check_open(open_check: bool) -> tuple[str, str, int | None]:
 	if not open_check:
 		return (*_ok("Browser check skipped"), None)
 	try:
@@ -113,7 +112,7 @@ def _check_open(open_check: bool) -> Tuple[str, str, int | None]:
 
 
 def run(db: str | None = None, out_dir: str | None = None, open_check: bool = False) -> int:
-	checks: list[tuple[str, Tuple[str, str, int | None]]] = [
+	checks: list[tuple[str, tuple[str, str, int | None]]] = [
 		("Python", _check_python()),
 		("PEX env", _check_pex_env()),
 		("DB freshness", _check_db_freshness(db)),

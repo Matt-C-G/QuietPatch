@@ -1,6 +1,10 @@
 from __future__ import annotations
-from typing import Iterable, Mapping, Any
-import csv, json, time
+
+import csv
+import json
+import time
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 _LEVEL = {"critical":"error", "high":"error", "medium":"warning", "low":"note", "unknown":"note", "none":"note"}
 

@@ -6,9 +6,9 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 from datetime import datetime
 from importlib import metadata
+from pathlib import Path
 
 
 def _open_file(path: str) -> None:
@@ -39,7 +39,7 @@ def _get_db_snapshot_date() -> str | None:
                 # Get file modification time as a proxy for snapshot date
                 mtime = db_file.stat().st_mtime
                 return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
-        
+
         # Check for any db-*.tar.* files
         for db_file in data_dir.glob("db-*.tar.*"):
             if db_file.name.startswith("db-") and len(db_file.name) > 10:
@@ -70,11 +70,11 @@ def main():
                 version = "dev"
         print(f"QuietPatch {version}")
         sys.exit(0)
-    
+
     p = argparse.ArgumentParser(
         prog="quietpatch", description="Local CVE tracker with encrypted outputs."
     )
-    
+
     sub = p.add_subparsers(dest="cmd", required=True)
 
     # scan
@@ -129,7 +129,7 @@ def main():
     p_show.add_argument("--pretty", action="store_true", help="Pretty-print JSON if applicable")
 
     # version (detailed version info)
-    p_version = sub.add_parser("version", help="Show detailed version information")
+    sub.add_parser("version", help="Show detailed version information")
 
     # clean (cache and database cleanup)
     p_clean = sub.add_parser("clean", help="Clean cache and database files")
@@ -166,7 +166,7 @@ def main():
     if args.cmd == "scan":
         # Import here to avoid loading heavy dependencies at module level
         from src.core.cve_mapper_new import run as run_mapping
-        
+
         # Handle rollback operations first
         if args.snapshot:
             from src.core.scanner_helper import get_scanner
@@ -215,8 +215,8 @@ def main():
             try:
                 # SBOM mode: parse CycloneDX and map to CVEs
                 from quietpatch.sbom.cyclonedx import load_components
-                from src.core.cve_mapper_new import map_apps_to_cves
                 from src.config.config_new import load_config
+                from src.core.cve_mapper_new import map_apps_to_cves
 
                 components = load_components(args.sbom)
                 seed_apps = [{"app": c.get("name") or "", "version": c.get("version") or ""} for c in components]
@@ -253,9 +253,9 @@ def main():
 
         if args.also_report or getattr(args, "out", None):
             # Import here to avoid loading heavy dependencies at module level
-            from src.config.encryptor_v3 import decrypt_file
             from quietpatch.report.html import generate_report
-            
+            from src.config.encryptor_v3 import decrypt_file
+
             # prefer plaintext if present; else decrypt
             src_json = outdir / "vuln_log.json"
             if not src_json.exists():
@@ -348,9 +348,9 @@ def main():
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level
-        from src.config.encryptor_v3 import decrypt_file
         from quietpatch.report.html import generate_report
-        
+        from src.config.encryptor_v3 import decrypt_file
+
         inp = Path(args.input)
         html_out = Path(args.output)
         html_out.parent.mkdir(parents=True, exist_ok=True)
@@ -430,7 +430,7 @@ def main():
 
     elif args.cmd == "clean":
         cleaned = []
-        
+
         # Clean cache if requested
         if args.cache or args.all:
             cache_dir = Path(os.environ.get("PEX_ROOT", ""))
@@ -440,12 +440,12 @@ def main():
                     cache_dir = Path(os.environ.get("LOCALAPPDATA", "")) / "quietpatch" / ".pexroot"
                 else:
                     cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "quietpatch" / ".pexroot"
-            
+
             if cache_dir.exists():
                 import shutil
                 shutil.rmtree(cache_dir)
                 cleaned.append(f"Cache: {cache_dir}")
-        
+
         # Clean database if requested
         if args.db or args.all:
             data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
@@ -454,21 +454,21 @@ def main():
                 for db_file in db_files:
                     db_file.unlink()
                     cleaned.append(f"Database: {db_file.name}")
-        
+
         if cleaned:
             print("✓ Cleaned:")
             for item in cleaned:
                 print(f"  - {item}")
         else:
             print("Nothing to clean. Use --cache, --db, or --all")
-        
+
         if not (args.cache or args.db or args.all):
             print("Specify what to clean: --cache, --db, or --all")
 
     elif args.cmd == "show":
         # Import here to avoid loading heavy dependencies at module level
         from src.config.encryptor_v3 import decrypt_file
-        
+
         raw = decrypt_file(args.path)
         try:
             obj = json.loads(raw.decode())
