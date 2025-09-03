@@ -120,7 +120,7 @@ class QuietPatchGUI(QWidget):
             sev = r[4]
             try:
                 cvss = float(r[3])
-            except:
+            except Exception:
                 cvss = -1
             return (SEVERITY_ORDER.get(sev, -1), cvss)
 

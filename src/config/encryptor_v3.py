@@ -51,15 +51,11 @@ def _age_wrap(dek: bytes, recipients: Iterable[str]) -> bytes:
         p = subprocess.run(cmd, input=dek, capture_output=True, check=True)
         return p.stdout
     except subprocess.CalledProcessError:
-        # Fallback: assume classic age public key
-        cmd = ["age"] + sum([["-R", r] for r in recs], []) + ["-a", "-o", "-"]
-        try:
-            p = subprocess.run(cmd, input=dek, capture_output=True, check=True)
-            return p.stdout
-        except subprocess.CalledProcessError as e:
-            raise EncryptError(f"age wrap failed: {e.stderr.decode(errors='replace')[:200]}")
-    except FileNotFoundError:
-        raise EncryptError("age CLI not found. Install age + age-plugin-ssh.")
+        raise EncryptError(
+            "age wrap failed: see age stderr for details"
+        ) from None
+    except FileNotFoundError as e:
+        raise EncryptError("age CLI not found. Install age + age-plugin-ssh.") from e
 
 
 def _age_unwrap(armored: bytes, identities: Iterable[str]) -> bytes:
@@ -69,10 +65,12 @@ def _age_unwrap(armored: bytes, identities: Iterable[str]) -> bytes:
     cmd = ["age", "-d"] + sum([["-i", i] for i in ids], []) + ["-o", "-"]
     try:
         p = subprocess.run(cmd, input=armored, capture_output=True, check=True)
-    except FileNotFoundError:
-        raise DecryptError("age CLI not found. Install age + age-plugin-ssh.")
+    except FileNotFoundError as e:
+        raise DecryptError("age CLI not found. Install age + age-plugin-ssh.") from e
     except subprocess.CalledProcessError as e:
-        raise DecryptError(f"age unwrap failed: {e.stderr.decode(errors='replace')[:200]}")
+        raise DecryptError(
+            f"age unwrap failed: {e.stderr.decode(errors='replace')[:200]}"
+        ) from e
     return p.stdout
 
 

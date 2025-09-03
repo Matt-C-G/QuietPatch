@@ -8,7 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from quietpatch.report.html import generate_report  # assumes you have generate_report(input_json, out_html)
+from quietpatch.report.html import (
+    generate_report,  # assumes you have generate_report(input_json, out_html)
+)
 from src.config.encryptor_v3 import decrypt_file  # for report
 from src.core.cve_mapper_new import run as run_mapping  # scan path
 

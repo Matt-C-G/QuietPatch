@@ -1,6 +1,10 @@
 from __future__ import annotations
-from typing import Any, Dict, Iterable, Mapping
-import json, time
+
+import json
+import time
+from collections.abc import Iterable, Mapping
+from typing import Any
+
 
 def to_json(apps: Iterable[Mapping[str, Any]], policy: Mapping[str, Any], meta: Mapping[str, Any] | None = None) -> str:
     """
@@ -19,7 +23,7 @@ def to_json(apps: Iterable[Mapping[str, Any]], policy: Mapping[str, Any], meta: 
     }
     return json.dumps(doc, sort_keys=True, separators=(",", ":"))
 
-def _summarize(apps: Iterable[Mapping[str, Any]]) -> Dict[str, int]:
+def _summarize(apps: Iterable[Mapping[str, Any]]) -> dict[str, int]:
     counts = {"apps":0,"vuln_apps":0,"critical":0,"high":0,"medium":0,"low":0,"kev":0,"unknown":0}
     for app in apps or []:
         counts["apps"] += 1

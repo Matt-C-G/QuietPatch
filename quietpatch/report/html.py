@@ -5,6 +5,7 @@ import html
 import json
 from pathlib import Path
 
+
 # Decryptor import (lazy loading to avoid import-time dependencies)
 def _get_decryptor():
     """Get decryptor function, loading it only when needed."""
