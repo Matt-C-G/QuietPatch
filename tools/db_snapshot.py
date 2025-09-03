@@ -60,7 +60,7 @@ def _run_sync(years_back: int, tmp_out: Path) -> None:
 	"""Try to run your repo's network sync; otherwise copy current DB."""
 	tmp_out.mkdir(parents=True, exist_ok=True)
 	try:
-		from quietpatch.datafeed.sync import sync  # your existing feed sync (if present)
+		from src.datafeed.sync import sync  # your existing feed sync (if present)
 
 		print(f"[db-snapshot] Running online sync for last {years_back} years …")
 		sync(years_back=years_back, outdir=str(tmp_out))

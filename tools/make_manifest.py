@@ -11,7 +11,7 @@ import sys
 if __package__ is None and str(Path(__file__).resolve().parents[1]) not in sys.path:
 	sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from quietpatch.datafeed.snapshot_manifest import (
+from src.datafeed.snapshot_manifest import (
 	ManifestFile,
 	SnapshotManifest,
 	sha256_file,
