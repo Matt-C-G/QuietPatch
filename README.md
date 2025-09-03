@@ -23,6 +23,19 @@
    irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
    ```
 
+   Or via package managers
+
+   macOS (Homebrew)
+   ```bash
+   brew tap matt-c-g/quietpatch && brew install quietpatch
+   ```
+
+   Windows (Scoop)
+   ```powershell
+   scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
+   scoop install quietpatch
+   ```
+
    Windows (no Python needed)
    ```powershell
    # Download quietpatch-windows-x64.exe from the latest Release
@@ -53,7 +66,7 @@ That’s it ✅
 
 <p align="center">
   <img src="docs/assets/screenshot-report.svg" alt="QuietPatch Report Preview" width="820"/>
-/p>
+</p>
 
 ---
 
@@ -77,6 +90,11 @@ That’s it ✅
 
   ```bash
   quietpatch scan --json-out report.json
+  ```
+* Doctor: diagnose environment and provide fixes
+
+  ```bash
+  quietpatch doctor --open-check
   ```
 * Recurring scans: use included service templates (systemd/launchd/Task Scheduler)
 
