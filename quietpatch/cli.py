@@ -87,6 +87,9 @@ def main():
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
     p_scan.add_argument("--json-out", metavar="PATH", help="Also write machine-readable JSON report")
+    p_scan.add_argument("--sarif", metavar="PATH", help="Write SARIF v2.1.0 file for CI")
+    p_scan.add_argument("--csv", metavar="PATH", help="Write CSV export")
+    p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -200,7 +203,27 @@ def main():
         except Exception:
             pass
 
-        locs = run_mapping(str(outdir))
+        # Main mapping flow (host or SBOM mode)
+        if getattr(args, "sbom", None):
+            try:
+                # SBOM mode: parse CycloneDX and map to CVEs
+                from quietpatch.sbom.cyclonedx import load_components
+                from src.core.cve_mapper_new import map_apps_to_cves
+                from src.config.config_new import load_config
+
+                components = load_components(args.sbom)
+                seed_apps = [{"app": c.get("name") or "", "version": c.get("version") or ""} for c in components]
+                cfg = load_config()
+                mapping = map_apps_to_cves(seed_apps, cfg)
+                vuln_path = outdir / "vuln_log.json"
+                vuln_path.write_text(json.dumps(mapping, indent=2))
+                # Provide similar locator structure as run_mapping
+                locs = {"apps": str(outdir / "apps.json"), "vulns": str(vuln_path)}
+            except Exception as e:
+                print(f"SBOM mapping failed: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            locs = run_mapping(str(outdir))
 
         # Apply actions to the scan results
         try:
@@ -270,6 +293,26 @@ def main():
                 print(f"JSON report written: {args.json_out}")
             except Exception as e:
                 print(f"Warning: Could not write JSON report: {e}")
+
+        # CSV/SARIF exports
+        if getattr(args, "csv", None) or getattr(args, "sarif", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                if getattr(args, "csv", None):
+                    from quietpatch.report.exports import write_csv
+                    write_csv(apps_data, args.csv)
+                    print(f"CSV report written: {args.csv}")
+                if getattr(args, "sarif", None):
+                    from quietpatch.report.exports import write_sarif
+                    try:
+                        tool_ver = metadata.version("quietpatch")
+                    except metadata.PackageNotFoundError:
+                        tool_ver = "dev"
+                    write_sarif(apps_data, args.sarif, tool_name="QuietPatch", tool_version=tool_ver)
+                    print(f"SARIF report written: {args.sarif}")
+            except Exception as e:
+                print(f"Warning: Could not write exports: {e}")
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level

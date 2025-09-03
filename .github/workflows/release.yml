@@ -329,3 +329,94 @@ jobs:
           git commit -m "QuietPatch ${VER}"
           git push -u origin "$BR"
           gh pr create -R microsoft/winget-pkgs -B master -H "$BR" -t "QuietPatch ${VER}" -b "Automated submission via CI"
+
+  windows-exe:
+    name: Windows EXE (Nuitka)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Install build deps
+        shell: pwsh
+        run: |
+          python -m pip install -U pip wheel build nuitka
+          python -m pip install -U -r requirements.txt
+
+      - name: Build EXE (onefile)
+        shell: pwsh
+        run: |
+          $Out="build\win-exe"
+          New-Item -Force -ItemType Directory -Path $Out | Out-Null
+          python -m nuitka --onefile --standalone --windows-console `
+            --output-dir="$Out" `
+            --company-name="QuietPatch" --product-name="QuietPatch" `
+            --include-data-dir=policies=policies `
+            --include-data-dir=catalog=catalog `
+            -m quietpatch.cli
+          Rename-Item "$Out\quietpatch.cli.exe" "$Out\quietpatch-windows-x64.exe"
+
+      - name: Authenticode sign EXE (optional)
+        if: ${{ secrets.WIN_CERT_B64 && secrets.WIN_CERT_PWD }}
+        shell: pwsh
+        run: |
+          $pfx = "$env:TEMP\codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String("${{ secrets.WIN_CERT_B64 }}"))
+          $signtool = "${env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\signtool.exe"
+          if (-not (Test-Path $signtool)) { $signtool = "signtool.exe" }
+          & $signtool sign /f $pfx /p "${{ secrets.WIN_CERT_PWD }}" /fd SHA256 /tr http://timestamp.sectigo.com /td SHA256 "build\win-exe\quietpatch-windows-x64.exe"
+
+      - name: Upload EXE to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tag="${GITHUB_REF##*/}"
+          gh release upload "$tag" "build/win-exe/quietpatch-windows-x64.exe#quietpatch-windows-x64.exe" --clobber
+
+  macos-sign:
+    name: macOS sign & notarize
+    needs: [build-pex]
+    runs-on: macos-14
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MAC_CERT_B64 && secrets.MAC_CERT_PWD && secrets.APPLE_ID && secrets.APPLE_TEAM_ID && secrets.APPLE_APP_PWD && secrets.MAC_SIGN_IDENTITY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import signing cert
+        run: |
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          echo "${MAC_CERT_B64}" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "" build.keychain
+          security import "$CERT_PATH" -k build.keychain -P "${MAC_CERT_PWD}" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+        env:
+          MAC_CERT_B64: ${{ secrets.MAC_CERT_B64 }}
+          MAC_CERT_PWD: ${{ secrets.MAC_CERT_PWD }}
+
+      - name: Codesign artifacts
+        run: |
+          # Example: sign the macOS zip; adjust path if needed
+          zipfile="quietpatch-${GITHUB_REF_NAME}-macos-arm64.zip"
+          if [ -f "$zipfile" ]; then
+            codesign --force --options runtime --timestamp --deep -s "${{ secrets.MAC_SIGN_IDENTITY }}" "$zipfile"
+          fi
+
+      - name: Notarize
+        run: |
+          zipfile="quietpatch-${GITHUB_REF_NAME}-macos-arm64.zip"
+          if [ -f "$zipfile" ]; then
+            xcrun notarytool submit "$zipfile" \
+              --apple-id "${{ secrets.APPLE_ID }}" \
+              --password "${{ secrets.APPLE_APP_PWD }}" \
+              --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+              --wait
+            xcrun stapler staple "$zipfile"
+          fi
