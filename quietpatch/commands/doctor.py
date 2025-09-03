@@ -108,8 +108,8 @@ def _check_open(open_check: bool) -> Tuple[str, str, int | None]:
 		webbrowser.get()
 		return (*_ok("Browser integration OK"), None)
 	except Exception:
-		# Code 3: write/open error
-		return (*_fail("Default browser not available"), 3)
+		# In headless environments this is expected; treat as a warning
+		return (*_warn("Default browser not available"), None)
 
 
 def run(db: str | None = None, out_dir: str | None = None, open_check: bool = False) -> int:

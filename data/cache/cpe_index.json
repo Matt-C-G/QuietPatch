@@ -39,5 +39,8 @@
   "Discord:0.0.356": "cpe:2.3:a:discord:discord:0.0.356:*:*:*:*:*:*:*",
   "SF Symbols:6.0": "cpe:2.3:a:sf_symbols:sf_symbols:6.0:*:*:*:*:*:*:*",
   "LockDown Browser:2.1.3": "cpe:2.3:a:*:lockdown_browser:2.1.3:*:*:*:*:*:*:*:*",
-  "PayPal Honey:17.0.55": "cpe:2.3:a:paypal_honey:paypal_honey:*:*:*:*:*:*:*:*:*"
+  "PayPal Honey:17.0.55": "cpe:2.3:a:paypal_honey:paypal_honey:*:*:*:*:*:*:*:*:*",
+  "OpenSSL:3.0.12": "cpe:2.3:a:*:openssl:3.0.12:*:*:*:*:*:*:*:*",
+  "curl:8.7.1": "cpe:2.3:a:curl:curl:8.7.1:*:*:*:*:*:*:*:*",
+  "zlib:1.2.13": "cpe:2.3:a:*:zlib:1.2.13:*:*:*:*:*:*:*:*"
 }
