@@ -5,11 +5,18 @@ import html
 import json
 from pathlib import Path
 
-# Decryptor import (v3 first, fallback to v2 if present)
-try:
-    from quietpatch.config.encryptor_v3 import decrypt_file  # type: ignore
-except Exception:  # pragma: no cover
-    from quietpatch.config.encryptor_v2 import decrypt_file  # type: ignore
+# Decryptor import (lazy loading to avoid import-time dependencies)
+def _get_decryptor():
+    """Get decryptor function, loading it only when needed."""
+    try:
+        from quietpatch.config.encryptor_v3 import decrypt_file  # type: ignore
+        return decrypt_file
+    except Exception:  # pragma: no cover
+        try:
+            from quietpatch.config.encryptor import decrypt_file  # type: ignore
+            return decrypt_file
+        except Exception:  # pragma: no cover
+            return None
 
 
 def _load_items(input_path: str):
@@ -18,6 +25,9 @@ def _load_items(input_path: str):
     raw = p.read_bytes()
     # plaintext JSON starts with '{' or '['; otherwise try decrypt
     if raw[:1] not in (b"{", b"["):
+        decrypt_file = _get_decryptor()
+        if decrypt_file is None:
+            raise ImportError("No decryptor available for encrypted files")
         raw = decrypt_file(str(p))
     try:
         obj = json.loads(raw.decode("utf-8", "ignore"))
