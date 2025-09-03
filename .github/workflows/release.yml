@@ -139,6 +139,15 @@ jobs:
           find artifacts -type f -print -exec cp {} dist/ \;
           ls -l dist
 
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          cd dist
+          # Generate checksums for all files except SHA256SUMS itself
+          find . -type f ! -name "SHA256SUMS" -exec sha256sum {} \; > SHA256SUMS
+          echo "Generated SHA256SUMS:"
+          cat SHA256SUMS
+
       - name: Ensure release exists
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
