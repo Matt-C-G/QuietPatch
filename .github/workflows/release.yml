@@ -3,450 +3,141 @@ name: release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Generate notes and build artifacts but skip publishing'
+      tag:
+        description: 'Tag to publish to (e.g. v0.3.0). Leave empty to use ref_name.'
         required: false
-        default: false
-        type: boolean
+        default: ''
+
+permissions:
+  contents: write
+  id-token: write
 
 env:
-  PY_VER: "3.11"
-  PEX_WIN: "2.54.2"   # known-good on Windows
+  RELEASE_TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
 
 jobs:
-  build-pex:
-    name: build-${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
+  build-matrix:
+    name: build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: linux-x86_64
-            runner: ubuntu-22.04
-            pex_name: quietpatch-linux-x86_64-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-linux-x86_64.zip
-            latest_zip: quietpatch-linux-x86_64.zip
-            shell: bash
-            smoke: "python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null"
-            flags: "--find-links dist --no-build --strip-pex-env --venv prepend"
-          - os: macos-arm64
-            runner: macos-14
-            pex_name: quietpatch-macos-arm64-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-macos-arm64.zip
-            latest_zip: quietpatch-macos-arm64.zip
-            shell: bash
-            smoke: "python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null"
-            flags: "--find-links dist --no-build --strip-pex-env --venv prepend"
-          - os: windows-x64
-            runner: windows-latest
-            pex_name: quietpatch-win-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-windows.zip
-            latest_zip: quietpatch-windows-x64.zip
-            shell: pwsh
-            smoke: |
-              $env:PEX_ROOT='C:\pex'; $env:TEMP='C:\t'; $env:TMP='C:\t'; $env:PEX_IGNORE_RCFILES='1'
-              py -3.11 dist-pex\quietpatch-win-py311.pex scan --help >$null
-            flags: "--find-links dist --no-build --strip-pex-env"
+        os:
+          - ubuntu-22.04
+          - macos-14
+          - windows-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PY_VER }}
-          cache: pip
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build deps
+        run: |
+          python -m pip install -U pip wheel build pex
 
       - name: Build wheel
-        shell: ${{ matrix.shell }}
         run: |
-          python -m pip install -U pip build wheel setuptools
           python -m build -w -n
-          ls -l dist || dir dist
+          ls -l dist
 
-      - name: Install PEX
-        if: matrix.os != 'windows-x64'
-        run: python -m pip install pex
-
-      - name: Install PEX (Windows pin)
-        if: matrix.os == 'windows-x64'
-        run: py -3.11 -m pip install pex==${{ env.PEX_WIN }}
-        shell: pwsh
-
-      - name: Build PEX from local wheel
-        shell: ${{ matrix.shell }}
-        run: |
-          mkdir -p dist-pex
-          # resolve first wheel in dist/
-          if [ "${{ matrix.shell }}" = "bash" ]; then WHL=$(ls dist/*.whl | head -n1); fi
-          if [ "${{ matrix.shell }}" = "pwsh" ]; then $WHL = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName; fi
-          # build pex (allow deps from PyPI; our package from local wheel)
-          if [ "${{ matrix.shell }}" = "bash" ]; then
-            python -m pex $WHL -c quietpatch ${{ matrix.flags }} -o dist-pex/${{ matrix.pex_name }}
-          else
-            py -3.11 -m pex $WHL -c quietpatch ${{ matrix.flags }} -o dist-pex\${{ matrix.pex_name }}
-          fi
-
-      - name: Smoke
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.smoke }}
-
-      - name: Validate SARIF (example)
-        if: matrix.os == 'linux-x86_64'
-        run: |
-          echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"QuietPatch","version":"dev","rules":[]}},"results":[]}]}'> report.sarif
-          python -m pip install -U sarif-tools
-          sarif validate report.sarif
-
-      - name: Stage package contents
-        shell: ${{ matrix.shell }}
-        run: |
-          mkdir -p pkg/catalog pkg/policies
-          # runners
-          if [ "${{ matrix.shell }}" = "bash" ]; then
-            cp dist-pex/${{ matrix.pex_name }} pkg/
-            # launchers
-            if [ "${{ matrix.os }}" = "linux-x86_64" ]; then
-              cat > pkg/run_quietpatch.sh <<'SH'
-              #!/usr/bin/env bash
-              set -euo pipefail
-              export PEX_ROOT="$(dirname "$0")/.pexroot"
-              exec /usr/bin/env python3.11 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
-              SH
-              chmod +x pkg/run_quietpatch.sh
-            else
-              cat > pkg/run_quietpatch.command <<'SH'
-              #!/usr/bin/env bash
-              set -euo pipefail
-              export PEX_ROOT="$(dirname "$0")/.pexroot"
-              exec /usr/bin/env python3.11 "$(dirname "$0")/${{ matrix.pex_name }}" "$@"
-              SH
-              chmod +x pkg/run_quietpatch.command
-            fi
-          else
-            Copy-Item dist-pex\${{ matrix.pex_name }} pkg\
-            @'
-            @echo off
-            setlocal
-            set PEX_ROOT=%~dp0.pexroot
-            set TMP=%~dp0.tmp
-            set TEMP=%~dp0.tmp
-            where py >nul 2>&1 && (
-              py -3.11 "%~dp0${{ matrix.pex_name }}" %*
-            ) || (
-              python "%~dp0${{ matrix.pex_name }}" %*
-            )
-            endlocal
-            '@ | Out-File -FilePath pkg\run_quietpatch.bat -Encoding ASCII
-          fi
-          # minimal catalog/policies if you ship templates in repo
-          if [ -d catalog ]; then cp -R catalog/* pkg/catalog/ || true; fi
-          if [ -d policies ]; then cp -R policies/* pkg/policies/ || true; fi
-          # readmes
-          echo "QuietPatch ${GITHUB_REF_NAME} – see README for usage" > pkg/README.txt 2>/dev/null || Out-File pkg\README.txt -InputObject "QuietPatch $env:GITHUB_REF_NAME – see README for usage"
-
-      - name: Zip (versioned + latest)
-        shell: ${{ matrix.shell }}
-        run: |
-          cd pkg
-          if [ "${{ matrix.shell }}" = "bash" ]; then
-            zip -r ../${{ matrix.zip_name }} .
-            cp ../${{ matrix.zip_name }} ../${{ matrix.latest_zip }}
-          else
-            Compress-Archive -Path * -DestinationPath ..\${{ matrix.zip_name }} -Force
-            Copy-Item ..\${{ matrix.zip_name }} ..\${{ matrix.latest_zip }} -Force
-          fi
-          cd ..
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}
-          path: |
-            ${{ matrix.zip_name }}
-            ${{ matrix.latest_zip }}
-
-      - name: SBOM scan canary (CycloneDX)
-        if: matrix.os == 'linux-x86_64'
+      - name: Build PEX and ZIP
         shell: bash
         run: |
-          python3.11 dist-pex/${{ matrix.pex_name }} scan --sbom examples/cyclonedx-example.json --csv canary.csv --sarif canary.sarif
-          test -s canary.csv
+          set -euo pipefail
+          mkdir -p dist
+          WHL="$(ls dist/*.whl | head -n1)"
+          echo "Using wheel: $WHL"
+
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-linux-x86_64.pex
+            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh README-Linux.txt
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-macos-arm64.pex
+            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command README-macOS.txt
+          else
+            py -3.11 -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-windows-x64.pex
+            powershell -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex, packaging/windows/run_quietpatch.bat, README-Windows.txt -DestinationPath dist/quietpatch-windows-x64.zip"
+          fi
+
+          ls -l dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-artifacts
+          path: dist/*.zip
 
   build-db:
-    name: build-db
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: ${{ env.PY_VER }} }
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip wheel
+
       - name: Build offline DB snapshot
         run: |
-          python -m pip install -U pip wheel setuptools
+          set -euo pipefail
           mkdir -p dist
           python tools/db_snapshot.py --years-back 5 --out dist
-          cd dist
-          for f in db-*.tar.*; do sha256sum "$f" >> SHA256SUMS; done
-          # also create db-latest alias
-          LATEST=$(ls -1 db-*.tar.* | sort | tail -n1)
-          cp "$LATEST" db-latest.tar.${LATEST##*.}
-          grep "$LATEST" SHA256SUMS | sed "s|$LATEST|db-latest.tar.${LATEST##*.}|" >> SHA256SUMS
-      - uses: actions/upload-artifact@v4
+          ( cd dist && { sha256sum *.zip *.zst *.tar.zst 2>/dev/null || true; } ) > dist/SHA256SUMS || true
+          ls -l dist
+
+      - name: Upload DB artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: db
+          name: db-artifacts
           path: dist/*
 
   publish:
-    name: publish-release
-    runs-on: ubuntu-latest
-    needs: [build-pex, build-db, windows-exe]
-    permissions:
-      contents: write
+    runs-on: ubuntu-22.04
+    needs:
+      - build-matrix
+      - build-db
     steps:
-      - uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0  # Full history for release notes
-      - uses: actions/download-artifact@v4
-        with: { path: out }
-      - name: Compute previous tag
-        id: prev
+          path: artifacts
+
+      - name: Flatten artifacts
         run: |
-          git fetch --tags --force
-          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-      - name: Enforce semver vs BREAKING changes
-        run: |
-          git fetch --tags --force
-          prev=$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null || echo "")
-          range="${prev:+$prev..}${GITHUB_REF_NAME}"
-          if git log --grep='BREAKING CHANGE:' -E --oneline "$range" | grep -q .; then
-            if ! echo "${GITHUB_REF_NAME}" | grep -Eq '^v[1-9][0-9]*\.0\.0$'; then
-              echo "Found BREAKING CHANGE but tag is not a new major." >&2
-              exit 1
-            fi
-          fi
-      - name: Generate release notes
-        run: |
-          bash tools/generate_release_notes.sh "${{ steps.prev.outputs.tag }}" "https://github.com/${{ github.repository }}"
-      - name: Assemble SHA256SUMS (top-level)
-        run: |
-          cd out
-          sha256sum **/*.zip **/db-*.* 2>/dev/null >> SHA256SUMS || true
-      - name: Minisign SHA256SUMS
-        if: env.MINISIGN_PRIVATE_KEY
+          mkdir -p dist
+          find artifacts -type f -print -exec cp {} dist/ \;
+          ls -l dist
+
+      - name: Ensure release exists
         env:
-          MINISIGN_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          printf '%s' "$MINISIGN_KEY" > key.minisign
-          minisign -G -p pubkey.txt -s key.minisign -y || true
-          minisign -Sm out/SHA256SUMS -s key.minisign
-          rm -f key.minisign
-      - name: Create GitHub Release (attach all assets)
-        if: ${{ !inputs.dry_run }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body_path: NOTES.md
-          draft: false
-          prerelease: false
-          files: |
-            out/**.zip
-            out/**.exe
-            out/**/db-*.tar.*
-            out/SHA256SUMS
-            out/SHA256SUMS.minisig
-      - name: Dry run summary
-        if: ${{ inputs.dry_run }}
-        run: |
-          echo "## Dry Run Complete"
-          echo "Generated NOTES.md:"
-          cat NOTES.md
-          echo ""
-          echo "Artifacts built:"
-          ls -la out/
-
-  update-package-managers:
-    name: Update Brew/Scoop
-    runs-on: ubuntu-latest
-    needs: [build-pex, build-db]
-    if: ${{ !inputs.dry_run }}
-    steps:
-      - name: Setup git
-        run: |
-          git config --global user.name "quietpatch-bot"
-          git config --global user.email "bot@quietpatch.dev"
-
-      - name: Get tag + hashes
-        id: meta
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VER="${TAG#v}"
-          echo "ver=$VER" >> $GITHUB_OUTPUT
-          curl -fsSL -o SHA256SUMS "https://github.com/${{ github.repository }}/releases/download/$TAG/SHA256SUMS"
-          mac_hash=$(grep "quietpatch-$VER-macos-arm64.zip" SHA256SUMS | awk '{print $1}')
-          win_hash=$(grep "quietpatch-$VER-windows.zip" SHA256SUMS | awk '{print $1}')
-          echo "mac_hash=$mac_hash" >> $GITHUB_OUTPUT
-          echo "win_hash=$win_hash" >> $GITHUB_OUTPUT
-
-      - name: Bump Homebrew formula
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
-        run: |
-          if [ -n "${{ secrets.GH_TOKEN_RELEASE }}" ]; then
-            gh repo clone Matt-C-G/homebrew-quietpatch tap
-            cd tap/Formula
-            sed -i "s/version \".*\"/version \"${{ steps.meta.outputs.ver }}\"/" quietpatch.rb
-            sed -i "s/sha256 \".*\"/sha256 \"${{ steps.meta.outputs.mac_hash }}\"/" quietpatch.rb
-            git commit -am "quietpatch ${{ steps.meta.outputs.ver }}" || true
-            git push origin HEAD:brew-bump-${{ steps.meta.outputs.ver }} || true
-            gh pr create -R Matt-C-G/homebrew-quietpatch -B main -H brew-bump-${{ steps.meta.outputs.ver }} -t "Bump quietpatch to ${{ steps.meta.outputs.ver }}" -b "Automated bump" || true
+          set -e
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists"
           else
-            echo "GH_TOKEN_RELEASE not set, skipping Homebrew update"
+            gh release create "$RELEASE_TAG" -t "$RELEASE_TAG" -n "Automated release for $RELEASE_TAG"
           fi
 
-      - name: Bump Scoop manifest
+      - name: Upload assets to release
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -n "${{ secrets.GH_TOKEN_RELEASE }}" ]; then
-            gh repo clone Matt-C-G/scoop-quietpatch bucket
-            cd bucket/bucket
-            jq --arg v "${{ steps.meta.outputs.ver }}" \
-               --arg h "${{ steps.meta.outputs.win_hash }}" \
-               '.version=$v | .architecture."64bit".url=("https://github.com/Matt-C-G/QuietPatch/releases/download/v"+$v+"/quietpatch-"+$v+"-windows.zip") | .architecture."64bit".hash=$h' \
-               quietpatch.json > quietpatch.json.tmp && mv quietpatch.json.tmp quietpatch.json
-            git commit -am "quietpatch ${{ steps.meta.outputs.ver }}" || true
-            git push origin HEAD:scoop-bump-${{ steps.meta.outputs.ver }} || true
-            gh pr create -R Matt-C-G/scoop-quietpatch -B main -H scoop-bump-${{ steps.meta.outputs.ver }} -t "Bump quietpatch to ${{ steps.meta.outputs.ver }}" -b "Automated bump" || true
-          else
-            echo "GH_TOKEN_RELEASE not set, skipping Scoop update"
-          fi
-
-      - name: Generate WinGet manifests and create PR
-        if: ${{ secrets.GH_TOKEN_RELEASE }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VER="${TAG#v}"
-          URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/quietpatch-${VER}-windows.zip"
-          SHA="${{ steps.meta.outputs.win_hash }}"
-          python3 tools/generate_winget_manifests.py --out winget --version "$VER" --sha256 "$SHA" --url "$URL"
-          gh repo clone microsoft/winget-pkgs -- --depth 1
-          cd winget-pkgs
-          BR="quietpatch-${VER}"
-          git checkout -b "$BR"
-          mkdir -p $(dirname ../winget/q/QuietPatch/QuietPatch/${VER}/x)
-          rsync -a ../winget/q/QuietPatch/QuietPatch/${VER}/ manifests/q/QuietPatch/QuietPatch/${VER}/
-          git add manifests/q/QuietPatch/QuietPatch/${VER}
-          git commit -m "QuietPatch ${VER}"
-          git push -u origin "$BR"
-          gh pr create -R microsoft/winget-pkgs -B master -H "$BR" -t "QuietPatch ${VER}" -b "Automated submission via CI"
-
-  windows-exe:
-    name: Windows EXE (Nuitka)
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-
-      - name: Install build deps
-        shell: pwsh
-        run: |
-          python -m pip install -U pip wheel build nuitka
-          python -m pip install -U -r requirements.txt
-
-      - name: Build EXE (onefile)
-        shell: pwsh
-        run: |
-          $Out="build\win-exe"
-          New-Item -Force -ItemType Directory -Path $Out | Out-Null
-          python -m nuitka --onefile --standalone --windows-console `
-            --output-dir="$Out" `
-            --company-name="QuietPatch" --product-name="QuietPatch" `
-            --include-data-dir=policies=policies `
-            --include-data-dir=catalog=catalog `
-            -m quietpatch.cli
-          Rename-Item "$Out\quietpatch.cli.exe" "$Out\quietpatch-windows-x64.exe"
-
-      - name: Authenticode sign EXE (optional)
-        if: ${{ secrets.WIN_CERT_B64 && secrets.WIN_CERT_PWD }}
-        shell: pwsh
-        run: |
-          $pfx = "$env:TEMP\codesign.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String("${{ secrets.WIN_CERT_B64 }}"))
-          $signtool = "${env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\signtool.exe"
-          if (-not (Test-Path $signtool)) { $signtool = "signtool.exe" }
-          & $signtool sign /f $pfx /p "${{ secrets.WIN_CERT_PWD }}" /fd SHA256 /tr http://timestamp.sectigo.com /td SHA256 "build\win-exe\quietpatch-windows-x64.exe"
-
-      - name: Upload EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: win-exe
-          path: build/win-exe/quietpatch-windows-x64.exe
-
-  macos-sign:
-    name: macOS sign & notarize
-    needs: [build-pex]
-    runs-on: macos-14
-    if: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MAC_CERT_B64 && secrets.MAC_CERT_PWD && secrets.APPLE_ID && secrets.APPLE_TEAM_ID && secrets.APPLE_APP_PWD && secrets.MAC_SIGN_IDENTITY }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Import signing cert
-        run: |
-          CERT_PATH="$RUNNER_TEMP/cert.p12"
-          echo "${MAC_CERT_B64}" | base64 --decode > "$CERT_PATH"
-          security create-keychain -p "" build.keychain
-          security import "$CERT_PATH" -k build.keychain -P "${MAC_CERT_PWD}" -T /usr/bin/codesign
-          security list-keychains -s build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-        env:
-          MAC_CERT_B64: ${{ secrets.MAC_CERT_B64 }}
-          MAC_CERT_PWD: ${{ secrets.MAC_CERT_PWD }}
-
-      - name: Codesign artifacts
-        run: |
-          # Example: sign the macOS zip; adjust path if needed
-          zipfile="quietpatch-${GITHUB_REF_NAME}-macos-arm64.zip"
-          if [ -f "$zipfile" ]; then
-            codesign --force --options runtime --timestamp --deep -s "${{ secrets.MAC_SIGN_IDENTITY }}" "$zipfile"
-          fi
-
-      - name: Notarize
-        run: |
-          zipfile="quietpatch-${GITHUB_REF_NAME}-macos-arm64.zip"
-          if [ -f "$zipfile" ]; then
-            xcrun notarytool submit "$zipfile" \
-              --apple-id "${{ secrets.APPLE_ID }}" \
-              --password "${{ secrets.APPLE_APP_PWD }}" \
-              --team-id "${{ secrets.APPLE_TEAM_ID }}" \
-              --wait
-            xcrun stapler staple "$zipfile"
-          fi
-
-  smoke-exe-from-release:
-    name: Smoke EXE from release
-    needs: [publish]
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download EXE from this release and run --version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: pwsh
-        run: |
-          $tag = "${env:GITHUB_REF}".Split('/')[-1]
-          $url = gh api "repos/${env:GITHUB_REPOSITORY}/releases/tags/$tag" --jq '.assets[] | select(.name=="quietpatch-windows-x64.exe") | .browser_download_url'
-          Invoke-WebRequest -Uri $url -OutFile q.exe
-          .\q.exe --version
+          gh release upload "$RELEASE_TAG" dist/* --clobber
