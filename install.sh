@@ -2,97 +2,41 @@
 set -euo pipefail
 
 OWNER="Matt-C-G"
-REPO="QuietPatch"
-PREFIX="${QUIETPATCH_PREFIX:-$HOME/.quietpatch}"
-BIN_DIR="$PREFIX/bin"
-DB_NAME="db-latest.tar.zst"
+DIST="quietpatch-dist"
+OS="$(uname -s)"
+ARCH="$(uname -m)"
 
-# Detect platform
-os="$(uname -s)"
-arch="$(uname -m)"
-case "$os" in
-  Darwin) asset="quietpatch-macos-arm64.zip"; ;;
-  Linux)  asset="quietpatch-linux-x86_64.zip"; ;;
-  *) echo "Unsupported OS: $os" >&2; exit 1;;
+case "$OS:$ARCH" in
+  Darwin:arm64)   ASSET="quietpatch-macos-arm64-latest.zip" ;;
+  Linux:x86_64)   ASSET="quietpatch-linux-x86_64-latest.zip" ;;
+  *) echo "Unsupported platform: $OS $ARCH"; exit 1 ;;
 esac
 
-mkdir -p "$BIN_DIR"
-cd "$BIN_DIR"
+TMP="${TMPDIR:-/tmp}/qp.$$"
+mkdir -p "$TMP"
+DEST="$HOME/.quietpatch/bin"
+mkdir -p "$DEST"
 
-echo "→ Downloading latest $asset..."
-curl -fsSL -O "https://github.com/$OWNER/$REPO/releases/latest/download/$asset"
-
-echo "→ Verifying checksum..."
-curl -fsSL -o SHA256SUMS "https://github.com/$OWNER/$REPO/releases/latest/download/SHA256SUMS"
-if command -v sha256sum >/dev/null 2>&1; then
-  grep " $asset$" SHA256SUMS | sha256sum -c -
-else
-  grep " $asset$" SHA256SUMS | shasum -a 256 -c -
-fi
-
-echo "→ Extracting…"
-unzip -q -o "$asset"
-
-echo "→ Fetching offline DB snapshot ($DB_NAME)…"
-curl -fsSL -O "https://github.com/$OWNER/$REPO/releases/latest/download/$DB_NAME"
-# optional: verify DB too
-if grep -q "$DB_NAME" SHA256SUMS; then
-  if command -v sha256sum >/dev/null 2>&1; then
-    grep " $DB_NAME$" SHA256SUMS | sha256sum -c -
+URL="https://github.com/${OWNER}/${DIST}/releases/latest/download/${ASSET}"
+echo "Downloading ${ASSET} …"
+if ! curl -fsSL "$URL" -o "$TMP/pkg.zip"; then
+  echo "Public download failed. Trying authenticated fallback with 'gh'…"
+  if command -v gh >/dev/null; then
+    gh release download -R "${OWNER}/${DIST}" -p "${ASSET}" -D "$TMP"
+    mv "$TMP/${ASSET}" "$TMP/pkg.zip"
   else
-    grep " $DB_NAME$" SHA256SUMS | shasum -a 256 -c -
+    echo "Error: cannot download asset. Install GitHub CLI or make repo public."
+    exit 1
   fi
 fi
 
-# Create PATH shim
-cat > quietpatch <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PEX_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/quietpatch/.pexroot"
-if command -v python3.11 >/dev/null 2>&1; then PY=python3.11; else PY=python3; fi
-if [[ "$OSTYPE" == darwin* ]]; then
-  PEX="$ROOT/quietpatch-macos-arm64-py311.pex"
-else
-  PEX="$ROOT/quietpatch-linux-x86_64-py311.pex"
-fi
-exec "$PY" "$PEX" "$@"
-SH
-chmod +x quietpatch
+unzip -q "$TMP/pkg.zip" -d "$DEST"
+chmod +x "$DEST"/* || true
+echo "Installed to $DEST"
 
-# Try to symlink into /usr/local/bin if writable
-if [ -w /usr/local/bin ]; then
-  ln -sf "$BIN_DIR/quietpatch" /usr/local/bin/quietpatch
-  echo "✓ Installed: /usr/local/bin/quietpatch"
-else
-  echo "Add to PATH: export PATH=\"$BIN_DIR:\$PATH\""
+if ! command -v quietpatch >/dev/null 2>&1; then
+  echo "Add to PATH: export PATH=\"$HOME/.quietpatch/bin:\$PATH\""
 fi
 
-# Get version info for success message
-VERSION_INFO=""
-if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ] || [ -f "$BIN_DIR/quietpatch-linux-x86_64-py311.pex" ]; then
-    # Try to get version from the PEX
-    if command -v python3.11 >/dev/null 2>&1; then
-        PY=python3.11
-    else
-        PY=python3
-    fi
-    
-    if [ -f "$BIN_DIR/quietpatch-macos-arm64-py311.pex" ]; then
-        PEX="$BIN_DIR/quietpatch-macos-arm64-py311.pex"
-    else
-        PEX="$BIN_DIR/quietpatch-linux-x86_64-py311.pex"
-    fi
-    
-    VERSION_INFO=$($PY "$PEX" --version 2>/dev/null | head -n1 || echo "QuietPatch")
-else
-    VERSION_INFO="QuietPatch"
-fi
-
-echo ""
-echo "✓ $VERSION_INFO installed successfully!"
-echo ""
-echo "Try: quietpatch scan --also-report --open"
-echo "     (or: quietpatch scan --db \"$BIN_DIR/$DB_NAME\" --also-report --open)"
-echo ""
-echo "For help: quietpatch scan --help"
+"$DEST"/run_quietpatch.sh --version 2>/dev/null || "$DEST"/run_quietpatch.command --version 2>/dev/null || true
+echo "Done."

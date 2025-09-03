@@ -2,12 +2,11 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    tags: [ "v*.*.*" ]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish to (e.g. v0.3.0). Leave empty to use ref_name."
+        description: "Tag to publish (e.g. v0.3.1). Leave empty to use ref."
         required: false
         default: ""
 
@@ -16,153 +15,224 @@ permissions:
   id-token: write
 
 env:
-  # Use the input tag when provided, otherwise use the ref tag name.
-  RELEASE_TAG: "${{ inputs.tag != '' && inputs.tag || github.ref_name }}"
+  OWNER: "Matt-C-G"
+  SRC_REPO: "QuietPatch"
+  DIST_REPO: "quietpatch-dist"
+  TAG: "${{ inputs.tag != '' && inputs.tag || github.ref_name }}"
 
 jobs:
-  build-matrix:
-    name: build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-22.04
-          - macos-14
-          - windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install build deps
-        shell: bash
-        run: |
-          python -m pip install -U pip wheel build pex setuptools
-
-      - name: Build wheel
-        shell: bash
-        run: |
-          python -m build -w -n
-          ls -l dist
-
-      - name: Build PEX and ZIP
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          WHL="$(ls dist/*.whl | head -n1)"
-          echo "Using wheel: $WHL"
-
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-linux-x86_64.pex
-            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh packaging/linux/README-Linux.txt
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-macos-arm64.pex
-            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command packaging/macos/README-macOS.txt
-          else
-            py -3.11 -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-windows-x64.pex
-            pwsh -NoLogo -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex, packaging/windows/run_quietpatch.bat, packaging/windows/README-Windows.txt -DestinationPath dist/quietpatch-windows-x64.zip"
-          fi
-
-          ls -l dist
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ runner.os }}-artifacts"
-          path: dist/*.zip
-
-  build-db:
-    name: build db snapshot
+  build-linux:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install deps
-        shell: bash
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Build Linux binary (PyInstaller)
         run: |
-          python -m pip install -U pip wheel requests
+          python -m pip install -U pip wheel build pyinstaller
+          python -m build -w -n
+          pyinstaller -F -n quietpatch-linux-x86_64 --hidden-import=quietpatch.cli -c qp_cli.py
+          mkdir -p dist_pkg/linux && cp dist/quietpatch-linux-x86_64 dist_pkg/linux/
+          printf '%s\n' '#!/usr/bin/env bash' 'exec "$(dirname "$0")/quietpatch-linux-x86_64" "$@"' > dist_pkg/linux/run_quietpatch.sh
+          chmod +x dist_pkg/linux/run_quietpatch.sh
+          zip -j dist/quietpatch-linux-x86_64.zip dist_pkg/linux/*
 
-      - name: Build offline DB snapshot
-        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/quietpatch-linux-x86_64.zip
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Build macOS binary (PyInstaller)
         run: |
-          set -euo pipefail
+          python -m pip install -U pip wheel build pyinstaller
+          python -m build -w -n
+          pyinstaller -F -n quietpatch-macos-arm64 --hidden-import=quietpatch.cli -c qp_cli.py
+          mkdir -p dist_pkg/macos && cp dist/quietpatch-macos-arm64 dist_pkg/macos/
+          printf '%s\n' '#!/usr/bin/env bash' 'exec "$(dirname "$0")/quietpatch-macos-arm64" "$@"' > dist_pkg/macos/run_quietpatch.command
+          chmod +x dist_pkg/macos/run_quietpatch.command
+          zip -j dist/quietpatch-macos-arm64.zip dist_pkg/macos/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/quietpatch-macos-arm64.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Build Windows EXE (Nuitka)
+        shell: pwsh
+        run: |
+          python -m pip install -U pip wheel build nuitka
+          python -m build -w -n
+          python -m nuitka --onefile --assume-yes-for-downloads --output-filename=quietpatch-windows-x64.exe qp_cli.py
+          New-Item -ItemType Directory -Force -Path dist_pkg\windows | Out-Null
+          Copy-Item quietpatch-windows-x64.exe dist_pkg\windows\
+          '@echo off' | Out-File -Encoding ascii dist_pkg\windows\run_quietpatch.bat
+          'setlocal' | Add-Content dist_pkg\windows\run_quietpatch.bat
+          'start "" /B "%~dp0quietpatch-windows-x64.exe" %*' | Add-Content dist_pkg\windows\run_quietpatch.bat
+          Compress-Archive -Force -Path dist_pkg\windows\* -DestinationPath dist\quietpatch-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/quietpatch-windows-x64.zip
+
+  build-db:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Build DB snapshot + checksums
+        run: |
+          python -m pip install -U pip wheel
           mkdir -p dist
-          # Replace with your actual snapshot builder if different:
           python tools/db_snapshot.py --years-back 5 --out dist
-
-          # Create checksums if any files exist
-          ( cd dist && { sha256sum *.zip *.zst *.tar.zst 2>/dev/null || true; } ) > dist/SHA256SUMS || true
+          # Create stable alias
+          ls dist/db-*.tar.* | tail -n1 | xargs -I{} cp "{}" dist/db-latest.tar.zst || true
+          ( cd dist && { sha256sum *.zip *.tar.* 2>/dev/null || true; } ) > dist/SHA256SUMS
           ls -l dist
-
-      - name: Upload DB artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: "db-artifacts"
+          name: db
           path: dist/*
 
   publish:
-    name: publish to release
     runs-on: ubuntu-22.04
-    needs:
-      - build-matrix
-      - build-db
+    needs: [build-linux, build-macos, build-windows, build-db]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Flatten artifacts
-        shell: bash
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Flatten
         run: |
           mkdir -p dist
           find artifacts -type f -print -exec cp {} dist/ \;
           ls -l dist
 
-      - name: Generate SHA256SUMS
-        shell: bash
-        run: |
-          cd dist
-          # Generate checksums for all files except SHA256SUMS itself
-          find . -type f ! -name "SHA256SUMS" -exec sha256sum {} \; > SHA256SUMS
-          echo "Generated SHA256SUMS:"
-          cat SHA256SUMS
-
-      - name: Ensure release exists
+      - name: Ensure release (code repo)
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        shell: bash
         run: |
-          set -e
-          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Release ${RELEASE_TAG} already exists"
-          else
-            gh release create "${RELEASE_TAG}" -t "${RELEASE_TAG}" -n "Automated release for ${RELEASE_TAG}"
+          if ! gh release view "${TAG}" -R "${{ env.OWNER }}/${{ env.SRC_REPO }}" >/dev/null 2>&1; then
+            gh release create "${TAG}" -R "${{ env.OWNER }}/${{ env.SRC_REPO }}" -t "${TAG}" -n "QuietPatch ${TAG}"
           fi
-
-      - name: Upload assets to release
+      - name: Upload assets (code repo)
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        shell: bash
+        run: gh release upload "${TAG}" -R "${{ env.OWNER }}/${{ env.SRC_REPO }}" dist/* --clobber
+
+      - name: Ensure public dist release
+        if: ${{ secrets.GH_TOKEN_RELEASE != '' }}
+        env:
+          GH_TOKEN: "${{ secrets.GH_TOKEN_RELEASE }}"
         run: |
-          gh release upload "${RELEASE_TAG}" dist/* --clobber
+          if ! gh release view "${TAG}" -R "${{ env.OWNER }}/${{ env.DIST_REPO }}" >/dev/null 2>&1; then
+            gh release create "${TAG}" -R "${{ env.OWNER }}/${{ env.DIST_REPO }}" -t "${TAG}" -n "QuietPatch ${TAG}"
+          fi
+      - name: Upload assets to public dist
+        if: ${{ secrets.GH_TOKEN_RELEASE != '' }}
+        env:
+          GH_TOKEN: "${{ secrets.GH_TOKEN_RELEASE }}"
+        run: |
+          gh release upload "${TAG}" -R "${{ env.OWNER }}/${{ env.DIST_REPO }}" dist/* --clobber
+          cp dist/quietpatch-macos-arm64.zip      dist/quietpatch-macos-arm64-latest.zip || true
+          cp dist/quietpatch-linux-x86_64.zip     dist/quietpatch-linux-x86_64-latest.zip || true
+          cp dist/quietpatch-windows-x64.zip      dist/quietpatch-windows-x64-latest.zip || true
+          gh release upload "${TAG}" -R "${{ env.OWNER }}/${{ env.DIST_REPO }}" dist/*-latest.zip --clobber
+
+  update-readme:
+    runs-on: ubuntu-22.04
+    needs: publish
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Bump README banner
+        run: |
+          python3 - <<'PY'
+import re, pathlib, os
+tag=os.environ.get("TAG","").strip()
+p=pathlib.Path("README.md")
+t=p.read_text(encoding="utf-8")
+n=re.sub(r"(^##\\s*🚀\\s*Latest Release:\\s*QuietPatch\\s*)v?\\d+\\.\\d+\\.\\d+",
+         r"\\1"+tag, t, flags=re.M)
+p.write_text(n, encoding="utf-8")
+print("README updated to", tag)
+PY
+      - name: Commit & push or PR
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update README for ${TAG} [skip ci]" || exit 0
+          git push || {
+            BR="docs/bump-readme-${TAG}"
+            git checkout -b "$BR"
+            git push -u origin "$BR"
+            gh pr create --title "docs: update README ${TAG}" --body "Auto-bump README banner." || true
+          }
+
+  notes:
+    runs-on: ubuntu-22.04
+    needs: publish
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Generate NOTES.md (fallback)
+        run: |
+          if [ -x tools/generate_release_notes.sh ]; then
+            tools/generate_release_notes.sh "$(git describe --tags --abbrev=0 --exclude "${TAG}" || git rev-list --max-parents=0 HEAD | tail -n1)" "${TAG}" > NOTES.md
+          else
+            PREV="$(git describe --tags --abbrev=0 --exclude "${TAG}" || git rev-list --max-parents=0 HEAD | tail -n1)"
+            {
+              echo "# QuietPatch ${TAG}"
+              echo
+              echo "## Highlights"
+              echo "- One-command installation (Linux/macOS/Windows)"
+              echo "- Prebuilt binaries with checksums"
+              echo "- CSV & SARIF export; SBOM input (CycloneDX)"
+              echo "- Doctor diagnostics; enhanced HTML report"
+              echo
+              echo "## Changes since ${PREV}"
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV}..${TAG}"
+              echo
+              echo "## Install"
+              echo '**macOS / Linux**'
+              echo '\`\`\`bash'
+              echo '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"'
+              echo '\`\`\`'
+              echo
+              echo '**Windows (PowerShell)**'
+              echo '\`\`\`powershell'
+              echo 'irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex'
+              echo '\`\`\`'
+              echo
+              echo "## Verify"
+              echo '\`\`\`bash'
+              echo 'sha256sum -c SHA256SUMS'
+              echo '\`\`\`'
+            } > NOTES.md
+          fi
+          head -n 50 NOTES.md
+      - name: Attach NOTES.md
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: gh release edit "${TAG}" -R "${{ env.OWNER }}/${{ env.SRC_REPO }}" -F NOTES.md

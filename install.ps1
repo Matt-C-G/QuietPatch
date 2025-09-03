@@ -1,83 +1,36 @@
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
+$Owner = 'Matt-C-G'
+$Dist  = 'quietpatch-dist'
+$Arch  = (Get-CimInstance Win32_Processor).AddressWidth
+if ($Arch -ne 64) { Write-Error 'Only x64 supported'; exit 1 }
 
-$Owner = "Matt-C-G"
-$Repo  = "QuietPatch"
-$Prefix = if ($Env:QUIETPATCH_PREFIX) { $Env:QUIETPATCH_PREFIX } else { "$Env:LOCALAPPDATA\QuietPatch" }
-$Bin = Join-Path $Prefix "bin"
-$Asset = "quietpatch-windows-x64.zip"
-$Db = "db-latest.tar.zst"
+$Asset = 'quietpatch-windows-x64-latest.zip'
+$Tmp   = Join-Path $env:TEMP ("qp_" + [guid]::NewGuid().ToString("n"))
+$Dest  = Join-Path $env:USERPROFILE ".quietpatch\bin"
+New-Item -ItemType Directory -Force -Path $Tmp,$Dest | Out-Null
 
-New-Item -ItemType Directory -Force -Path $Bin | Out-Null
-Set-Location $Bin
-
-Write-Host "→ Downloading latest $Asset..."
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/$Asset" -OutFile $Asset
-
-Write-Host "→ Verifying checksum..."
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/SHA256SUMS" -OutFile "SHA256SUMS"
-$zipHash = (Get-FileHash $Asset -Algorithm SHA256).Hash.ToLower()
-$refHash = (Select-String -Path "SHA256SUMS" -Pattern "$Asset").Line.Split()[0].ToLower()
-if ($zipHash -ne $refHash) { throw "Checksum mismatch for $Asset" }
-
-Write-Host "→ Extracting…"
-Expand-Archive -Path $Asset -DestinationPath $Bin -Force
-
-Write-Host "→ Downloading offline DB ($Db)…"
-Invoke-WebRequest "https://github.com/$Owner/$Repo/releases/latest/download/$Db" -OutFile $Db
-if (Select-String -Path "SHA256SUMS" -Pattern $Db -Quiet) {
-  $dbHash = (Get-FileHash $Db -Algorithm SHA256).Hash.ToLower()
-  $refDb  = (Select-String -Path "SHA256SUMS" -Pattern $Db).Line.Split()[0].ToLower()
-  if ($dbHash -ne $refDb) { throw "Checksum mismatch for $Db" }
+$Url = "https://github.com/$Owner/$Dist/releases/latest/download/$Asset"
+Write-Host "Downloading $Asset …"
+try {
+  Invoke-WebRequest -Uri $Url -OutFile (Join-Path $Tmp pkg.zip) -UseBasicParsing -ErrorAction Stop
+} catch {
+  Write-Warning "Public download failed. Trying 'gh' fallback…"
+  if (Get-Command gh -ErrorAction SilentlyContinue) {
+    gh release download -R "$Owner/$Dist" -p $Asset -D $Tmp | Out-Null
+    Rename-Item (Join-Path $Tmp $Asset) (Join-Path $Tmp pkg.zip) -Force
+  } else {
+    Write-Error 'Cannot download asset. Install GitHub CLI or make repo public.'; exit 1
+  }
 }
 
-# Shim: adds a 'quietpatch' command (tolerant to legacy PEX names)
-$shim = @'
-$ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Env:PEX_ROOT = Join-Path $Root ".pexroot"
-$pexCandidates = @("quietpatch.pex","quietpatch-win-py311.pex","quietpatch-windows-x64.pex")
-$pex = $pexCandidates | Where-Object { Test-Path (Join-Path $Root $_) } | Select-Object -First 1
-if (-not $pex) { throw "PEX not found in $Root. Expected one of: quietpatch.pex, quietpatch-win-py311.pex, quietpatch-windows-x64.pex" }
-if (Get-Command py -ErrorAction SilentlyContinue) {
-  & py -3.11 (Join-Path $Root $pex) @Args
-} else {
-  & python (Join-Path $Root $pex) @Args
-}
-'@
-$shimPath = Join-Path $Bin "quietpatch.ps1"
-$shim | Out-File -FilePath $shimPath -Encoding ASCII
+Expand-Archive (Join-Path $Tmp pkg.zip) -DestinationPath $Dest -Force
+Write-Host "Installed to $Dest"
 
-# Add to PATH (User)
-$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($UserPath -notlike "*$Bin*") {
-  [Environment]::SetEnvironmentVariable("Path", "$UserPath;$Bin", "User")
-  $Env:Path = "$Env:Path;$Bin"
-  Write-Host "✓ Updated PATH for current user"
-}
+$bin = "$Dest\quietpatch-windows-x64.exe"
+if (Test-Path $bin) { & $bin --version | Out-String | Write-Host }
 
-# Get version info for success message
-$VersionInfo = "QuietPatch"
-$__pex = $null
-foreach ($c in @("quietpatch.pex","quietpatch-win-py311.pex","quietpatch-windows-x64.pex")) {
-    $p = Join-Path $Bin $c
-    if (Test-Path $p) { $__pex = $p; break }
+$path = [Environment]::GetEnvironmentVariable('Path', 'User')
+if (-not $path.Split(';') -contains $Dest) {
+  [Environment]::SetEnvironmentVariable('Path', "$path;$Dest", 'User')
+  Write-Host "Added to PATH (User). Open a new PowerShell to use 'quietpatch'."
 }
-if ($__pex) {
-    try {
-        if (Get-Command py -ErrorAction SilentlyContinue) {
-            $VersionInfo = & py -3.11 $__pex --version 2>$null | Select-Object -First 1
-        } else {
-            $VersionInfo = & python $__pex --version 2>$null | Select-Object -First 1
-        }
-    } catch {
-        $VersionInfo = "QuietPatch"
-    }
-}
-
-Write-Host ""
-Write-Host "✓ $VersionInfo installed successfully!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Try: quietpatch scan --also-report --open"
-Write-Host "     (or: quietpatch scan --db $Db --also-report --open)"
-Write-Host ""
-Write-Host "For help: quietpatch scan --help"
