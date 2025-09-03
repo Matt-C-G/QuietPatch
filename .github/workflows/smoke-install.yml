@@ -1,0 +1,39 @@
+name: smoke-install
+
+on:
+  workflow_run:
+    workflows: ["release"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  smoke-unix:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: One-liner install
+        shell: bash
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh)"
+      - name: Version check
+        shell: bash
+        run: |
+          quietpatch --version
+
+  smoke-windows:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+    steps:
+      - name: One-liner install
+        shell: pwsh
+        run: |
+          irm https://raw.githubusercontent.com/${{ github.repository }}/main/install.ps1 | iex
+      - name: Version check
+        shell: pwsh
+        run: |
+          quietpatch --version
+

@@ -6,6 +6,11 @@ on:
       - "v*.*.*"
   workflow_dispatch:
     inputs:
+      tag:
+        description: 'Tag to publish to (e.g. v0.3.0). Leave empty to use ref_name.'
+        required: false
+        default: ''
+        type: string
       dry_run:
         description: 'Generate notes and build artifacts but skip publishing'
         required: false
@@ -15,6 +20,7 @@ on:
 env:
   PY_VER: "3.11"
   PEX_WIN: "2.54.2"   # known-good on Windows
+  RELEASE_TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
 
 jobs:
   build-pex:
@@ -27,7 +33,7 @@ jobs:
           - os: linux-x86_64
             runner: ubuntu-22.04
             pex_name: quietpatch-linux-x86_64-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-linux-x86_64.zip
+            zip_name: quietpatch-${{ env.RELEASE_TAG }}-linux-x86_64.zip
             latest_zip: quietpatch-linux-x86_64.zip
             shell: bash
             smoke: "python3.11 dist-pex/quietpatch-linux-x86_64-py311.pex scan --help >/dev/null"
@@ -35,7 +41,7 @@ jobs:
           - os: macos-arm64
             runner: macos-14
             pex_name: quietpatch-macos-arm64-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-macos-arm64.zip
+            zip_name: quietpatch-${{ env.RELEASE_TAG }}-macos-arm64.zip
             latest_zip: quietpatch-macos-arm64.zip
             shell: bash
             smoke: "python3.11 dist-pex/quietpatch-macos-arm64-py311.pex scan --help >/dev/null"
@@ -43,7 +49,7 @@ jobs:
           - os: windows-x64
             runner: windows-latest
             pex_name: quietpatch-win-py311.pex
-            zip_name: quietpatch-${{ github.ref_name }}-windows.zip
+            zip_name: quietpatch-${{ env.RELEASE_TAG }}-windows.zip
             latest_zip: quietpatch-windows-x64.zip
             shell: pwsh
             smoke: |
@@ -145,7 +151,7 @@ jobs:
           if [ -d catalog ]; then cp -R catalog/* pkg/catalog/ || true; fi
           if [ -d policies ]; then cp -R policies/* pkg/policies/ || true; fi
           # readmes
-          echo "QuietPatch ${GITHUB_REF_NAME} – see README for usage" > pkg/README.txt 2>/dev/null || Out-File pkg\README.txt -InputObject "QuietPatch $env:GITHUB_REF_NAME – see README for usage"
+          echo "QuietPatch ${RELEASE_TAG} – see README for usage" > pkg/README.txt 2>/dev/null || Out-File pkg\README.txt -InputObject "QuietPatch $env:RELEASE_TAG – see README for usage"
 
       - name: Zip (versioned + latest)
         shell: ${{ matrix.shell }}
@@ -214,14 +220,14 @@ jobs:
         id: prev
         run: |
           git fetch --tags --force
-          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
       - name: Enforce semver vs BREAKING changes
         run: |
           git fetch --tags --force
           prev=$(git describe --tags --abbrev=0 --match "v*.*.*" 2>/dev/null || echo "")
-          range="${prev:+$prev..}${GITHUB_REF_NAME}"
+          range="${prev:+$prev..}${RELEASE_TAG}"
           if git log --grep='BREAKING CHANGE:' -E --oneline "$range" | grep -q .; then
-            if ! echo "${GITHUB_REF_NAME}" | grep -Eq '^v[1-9][0-9]*\.0\.0$'; then
+            if ! echo "${RELEASE_TAG}" | grep -Eq '^v[1-9][0-9]*\.0\.0$'; then
               echo "Found BREAKING CHANGE but tag is not a new major." >&2
               exit 1
             fi
@@ -246,8 +252,8 @@ jobs:
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           body_path: NOTES.md
           draft: false
           prerelease: false
@@ -281,7 +287,7 @@ jobs:
       - name: Get tag + hashes
         id: meta
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
           VER="${TAG#v}"
           echo "ver=$VER" >> $GITHUB_OUTPUT
           curl -fsSL -o SHA256SUMS "https://github.com/${{ github.repository }}/releases/download/$TAG/SHA256SUMS"
@@ -329,7 +335,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_RELEASE }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
           VER="${TAG#v}"
           URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/quietpatch-${VER}-windows.zip"
           SHA="${{ steps.meta.outputs.win_hash }}"
