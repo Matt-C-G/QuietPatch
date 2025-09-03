@@ -90,6 +90,13 @@ def main():
     p_scan.add_argument("--sarif", metavar="PATH", help="Write SARIF v2.1.0 file for CI")
     p_scan.add_argument("--csv", metavar="PATH", help="Write CSV export")
     p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
+    p_scan.add_argument("--out", metavar="PATH", help="Write HTML report to this path (implies --also-report)")
+    p_scan.add_argument(
+        "--exit-on",
+        metavar="SEVERITY",
+        choices=["low", "medium", "high", "critical"],
+        help="Exit non-zero if any finding meets or exceeds this severity",
+    )
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -244,7 +251,7 @@ def main():
 
         print(json.dumps(locs, indent=2))
 
-        if args.also_report:
+        if args.also_report or getattr(args, "out", None):
             # Import here to avoid loading heavy dependencies at module level
             from src.config.encryptor_v3 import decrypt_file
             from quietpatch.report.html import generate_report
@@ -259,7 +266,8 @@ def main():
                     sys.exit(1)
                 raw = decrypt_file(str(enc), age_identity=os.environ.get("AGE_IDENTITY") or None)
                 src_json.write_bytes(raw)
-            html_out = outdir / "report.html"
+            html_out = Path(args.out) if getattr(args, "out", None) else (outdir / "report.html")
+            html_out.parent.mkdir(parents=True, exist_ok=True)
             generate_report(str(src_json), str(html_out))
             print(f"Report generated: {html_out}")
             if args.open:
@@ -313,6 +321,30 @@ def main():
                     print(f"SARIF report written: {args.sarif}")
             except Exception as e:
                 print(f"Warning: Could not write exports: {e}")
+
+        # Exit-on severity threshold (after outputs are written)
+        if getattr(args, "exit_on", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+                threshold = rank[args.exit_on]
+                hit = False
+                for app in apps_data or []:
+                    vulns = app.get("vulnerabilities") or app.get("cves") or []
+                    for v in vulns:
+                        sev = str((v or {}).get("severity") or "unknown").lower()
+                        if rank.get(sev, 0) >= threshold:
+                            hit = True
+                            break
+                    if hit:
+                        break
+                sys.exit(2 if hit else 0)
+            except Exception:
+                # On error evaluating threshold, do not fail the run
+                sys.exit(0)
+        else:
+            sys.exit(0)
 
     elif args.cmd == "report":
         # Import here to avoid loading heavy dependencies at module level

@@ -93,6 +93,13 @@ jobs:
         shell: ${{ matrix.shell }}
         run: ${{ matrix.smoke }}
 
+      - name: Validate SARIF (example)
+        if: matrix.os == 'linux-x86_64'
+        run: |
+          echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"QuietPatch","version":"dev","rules":[]}},"results":[]}]}'> report.sarif
+          python -m pip install -U sarif-tools
+          sarif validate report.sarif
+
       - name: Stage package contents
         shell: ${{ matrix.shell }}
         run: |
