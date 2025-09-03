@@ -46,6 +46,26 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  gate-zero-unknowns:
+    name: zero-unknowns gate
+    runs-on: ubuntu-22.04
+    needs: [unit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VER }}
+          cache: "pip"
+      - name: Install quietpatch
+        run: |
+          set -eux
+          python -m pip install -r requirements.ci.txt
+          python -m pip install -e .
+      - name: Zero-unknowns gate
+        run: |
+          set -eux
+          quietpatch scan --sarif gate.sarif --exit-on low --unknown-strategy fail || exit 1
+
   build-linux:
     runs-on: ubuntu-22.04
     steps:

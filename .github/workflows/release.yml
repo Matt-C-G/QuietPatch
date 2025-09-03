@@ -99,9 +99,9 @@ jobs:
         with: { python-version: "3.11" }
       - name: Build DB snapshot + checksums
         run: |
-          python -m pip install -U pip wheel
+          python -m pip install -U pip wheel zstandard
           mkdir -p dist
-          python tools/db_snapshot.py --years-back 5 --out dist
+          QP_ZSTD=1 python tools/db_snapshot.py --years-back 5 --out dist
           # Create stable alias
           ls dist/db-*.tar.* | tail -n1 | xargs -I{} cp "{}" dist/db-latest.tar.zst || true
           ( cd dist && { sha256sum *.zip *.tar.* 2>/dev/null || true; } ) > dist/SHA256SUMS
