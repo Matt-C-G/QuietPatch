@@ -31,26 +31,32 @@ def _open_file(path: str) -> None:
 def _get_db_snapshot_date() -> str | None:
     """Try to determine the DB snapshot date from available sources."""
     try:
-        # Check for db-latest.tar.* in current directory or data directory
+        # Check for qp_db-latest.tar.* or legacy db-latest.tar.* in data directory
         data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
         for ext in [".tar.zst", ".tar.gz", ".tar.bz2"]:
-            db_file = data_dir / f"db-latest{ext}"
+            db_file = data_dir / f"qp_db-latest{ext}"
             if db_file.exists():
                 # Get file modification time as a proxy for snapshot date
                 mtime = db_file.stat().st_mtime
                 return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+        for ext in [".tar.zst", ".tar.gz", ".tar.bz2"]:
+            db_file = data_dir / f"db-latest{ext}"
+            if db_file.exists():
+                mtime = db_file.stat().st_mtime
+                return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
 
-        # Check for any db-*.tar.* files
-        for db_file in data_dir.glob("db-*.tar.*"):
-            if db_file.name.startswith("db-") and len(db_file.name) > 10:
+        # Check for any qp_db-*.tar.* files (preferred) or legacy db-*.tar.*
+        for db_file in list(data_dir.glob("qp_db-*.tar.*")) + list(data_dir.glob("db-*.tar.*")):
+            base_name = db_file.stem.split('.')[0]
+            # qp_db-YYYYMMDD or db-YYYYMMDD
+            date_part = base_name.replace("qp_db-", "").replace("db-", "")
+            if len(date_part) >= 8 and date_part[:8].isdigit():
                 # Try to extract date from filename (db-YYYYMMDD.tar.*)
-                name_part = db_file.stem.split('.')[0]  # Remove .tar extension
-                if len(name_part) >= 8 and name_part[2:8].isdigit():
-                    date_str = name_part[2:8]  # YYYYMMDD
-                    try:
-                        return datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
-                    except ValueError:
-                        continue
+                date_str = date_part[:8]
+                try:
+                    return datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
     except Exception:
         pass
     return None
@@ -90,6 +96,8 @@ def main():
     p_scan.add_argument("--sarif", metavar="PATH", help="Write SARIF v2.1.0 file for CI")
     p_scan.add_argument("--csv", metavar="PATH", help="Write CSV export")
     p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
+    p_scan.add_argument("--offline", action="store_true", help="Disable online lookups; use local DB only")
+    p_scan.add_argument("--html", action="store_true", help="Alias for --also-report")
     p_scan.add_argument("--out", metavar="PATH", help="Write HTML report to this path (implies --also-report)")
     p_scan.add_argument(
         "--exit-on",
@@ -155,7 +163,23 @@ def main():
     db_refresh.add_argument("--privacy", default="strict", choices=["strict", "normal"])
     db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
 
-    # doctor
+    db_fetch = db_sub.add_parser("fetch", help="Fetch offline DB snapshot from GitHub Releases")
+    db_fetch.add_argument("--tag", default=os.environ.get("QUIETPATCH_DB_TAG", "db"), help="Release tag (default: db)")
+    db_fetch.add_argument(
+        "--filename",
+        default=os.environ.get("QUIETPATCH_DB_FILE", "qp_db-latest.tar.zst"),
+        help="Artifact filename (default: qp_db-latest.tar.zst)",
+    )
+
+    # env (namespace)
+    env = sub.add_parser("env", help="Environment utilities")
+    env_sub = env.add_subparsers(dest="env_cmd", required=True)
+    env_doc = env_sub.add_parser("doctor", help="Print environment diagnostics with fix steps")
+    env_doc.add_argument("--db", help="Path to db snapshot (optional)")
+    env_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
+    env_doc.add_argument("--open-check", action="store_true", help="Check if default browser is available")
+
+    # doctor (legacy alias)
     p_doc = sub.add_parser("doctor", help="Diagnose environment and provide fixes")
     p_doc.add_argument("--db", help="Path to db snapshot (optional)")
     p_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
@@ -211,6 +235,9 @@ def main():
             pass
 
         # Main mapping flow (host or SBOM mode)
+        if args.offline:
+            os.environ["QP_OFFLINE"] = "1"
+
         if getattr(args, "sbom", None):
             try:
                 # SBOM mode: parse CycloneDX and map to CVEs
@@ -251,7 +278,7 @@ def main():
 
         print(json.dumps(locs, indent=2))
 
-        if args.also_report or getattr(args, "out", None):
+        if args.also_report or args.html or getattr(args, "out", None):
             # Import here to avoid loading heavy dependencies at module level
             from quietpatch.report.html import generate_report
             from src.config.encryptor_v3 import decrypt_file
@@ -409,6 +436,35 @@ def main():
         print(json.dumps(info, indent=2))
         return
 
+    elif args.cmd == "db" and getattr(args, "db_cmd", None) == "fetch":
+        import requests
+        from quietpatch.db_loader import _decompress
+        from quietpatch.errors import fail
+
+        APP_HOME = Path(os.environ.get("QUIETPATCH_HOME", Path.home() / ".quietpatch"))
+        APP_HOME.mkdir(parents=True, exist_ok=True)
+        db_dir = APP_HOME / "db"
+        db_dir.mkdir(parents=True, exist_ok=True)
+
+        tag = os.environ.get("QUIETPATCH_DB_TAG", "db")
+        filename = os.environ.get("QUIETPATCH_DB_FILE", "qp_db-latest.tar.zst")
+        url = f"https://github.com/Matt-C-G/QuietPatch/releases/download/{tag}/{filename}"
+        dest = db_dir / filename
+        r = requests.get(url, timeout=60)
+        if r.status_code != 200:
+            fail(
+                "DB-404",
+                f"No database at {url}",
+                [
+                    "Impact: Offline scan unavailable.",
+                    "Check tag/file or set QUIETPATCH_DB_FILE=qp_db-YYYYMMDD.tar.zst",
+                ],
+            )
+        dest.write_bytes(r.content)
+        print(f"Downloaded: {dest}")
+        _decompress(dest)
+        print("✅ DB ready.")
+
     elif args.cmd == "version":
         db_date = _get_db_snapshot_date()
         # Try local development version first, then installed package
@@ -478,6 +534,10 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+
+    elif args.cmd == "env" and getattr(args, "env_cmd", None) == "doctor":
+        from quietpatch.commands.doctor import run as doctor_run
+        sys.exit(doctor_run(db=getattr(args, "db", None), out_dir=getattr(args, "out_dir", None), open_check=getattr(args, "open_check", False)))
 
     elif args.cmd == "doctor":
         from quietpatch.commands.doctor import run as doctor_run

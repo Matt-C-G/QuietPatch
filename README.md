@@ -15,12 +15,12 @@
 
    macOS / Linux
    ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.sh)"
    ```
 
    Windows (PowerShell)
    ```powershell
-   irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
+   irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.ps1 | iex
    ```
 
    Or via package managers
@@ -43,10 +43,12 @@
    .\quietpatch-windows-x64.exe scan --also-report --open
    ```
 
-2. Run a scan
+2. Doctor, fetch DB, scan (offline)
 
    ```bash
-   quietpatch scan --also-report --open
+   quietpatch env doctor
+   quietpatch db fetch
+   quietpatch scan --offline --also-report --open
    ```
 
 3. View results
