@@ -48,19 +48,14 @@ lint: ## Run linting
 	@echo "Running ruff formatter..."
 	@python3 -m ruff format .
 
-build: ## Build wheel and PEX locally
-	@echo "Building wheel..."
-	@python3 -m build -w -n
-	@echo "Building PEX..."
-	@python3 -m pip install pex
-	@mkdir -p dist-pex
-	@whl=$$(ls dist/*.whl | head -1); \
-	python3 -m pex $$whl -c quietpatch --find-links dist --no-build --strip-pex-env --venv prepend -o dist-pex/quietpatch-local.pex
-	@echo "Built: dist-pex/quietpatch-local.pex"
+build: ## Build wheels and sdist
+	@echo "Building wheels and sdist..."
+	@python3 -m build
 
-smoke: build ## Run smoke test on local PEX
+smoke: build ## Run smoke test on wheel console script
 	@echo "Running smoke test..."
-	@python3.11 dist-pex/quietpatch-local.pex scan --help >/dev/null
+	@python3 -m pip install --force-reinstall dist/*.whl
+	@quietpatch --version >/dev/null
 	@echo "✅ Smoke test passed"
 
 # Development workflow
@@ -73,11 +68,20 @@ pre-release: clean test lint build smoke ## Prepare for release
 
 # Installation helpers
 install-local: build ## Install locally for testing
-	@echo "Installing QuietPatch locally..."
-	@mkdir -p ~/.local/bin
-	@cp dist-pex/quietpatch-local.pex ~/.local/bin/quietpatch
-	@chmod +x ~/.local/bin/quietpatch
-	@echo "✅ Installed to ~/.local/bin/quietpatch"
+	@echo "Installing QuietPatch wheel locally..."
+	@python3 -m pip install --force-reinstall dist/*.whl
+	@echo "✅ Installed"
+
+db-pack: ## Package offline DB into qp_db-YYYYMMDD.tar.zst and alias
+	@echo "Packing offline DB..."
+	@QP_ZSTD=1 python3 tools/db_snapshot.py --out dist
+	@echo "✅ DB packaged"
+
+checksums: ## Generate SHA256SUMS and sign
+	@echo "Generating checksums..."
+	@cd dist && find . -type f ! -name "SHA256SUMS" -maxdepth 1 -exec sha256sum {} \; > SHA256SUMS
+	@echo "Signing..."
+	@minisign -S -m dist/SHA256SUMS || true
 
 test-install: ## Test the install scripts locally
 	@echo "Testing install.sh..."
@@ -104,5 +108,6 @@ serve-docs: ## Serve the landing page locally
 
 test-version: build ## Test the version command
 	@echo "Testing version command..."
-	@python3 dist-pex/quietpatch-local.pex --version
-	@python3 dist-pex/quietpatch-local.pex version
+	@python3 -m pip install --force-reinstall dist/*.whl
+	@quietpatch --version
+	@quietpatch version

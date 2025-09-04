@@ -115,7 +115,7 @@ def build_snapshot(years_back: int, out_dir: Path) -> Path:
 		# Prefer .tar.zst but fall back to .tar.gz if zstd not available.
 		use_zstd = os.environ.get("QP_ZSTD") == "1"
 		ext = "tar.zst" if use_zstd else "tar.gz"
-		out_path = out_dir / f"db-{stamp}.{ext}"
+		out_path = out_dir / f"qp_db-{stamp}.{ext}"
 
 		raw = io.BytesIO()
 		with _zstd_open(raw, level=19) as comp:
@@ -128,6 +128,19 @@ def build_snapshot(years_back: int, out_dir: Path) -> Path:
 
 		sha = _sha256(out_path)
 		(out_path.with_suffix(out_path.suffix + ".sha256")).write_text(sha + "  " + out_path.name)
+
+		# Maintain qp_db-latest alias
+		latest = out_path.with_name("qp_db-latest." + ext)
+		try:
+			if latest.exists():
+				latest.unlink()
+		except Exception:
+			pass
+		try:
+			latest.symlink_to(out_path.name)
+		except Exception:
+			# On platforms without symlink perms, copy file
+			latest.write_bytes(out_path.read_bytes())
 
 		return out_path
 	finally:

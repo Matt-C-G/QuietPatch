@@ -93,7 +93,7 @@ if [ ${#HIGHLIGHTS[@]} -lt 3 ]; then
   cat >> NOTES.md <<'EOF'
 - Cross-platform single-file runners (Windows, Linux, macOS)
 - Wheel-first PEX builds; reproducible artifacts
-- Offline DB snapshot (`db-latest.tar.*`); no network required
+- Offline DB snapshot (`qp_db-latest.tar.*`); no network required
 EOF
 fi
 
@@ -121,7 +121,7 @@ cat >> NOTES.md <<'EOF'
 - Windows: `quietpatch-windows-x64.zip`
 - Linux x86_64: `quietpatch-linux-x86_64.zip`
 - macOS arm64: `quietpatch-macos-arm64.zip`
-- Offline DB: `db-latest.tar.*`
+- Offline DB: `qp_db-latest.tar.*`
 - Verification: `SHA256SUMS`
 
 ## ⚡ Quickstart
@@ -155,7 +155,7 @@ scoop install quietpatch
 ```bash
 curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/quietpatch-linux-x86_64.zip
 unzip quietpatch-linux-x86_64.zip
-./run_quietpatch.sh scan --db db-latest.tar.zst --also-report --open
+./run_quietpatch.sh scan --db qp_db-latest.tar.zst --also-report --open
 ```
 
 ## 🔒 Security & Privacy

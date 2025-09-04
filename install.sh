@@ -5,7 +5,7 @@ OWNER="Matt-C-G"
 REPO="QuietPatch"
 PREFIX="${QUIETPATCH_PREFIX:-$HOME/.quietpatch}"
 BIN_DIR="$PREFIX/bin"
-DB_NAME="db-latest.tar.zst"
+DB_NAME="qp_db-latest.tar.zst"
 
 # Detect platform
 os="$(uname -s)"
