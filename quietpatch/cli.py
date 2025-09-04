@@ -31,26 +31,32 @@ def _open_file(path: str) -> None:
 def _get_db_snapshot_date() -> str | None:
     """Try to determine the DB snapshot date from available sources."""
     try:
-        # Check for db-latest.tar.* in current directory or data directory
+        # Check for qp_db-latest.tar.* or legacy db-latest.tar.* in data directory
         data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
         for ext in [".tar.zst", ".tar.gz", ".tar.bz2"]:
-            db_file = data_dir / f"db-latest{ext}"
+            db_file = data_dir / f"qp_db-latest{ext}"
             if db_file.exists():
                 # Get file modification time as a proxy for snapshot date
                 mtime = db_file.stat().st_mtime
                 return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+        for ext in [".tar.zst", ".tar.gz", ".tar.bz2"]:
+            db_file = data_dir / f"db-latest{ext}"
+            if db_file.exists():
+                mtime = db_file.stat().st_mtime
+                return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
 
-        # Check for any db-*.tar.* files
-        for db_file in data_dir.glob("db-*.tar.*"):
-            if db_file.name.startswith("db-") and len(db_file.name) > 10:
+        # Check for any qp_db-*.tar.* files (preferred) or legacy db-*.tar.*
+        for db_file in list(data_dir.glob("qp_db-*.tar.*")) + list(data_dir.glob("db-*.tar.*")):
+            base_name = db_file.stem.split('.')[0]
+            # qp_db-YYYYMMDD or db-YYYYMMDD
+            date_part = base_name.replace("qp_db-", "").replace("db-", "")
+            if len(date_part) >= 8 and date_part[:8].isdigit():
                 # Try to extract date from filename (db-YYYYMMDD.tar.*)
-                name_part = db_file.stem.split('.')[0]  # Remove .tar extension
-                if len(name_part) >= 8 and name_part[2:8].isdigit():
-                    date_str = name_part[2:8]  # YYYYMMDD
-                    try:
-                        return datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
-                    except ValueError:
-                        continue
+                date_str = date_part[:8]
+                try:
+                    return datetime.strptime(date_str, "%Y%m%d").strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
     except Exception:
         pass
     return None
@@ -90,6 +96,11 @@ def main():
     p_scan.add_argument("--sarif", metavar="PATH", help="Write SARIF v2.1.0 file for CI")
     p_scan.add_argument("--csv", metavar="PATH", help="Write CSV export")
     p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
+    p_scan.add_argument("--offline", action="store_true", help="Disable online lookups; use local DB only")
+    p_scan.add_argument("--html", action="store_true", help="Alias for --also-report")
+    p_scan.add_argument("--mock", action="store_true", help="Use static mock data (CI fast path)")
+    p_scan.add_argument("--apps-from", metavar="PATH", help="Load apps JSON instead of probing host")
+    p_scan.add_argument("--fail-unknowns", action="store_true", help="Exit non-zero if any unknowns")
     p_scan.add_argument("--out", metavar="PATH", help="Write HTML report to this path (implies --also-report)")
     p_scan.add_argument(
         "--exit-on",
@@ -155,7 +166,23 @@ def main():
     db_refresh.add_argument("--privacy", default="strict", choices=["strict", "normal"])
     db_refresh.add_argument("--pubkey", help="minisign public key path for manifest verification")
 
-    # doctor
+    db_fetch = db_sub.add_parser("fetch", help="Fetch offline DB snapshot from GitHub Releases")
+    db_fetch.add_argument("--tag", default=os.environ.get("QUIETPATCH_DB_TAG", "db"), help="Release tag (default: db)")
+    db_fetch.add_argument(
+        "--filename",
+        default=os.environ.get("QUIETPATCH_DB_FILE", "qp_db-latest.tar.zst"),
+        help="Artifact filename (default: qp_db-latest.tar.zst)",
+    )
+
+    # env (namespace)
+    env = sub.add_parser("env", help="Environment utilities")
+    env_sub = env.add_subparsers(dest="env_cmd", required=True)
+    env_doc = env_sub.add_parser("doctor", help="Print environment diagnostics with fix steps")
+    env_doc.add_argument("--db", help="Path to db snapshot (optional)")
+    env_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
+    env_doc.add_argument("--open-check", action="store_true", help="Check if default browser is available")
+
+    # doctor (legacy alias)
     p_doc = sub.add_parser("doctor", help="Diagnose environment and provide fixes")
     p_doc.add_argument("--db", help="Path to db snapshot (optional)")
     p_doc.add_argument("--out-dir", default="./reports", help="Report output directory")
@@ -210,8 +237,34 @@ def main():
         except Exception:
             pass
 
-        # Main mapping flow (host or SBOM mode)
-        if getattr(args, "sbom", None):
+        # Main mapping flow (mock, SBOM, fixture, or host mode)
+        if args.offline:
+            os.environ["QP_OFFLINE"] = "1"
+
+        if getattr(args, "mock", False):
+            # Produce deterministic, fast mock outputs for CI gates
+            apps = [
+                {"app": "ExampleApp", "version": "1.2.3"},
+                {"app": "OpenSSL", "version": "3.0.0"},
+            ]
+            apps_path = outdir / "apps.json"
+            apps_path.write_text(json.dumps(apps, indent=2))
+
+            mock_vulns = [
+                {
+                    "app": "ExampleApp",
+                    "version": "1.2.3",
+                    "vulnerabilities": [
+                        {"cve_id": "CVE-2099-0001", "cvss": 8.1, "severity": "high", "summary": "Mock vulnerability"}
+                    ],
+                },
+                {"app": "OpenSSL", "version": "3.0.0", "vulnerabilities": []},
+            ]
+            vuln_path = outdir / "vuln_log.json"
+            vuln_path.write_text(json.dumps(mock_vulns, indent=2))
+            locs = {"apps": str(apps_path), "vulns": str(vuln_path)}
+
+        elif getattr(args, "sbom", None):
             try:
                 # SBOM mode: parse CycloneDX and map to CVEs
                 from quietpatch.sbom.cyclonedx import load_components
@@ -229,6 +282,29 @@ def main():
             except Exception as e:
                 print(f"SBOM mapping failed: {e}", file=sys.stderr)
                 sys.exit(1)
+        elif getattr(args, "apps_from", None):
+            try:
+                from src.config.config_new import load_config
+                from src.core.cve_mapper_new import map_apps_to_cves
+
+                seed_apps = json.loads(Path(args.apps_from).read_text())
+                # normalize keys to app/version
+                norm_apps = []
+                for a in seed_apps:
+                    if "app" in a:
+                        norm_apps.append({"app": a.get("app") or "", "version": a.get("version") or ""})
+                    elif "name" in a:
+                        norm_apps.append({"app": a.get("name") or "", "version": a.get("version") or ""})
+                cfg = load_config()
+                mapping = map_apps_to_cves(norm_apps, cfg)
+                vuln_path = outdir / "vuln_log.json"
+                vuln_path.write_text(json.dumps(mapping, indent=2))
+                locs = {"apps": str(outdir / "apps.json"), "vulns": str(vuln_path)}
+                (outdir / "apps.json").write_text(json.dumps(norm_apps, indent=2))
+            except Exception as e:
+                print(f"Fixture mapping failed: {e}", file=sys.stderr)
+                sys.exit(1)
+
         else:
             locs = run_mapping(str(outdir))
 
@@ -251,7 +327,7 @@ def main():
 
         print(json.dumps(locs, indent=2))
 
-        if args.also_report or getattr(args, "out", None):
+        if args.also_report or args.html or getattr(args, "out", None):
             # Import here to avoid loading heavy dependencies at module level
             from quietpatch.report.html import generate_report
             from src.config.encryptor_v3 import decrypt_file
@@ -321,6 +397,24 @@ def main():
                     print(f"SARIF report written: {args.sarif}")
             except Exception as e:
                 print(f"Warning: Could not write exports: {e}")
+
+        # Fail on unknowns (CI gate)
+        if getattr(args, "fail_unknowns", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                unknowns = 0
+                for app in apps_data or []:
+                    for v in app.get("vulnerabilities") or []:
+                        sev = str((v or {}).get("severity") or "").lower()
+                        if sev == "unknown":
+                            unknowns += 1
+                if unknowns > 0:
+                    print(f"Unknown apps with no catalog: {unknowns}")
+                    sys.exit(1)
+            except Exception:
+                # On error evaluating unknowns, be conservative and fail
+                sys.exit(1)
 
         # Exit-on severity threshold (after outputs are written)
         if getattr(args, "exit_on", None):
@@ -409,6 +503,35 @@ def main():
         print(json.dumps(info, indent=2))
         return
 
+    elif args.cmd == "db" and getattr(args, "db_cmd", None) == "fetch":
+        import requests
+        from quietpatch.db_loader import _decompress
+        from quietpatch.errors import fail
+
+        APP_HOME = Path(os.environ.get("QUIETPATCH_HOME", Path.home() / ".quietpatch"))
+        APP_HOME.mkdir(parents=True, exist_ok=True)
+        db_dir = APP_HOME / "db"
+        db_dir.mkdir(parents=True, exist_ok=True)
+
+        tag = os.environ.get("QUIETPATCH_DB_TAG", "db")
+        filename = os.environ.get("QUIETPATCH_DB_FILE", "qp_db-latest.tar.zst")
+        url = f"https://github.com/Matt-C-G/QuietPatch/releases/download/{tag}/{filename}"
+        dest = db_dir / filename
+        r = requests.get(url, timeout=60)
+        if r.status_code != 200:
+            fail(
+                "DB-404",
+                f"No database at {url}",
+                [
+                    "Impact: Offline scan unavailable.",
+                    "Check tag/file or set QUIETPATCH_DB_FILE=qp_db-YYYYMMDD.tar.zst",
+                ],
+            )
+        dest.write_bytes(r.content)
+        print(f"Downloaded: {dest}")
+        _decompress(dest)
+        print("✅ DB ready.")
+
     elif args.cmd == "version":
         db_date = _get_db_snapshot_date()
         # Try local development version first, then installed package
@@ -478,6 +601,10 @@ def main():
                 print(raw.decode())
         except Exception:
             sys.stdout.buffer.write(raw)
+
+    elif args.cmd == "env" and getattr(args, "env_cmd", None) == "doctor":
+        from quietpatch.commands.doctor import run as doctor_run
+        sys.exit(doctor_run(db=getattr(args, "db", None), out_dir=getattr(args, "out_dir", None), open_check=getattr(args, "open_check", False)))
 
     elif args.cmd == "doctor":
         from quietpatch.commands.doctor import run as doctor_run

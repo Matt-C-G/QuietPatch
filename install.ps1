@@ -5,7 +5,7 @@ $Repo  = "QuietPatch"
 $Prefix = if ($Env:QUIETPATCH_PREFIX) { $Env:QUIETPATCH_PREFIX } else { "$Env:LOCALAPPDATA\QuietPatch" }
 $Bin = Join-Path $Prefix "bin"
 $Asset = "quietpatch-windows-x64.zip"
-$Db = "db-latest.tar.zst"
+$Db = "qp_db-latest.tar.zst"
 
 New-Item -ItemType Directory -Force -Path $Bin | Out-Null
 Set-Location $Bin

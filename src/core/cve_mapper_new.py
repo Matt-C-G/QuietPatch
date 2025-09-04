@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 import requests
+import logging
 
 from ..config.config_new import load_config
 from ..config.encryptor_new import encrypt_file
@@ -29,6 +30,7 @@ def _severity_bucket(score: float | None, thresholds: dict) -> str:
 
 
 NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+logger = logging.getLogger("quietpatch.cve_mapper")
 
 
 def _normalize(name: str, normalize_map: dict[str, str]) -> str:
@@ -54,6 +56,9 @@ def query_nvd_cpe(cpe: str, api_key: str | None) -> list[dict]:
 
     try:
         r = requests.get(NVD_API, params=params, headers=headers, timeout=10)
+        if r.status_code == 404:
+            logger.info("[API-404] No CVEs for CPE %s (expected for many apps).", cpe)
+            return []
         r.raise_for_status()
         data = r.json()
         return data.get("vulnerabilities", [])
@@ -69,6 +74,9 @@ def query_nvd(query: str, version: str | None, api_key: str | None) -> list[dict
     if api_key:
         headers["apiKey"] = api_key
     r = requests.get(NVD_API, params=params, headers=headers, timeout=10)
+    if r.status_code == 404:
+        logger.info("[API-404] No CVEs for %s %s (expected for many apps).", query, version or "")
+        return []
     r.raise_for_status()
     data = r.json()
     return data.get("vulnerabilities", [])
@@ -109,6 +117,7 @@ def map_apps_to_cves(apps: list[dict[str, str]], cfg: dict) -> list[dict]:
         filtered.append({"app": name, "version": app.get("version") or ""})
 
     results = []
+    unknown_count = 0
     for app in filtered:
         name = app["app"]
         ver = app.get("version") or ""
@@ -192,6 +201,7 @@ def map_apps_to_cves(apps: list[dict[str, str]], cfg: dict) -> list[dict]:
                     vulns.append({"note": "No CVEs found in local database for this app"})
                 else:
                     vulns.append({"note": "No CVEs found and offline mode enabled"})
+                unknown_count += 1
 
         except Exception as e:
             vulns.append({"error": str(e)})
@@ -205,6 +215,8 @@ def map_apps_to_cves(apps: list[dict[str, str]], cfg: dict) -> list[dict]:
 
         results.append({"app": name, "version": ver, "vulnerabilities": vulns})
         time.sleep(throttle)
+    if unknown_count:
+        logger.info("Unknown apps with no catalog: %d (normal; many apps lack CVEs)", unknown_count)
     return results
 
 

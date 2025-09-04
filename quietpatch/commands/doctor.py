@@ -44,29 +44,25 @@ def _resolve_pex_root() -> Path:
 
 
 def _check_pex_env() -> tuple[str, str, int | None]:
-	pex_root = _resolve_pex_root()
-	try:
-		pex_root.mkdir(parents=True, exist_ok=True)
-		t = pex_root / ".w"
-		t.write_text("x", encoding="utf-8")
-		t.unlink(missing_ok=True)
-		return (*_ok(f"PEX_ROOT OK at {pex_root}"), None)
-	except Exception as e:
-		# Code 3: write/open error
-		return (*_fail(f"PEX_ROOT not writable: {pex_root} ({e})"), 3)
+	# PEX no longer required; using pipx for isolation
+	return (*_ok("PEX not required (using pipx)"), None)
 
 
 def _find_db_file(explicit: str | None) -> Path | None:
 	if explicit:
 		return Path(explicit)
 	data_dir = Path(os.environ.get("QP_DATA_DIR", "data"))
-	# prefer db-latest alias
+	# prefer new alias then legacy
+	for ext in (".tar.zst", ".tar.gz", ".tar.bz2"):
+		p = data_dir / f"qp_db-latest{ext}"
+		if p.exists():
+			return p
 	for ext in (".tar.zst", ".tar.gz", ".tar.bz2"):
 		p = data_dir / f"db-latest{ext}"
 		if p.exists():
 			return p
-	# fall back to newest db-*.tar.*
-	candidates = list(data_dir.glob("db-*.tar.*"))
+	# fall back to newest qp_db-*.tar.* then legacy db-*.tar.*
+	candidates = list(data_dir.glob("qp_db-*.tar.*")) + list(data_dir.glob("db-*.tar.*"))
 	if not candidates:
 		return None
 	return max(candidates, key=lambda p: p.stat().st_mtime)
@@ -114,7 +110,7 @@ def _check_open(open_check: bool) -> tuple[str, str, int | None]:
 def run(db: str | None = None, out_dir: str | None = None, open_check: bool = False) -> int:
 	checks: list[tuple[str, tuple[str, str, int | None]]] = [
 		("Python", _check_python()),
-		("PEX env", _check_pex_env()),
+		("Runtime", _check_pex_env()),
 		("DB freshness", _check_db_freshness(db)),
 		("Report dir", _check_report_dir(out_dir)),
 		("Report open", _check_open(open_check)),
@@ -126,5 +122,8 @@ def run(db: str | None = None, out_dir: str | None = None, open_check: bool = Fa
 		print(f"{tag} {name}: {msg}")
 		if code is not None:
 			worst_exit = max(worst_exit or 0, code)
+
+	print("----")
+	print("Next: `quietpatch db fetch` then `quietpatch scan --offline`")
 
 	return int(worst_exit or 0)

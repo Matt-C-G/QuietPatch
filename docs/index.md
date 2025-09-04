@@ -37,7 +37,7 @@ scoop install quietpatch
 ## Quickstart
 
 ```bash
-quietpatch scan --db ./db-latest.tar.zst --also-report --open
+quietpatch scan --db ./qp_db-latest.tar.zst --also-report --open
 ```
 
 The report opens in your browser with app inventory, CVEs (KEV, CVSS, EPSS), and concrete remediation steps.

@@ -70,7 +70,7 @@ run_quietpatch.bat scan --help   # Windows
 ### 3. Download Database (Optional)
 For offline operation, download the vulnerability database:
 ```bash
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/db-latest.tar.zst
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.sh)"
 ```
 
 ## 🔍 Verification
