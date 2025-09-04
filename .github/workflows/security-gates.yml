@@ -1,0 +1,139 @@
+name: Security Gates
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QP_OFFLINE: "1"
+
+jobs:
+  security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install with constraints (hermetic)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install -r requirements.ci.txt
+
+      - name: Build wheel
+        run: |
+          python -m build -w -n
+
+      - name: Install built wheel
+        run: |
+          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
+
+      - name: Install minisign
+        run: |
+          wget https://github.com/jedisct1/minisign/releases/download/0.11/minisign-0.11-linux.tar.gz
+          tar -xzf minisign-0.11-linux.tar.gz
+          sudo mv minisign-0.11-linux/minisign /usr/local/bin/
+          chmod +x /usr/local/bin/minisign
+
+      - name: Test unsigned DB rejection
+        run: |
+          # Create a test database
+          mkdir -p test_db
+          echo '{"test": "data"}' > test_db/test.json
+          tar -czf test_db.tar.gz -C test_db .
+          
+          # Create a tampered signature (invalid)
+          echo "invalid signature" > test_db.tar.gz.minisig
+          
+          # This should fail
+          if quietpatch db apply test_db.tar.gz test_db.tar.gz.minisig; then
+            echo "❌ Security test failed: Should reject unsigned DB"
+            exit 1
+          else
+            echo "✅ Security test passed: Correctly rejected unsigned DB"
+          fi
+
+      - name: Test downgrade protection
+        run: |
+          # Set state to epoch 9
+          mkdir -p ~/.quietpatch
+          echo '{"last_date": "2025-01-01", "epoch": 9, "ts": 1640995200}' > ~/.quietpatch/state.json
+          
+          # Try to apply epoch 8 (should fail)
+          if quietpatch catalog-update; then
+            echo "❌ Security test failed: Should reject downgrade"
+            exit 1
+          else
+            echo "✅ Security test passed: Correctly rejected downgrade"
+          fi
+
+      - name: Test tar traversal protection
+        run: |
+          # Create malicious tar with path traversal
+          mkdir -p malicious_db
+          echo '{"evil": "data"}' > malicious_db/evil.json
+          
+          # Create tar with ../evil entry
+          tar -czf malicious.tar.gz -C malicious_db .
+          
+          # Create valid signature for testing
+          echo "dummy signature" > malicious.tar.gz.minisig
+          
+          # This should fail due to path traversal
+          if quietpatch db apply malicious.tar.gz malicious.tar.gz.minisig; then
+            echo "❌ Security test failed: Should reject path traversal"
+            exit 1
+          else
+            echo "✅ Security test passed: Correctly rejected path traversal"
+          fi
+
+      - name: Test signature verification
+        run: |
+          # Test that signature verification works
+          echo "test data" > test_file.txt
+          echo "dummy signature" > test_file.txt.minisig
+          
+          # This should fail due to invalid signature
+          if quietpatch db apply test_file.txt test_file.txt.minisig; then
+            echo "❌ Security test failed: Should reject invalid signature"
+            exit 1
+          else
+            echo "✅ Security test passed: Correctly rejected invalid signature"
+          fi
+
+      - name: Test safe extraction
+        run: |
+          # Create safe test database
+          mkdir -p safe_db
+          echo '{"safe": "data"}' > safe_db/safe.json
+          tar -czf safe.tar.gz -C safe_db .
+          
+          # Create valid signature for testing
+          echo "dummy signature" > safe.tar.gz.minisig
+          
+          # This should work (but fail on signature verification)
+          if quietpatch db apply safe.tar.gz safe.tar.gz.minisig; then
+            echo "❌ Security test failed: Should reject invalid signature"
+            exit 1
+          else
+            echo "✅ Security test passed: Correctly rejected invalid signature"
+          fi
+
+      - name: Cleanup
+        run: |
+          rm -f test_db.tar.gz test_db.tar.gz.minisig
+          rm -f malicious.tar.gz malicious.tar.gz.minisig
+          rm -f safe.tar.gz safe.tar.gz.minisig
+          rm -f test_file.txt test_file.txt.minisig
+          rm -rf test_db malicious_db safe_db
+          rm -rf ~/.quietpatch

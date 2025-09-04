@@ -42,5 +42,10 @@
   "PayPal Honey:17.0.55": "cpe:2.3:a:paypal_honey:paypal_honey:*:*:*:*:*:*:*:*:*",
   "OpenSSL:3.0.12": "cpe:2.3:a:*:openssl:3.0.12:*:*:*:*:*:*:*:*",
   "curl:8.7.1": "cpe:2.3:a:curl:curl:8.7.1:*:*:*:*:*:*:*:*",
-  "zlib:1.2.13": "cpe:2.3:a:*:zlib:1.2.13:*:*:*:*:*:*:*:*"
+  "zlib:1.2.13": "cpe:2.3:a:*:zlib:1.2.13:*:*:*:*:*:*:*:*",
+  "Cursor:1.5.9": "cpe:2.3:a:cursor:cursor:1.5.9:*:*:*:*:*:*:*:*",
+  "Microsoft PowerPoint:16.100.3": "cpe:2.3:a:microsoft_powerpoint:microsoft_powerpoint:16.100.3:*:*:*:*:*:*:*:*",
+  "Microsoft Teams:25227.301.3887.7726": "cpe:2.3:a:microsoft_teams:microsoft_teams:*:*:*:*:*:*:*:*:*",
+  "DuckDuckGo:1.153.0": "cpe:2.3:a:duckduckgo:duckduckgo:1.153.0:*:*:*:*:*:*:*",
+  "Discord:0.0.358": "cpe:2.3:a:*:discord:0.0.358:*:*:*:*:*:*:*:*"
 }

@@ -1,0 +1,178 @@
+name: Nightly Real Scan
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  QP_OFFLINE: "1"
+
+jobs:
+  nightly-scan:
+    name: Nightly real scan (catalog regression test)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install with constraints (hermetic)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r constraints.txt
+
+      - name: Build wheel
+        run: |
+          python -m build -w -n
+
+      - name: Install built wheel
+        run: |
+          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
+
+      - name: Download latest database
+        run: |
+          mkdir -p data
+          curl -fsSL -o data/db-latest.tar.zst "https://github.com/${{ github.repository }}/releases/latest/download/db-latest.tar.zst"
+
+      - name: Extract database
+        run: |
+          cd data
+          zstd -d db-latest.tar.zst
+          tar -xf db-latest.tar
+
+      - name: Run real scan (offline)
+        env:
+          QP_OFFLINE: "1"
+        run: |
+          quietpatch scan --offline --sarif nightly-scan.sarif --ci
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: nightly-scan.sarif
+
+      - name: Check for regressions
+        run: |
+          echo "Nightly scan completed successfully"
+          echo "SARIF file size: $(wc -c < nightly-scan.sarif) bytes"
+          
+          # Extract scan statistics
+          python3 -c "
+          import json
+          try:
+              with open('nightly-scan.sarif', 'r') as f:
+                  sarif = json.load(f)
+              
+              runs = sarif.get('runs', [])
+              if runs:
+                  results = runs[0].get('results', [])
+                  apps_scanned = len(set(r.get('locations', [{}])[0].get('physicalLocation', {}).get('artifactLocation', {}).get('uri', '') for r in results))
+                  cves_found = len(results)
+                  unknowns = len([r for r in results if 'unknown' in r.get('message', {}).get('text', '').lower()])
+                  
+                  print(f'APPS_SCANNED={apps_scanned}')
+                  print(f'CVES_FOUND={cves_found}')
+                  print(f'UNKNOWNS={unknowns}')
+                  
+                  # Check for significant drift (thresholds)
+                  if unknowns > 10:
+                      print('WARNING: High number of unknowns detected')
+                      exit(1)
+                  if cves_found < 5:
+                      print('WARNING: Very few CVEs found - possible regression')
+                      exit(1)
+              else:
+                  print('ERROR: No runs found in SARIF')
+                  exit(1)
+          except Exception as e:
+              print(f'ERROR: Failed to parse SARIF: {e}')
+              exit(1)
+          "
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-scan-results
+          path: |
+            nightly-scan.sarif
+            data/apps.json
+            data/vuln_log.json
+
+      - name: Create nightly summary
+        if: failure()
+        run: |
+          cat > nightly_summary.md << 'EOF'
+          # Nightly Scan Regression Detected
+          
+          The nightly vulnerability scan detected significant changes that may indicate a regression.
+          
+          ## Scan Statistics
+          - Apps scanned: ${APPS_SCANNED:-unknown}
+          - CVEs found: ${CVES_FOUND:-unknown}
+          - Unknowns: ${UNKNOWNS:-unknown}
+          
+          ## Artifacts
+          - SARIF report: Available in workflow artifacts
+          - HTML report: Available in workflow artifacts
+          - Raw data: Available in workflow artifacts
+          
+          ## Next Steps
+          1. Review the scan results in the artifacts
+          2. Check for changes in the vulnerability database
+          3. Verify scan configuration and environment
+          4. Update thresholds if this is expected behavior
+          
+          ## Workflow
+          - Run: [nightly-scan.yml](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - Commit: ${{ github.sha }}
+          - Date: $(date -u)
+          EOF
+
+      - name: Open regression issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('nightly_summary.md', 'utf8');
+            
+            // Check if similar issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'nightly,regression',
+              state: 'open'
+            });
+            
+            const recentIssue = issues.data.find(issue => {
+              const created = new Date(issue.created_at);
+              const now = new Date();
+              const hoursDiff = (now - created) / (1000 * 60 * 60);
+              return hoursDiff < 24; // Within last 24 hours
+            });
+            
+            if (recentIssue) {
+              console.log('Recent regression issue already exists, updating...');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: recentIssue.number,
+                body: `## Update: ${new Date().toISOString()}\n\n${summary}`
+              });
+            } else {
+              console.log('Creating new regression issue...');
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Nightly scan regression detected - ${new Date().toISOString().split('T')[0]}`,
+                body: summary,
+                labels: ['nightly', 'regression', 'bug']
+              });
+            }

@@ -1,0 +1,15 @@
+[Unit]
+Description=QuietPatch catalog updater
+Documentation=https://github.com/Matt-C-G/QuietPatch
+
+[Service]
+Type=oneshot
+Environment=QP_OFFLINE=1
+ExecStart=/usr/local/bin/quietpatch catalog-update
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

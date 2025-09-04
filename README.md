@@ -9,52 +9,72 @@
 
 ---
 
-## 🚀 Quick Start (30 seconds)
+## 🚀 Quick Start
 
-1. Install
+**Supported Python:** 3.11–3.12 (3.13 not yet)
 
-   macOS / Linux
-   ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.sh)"
-   ```
+**Install:**
+```bash
+python -m pip install quietpatch==0.3.2
+quietpatch env doctor
+quietpatch db fetch
+quietpatch scan --offline --html
+```
 
-   Windows (PowerShell)
-   ```powershell
-   irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.ps1 | iex
-   ```
+**Verified install (security-conscious):**
+```bash
+# Download and verify checksums
+curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
+shasum -a 256 -c SHA256SUMS
 
-   Or via package managers
+# Install with binary-only mode
+python -m pip install quietpatch==0.3.2 --only-binary :all:
+```
 
-   macOS (Homebrew)
-   ```bash
-   brew tap matt-c-g/quietpatch && brew install quietpatch
-   ```
+> **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
 
-   Windows (Scoop)
-   ```powershell
-   scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
-   scoop install quietpatch
-   ```
+---
 
-   Windows (no Python needed)
-   ```powershell
-   # Download quietpatch-windows-x64.exe from the latest Release
-   # Then run a scan directly
-   .\quietpatch-windows-x64.exe scan --also-report --open
-   ```
+## 📦 Alternative Install Methods
 
-2. Doctor, fetch DB, scan (offline)
+**One-command installers:**
 
-   ```bash
-   quietpatch env doctor
-   quietpatch db fetch
-   quietpatch scan --offline --also-report --open
-   ```
+macOS / Linux
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"
+```
 
-3. View results
-   Report (report.html) opens automatically in your browser.
+Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
+```
 
-That’s it ✅
+**Package managers:**
+
+macOS (Homebrew)
+```bash
+brew tap matt-c-g/quietpatch && brew install quietpatch
+```
+
+Windows (Scoop)
+```powershell
+scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
+scoop install quietpatch
+```
+
+**Standalone executables:**
+Download from [Releases](https://github.com/Matt-C-G/QuietPatch/releases) - no Python required.
+
+**Docker (Alpine/containerized):**
+```bash
+# Pull and run
+docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" ghcr.io/matt-c-g/quietpatch:latest env doctor
+docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" ghcr.io/matt-c-g/quietpatch:latest scan --offline --html
+
+# Or build locally
+docker build -t quietpatch .
+docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offline --html
+```
 
 ---
 
@@ -74,10 +94,11 @@ That’s it ✅
 
 ## 🔒 Why QuietPatch?
 
-* Offline-first: signed CVE DB snapshot; nothing leaves your machine
-* No surprises: never auto-patches, all fixes are suggestions
-* Cross-platform: works the same on macOS, Linux, and Windows
-* Enterprise-ready: systemd / launchd / Task Scheduler templates
+* **Privacy-first**: No telemetry. The app never sends data. Nightly jobs run on our infra against our test images only.
+* **Offline-first**: signed CVE DB snapshot; nothing leaves your machine
+* **No surprises**: never auto-patches, all fixes are suggestions
+* **Cross-platform**: works the same on macOS, Linux, and Windows
+* **Enterprise-ready**: systemd / launchd / Task Scheduler templates
 
 ---
 
@@ -119,7 +140,55 @@ pytest -q
 * License: [MIT](LICENSE)
 * Data sources: [NVD](https://nvd.nist.gov/), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/)
 
+## 🔄 Version Support Policy
+
+**We support exactly two CPython minor versions:**
+- **Current**: Python 3.11, 3.12
+- **Next**: Python 3.12, 3.13 (when 3.13 support is added)
+- **Deprecated**: None currently
+- **End of life**: Python 3.10 and below, 3.14 and above
+
+**Policy:**
+- New versions added only after thorough testing with wheels + constraints
+- Old versions deprecated when new ones are added
+- Python 3.13 support will be added in a future release
+- See [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) for full details
+
+## 🔐 Security & Integrity
+
+**Database Security:**
+- All catalogs are minisign-verified before extraction
+- Path traversal protection prevents `../` attacks
+- Downgrade protection blocks rollback attacks
+- Epoch-based versioning ensures monotonic updates
+
+**Platform Support:**
+- Alpine not supported; use Docker image
+- Two Python minors supported (3.11/3.12)
+- No telemetry; diagnostics bundle is local-only and opt-in
+
+**Supply Chain:**
+- Cryptographic verification with Minisign signatures
+- Binary-only installation option for security-conscious users
+- Deterministic reports with content hashing
+- Automated security testing in CI/CD
+
 ---
+
+## 🔧 Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| "Requires Python ≥3.11" | Using 3.9/3.10/3.13 | Install 3.12; re-run install |
+| "zstandard not found" | Env resolved wrong dep | `python -m pip install "zstandard>=0.22,<0.23"` |
+| "DB not found (offline)" | No catalog downloaded | `quietpatch db fetch` |
+| Gatekeeper blocks (macOS) | Unsigned | `xattr -dr com.apple.quarantine /path/to/python /usr/local/bin/quietpatch` |
+| SARIF empty in CI | Wrong path | Ensure `--sarif out.sarif` and upload step |
+
+**Quick diagnosis:**
+```bash
+quietpatch env doctor  # Shows exact fix commands
+```
 
 ## 🔑 Verify Downloads
 

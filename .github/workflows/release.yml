@@ -11,6 +11,10 @@ on:
         required: false
         default: ""
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   id-token: write
@@ -18,13 +22,14 @@ permissions:
 env:
   # Use the input tag when provided, otherwise use the ref tag name.
   RELEASE_TAG: "${{ inputs.tag != '' && inputs.tag || github.ref_name }}"
+  QP_OFFLINE: "1"
 
 jobs:
   build-matrix:
     name: build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os:
           - ubuntu-22.04
@@ -42,16 +47,59 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install build deps
+      - name: Install with constraints (hermetic)
         shell: bash
         run: |
-          python -m pip install -U pip wheel build pex setuptools
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install wheel build pex setuptools
 
       - name: Build wheel
         shell: bash
         run: |
           python -m build -w -n
           ls -l dist
+
+      - name: Install built wheel for gate
+        shell: bash
+        run: |
+          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
+
+      - name: Gate (mock scan with timeout)
+        shell: bash
+        env:
+          QP_OFFLINE: "1"
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            # macOS-specific timeout handling
+            python - <<'PY'
+            import subprocess, sys, time
+            p = subprocess.Popen(["python3.11", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
+            for _ in range(90):
+                if p.poll() is not None: 
+                    sys.exit(p.returncode)
+                time.sleep(1)
+            p.kill()
+            sys.exit(1)
+            PY
+          else
+            # Linux/Windows use timeout command
+            timeout 90s python -m quietpatch.cli scan --mock --offline --fail-unknowns --sarif out.sarif --ci || {
+              echo "Gate step timed out or failed"
+              exit 1
+            }
+          fi
+          # Verify SARIF exists and is valid
+          if [ ! -f out.sarif ] || [ ! -s out.sarif ]; then
+            echo "Error: SARIF file missing or empty"
+            exit 1
+          fi
+          echo "SARIF file size: $(wc -c < out.sarif) bytes"
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: out.sarif
 
       - name: Build PEX and ZIP
         shell: bash

@@ -4,25 +4,33 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+env:
+  QP_OFFLINE: "1"
+
 jobs:
   gates:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python 3.13
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
-      - name: Install minimal deps
+      - name: Install with constraints (hermetic)
         run: |
-          python -m pip install -U pip
-          pip install -r requirements.ci.txt -r requirements-ci.txt
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install -r requirements.ci.txt -r requirements-ci.txt
 
-      - name: Install project (editable)
+      - name: Build wheel
         run: |
-          python -m pip install -e .
+          python -m build -w -n
+
+      - name: Install built wheel for testing
+        run: |
+          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
 
       - name: Run unit tests
         run: |
@@ -73,3 +81,33 @@ jobs:
             echo '[{"name": "test-app", "vulnerabilities": [{"cve_id": "CVE-2023-1234"}]}]' > data/vuln_log.json
           fi
           python3 tools/check_coverage.py
+
+      - name: Install project (force reinstall)
+        run: |
+          python -m pip install -e . --force-reinstall
+
+      - name: Gate (mock scan with timeout - macOS)
+        env:
+          QP_OFFLINE: "1"
+        run: |
+          python - <<'PY'
+          import subprocess, sys, time
+          p = subprocess.Popen(["python3.12", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
+          for _ in range(90):
+              if p.poll() is not None: 
+                  sys.exit(p.returncode)
+              time.sleep(1)
+          p.kill()
+          sys.exit(1)
+          PY
+          # Verify SARIF exists and is valid
+          if [ ! -f out.sarif ] || [ ! -s out.sarif ]; then
+            echo "Error: SARIF file missing or empty"
+            exit 1
+          fi
+          echo "SARIF file size: $(wc -c < out.sarif) bytes"
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: out.sarif

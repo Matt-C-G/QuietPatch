@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "catalog": {
+    "epoch": 3,
+    "snapshot_date": "2025-01-03",
+    "primary": "https://github.com/Matt-C-G/QuietPatch/releases/download/db/qp_db-{date}.tar.zst",
+    "fallback": "https://github.com/Matt-C-G/QuietPatch/releases/download/db/qp_db-{date}.tar.gz",
+    "latest": "https://github.com/Matt-C-G/QuietPatch/releases/download/db/qp_db-latest.tar.zst",
+    "signature_ext": ".minisig",
+    "pubkeys": [
+      {
+        "id": "main-2025",
+        "key": "RWQ...YOUR_MINISIGN_PUBKEY...",
+        "not_before": "2025-01-01",
+        "not_after": "2027-01-01"
+      }
+    ],
+    "min_client": "0.3.2",
+    "notes": "Primary .zst; .gz fallback for air-gapped."
+  }
+}

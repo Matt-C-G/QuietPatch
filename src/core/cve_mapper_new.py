@@ -49,6 +49,10 @@ def _matches(token_list: list[str], text: str) -> bool:
 
 def query_nvd_cpe(cpe: str, api_key: str | None) -> list[dict]:
     """Query NVD using CPE string for more accurate results"""
+    # Check if network is disabled
+    if os.environ.get("QUIETPATCH_NO_NETWORK") == "1" or os.environ.get("QP_OFFLINE") == "1":
+        raise RuntimeError("Network disabled in offline mode")
+    
     params = {"cpeName": cpe}
     headers = {}
     if api_key:
@@ -67,6 +71,10 @@ def query_nvd_cpe(cpe: str, api_key: str | None) -> list[dict]:
 
 
 def query_nvd(query: str, version: str | None, api_key: str | None) -> list[dict]:
+    # Check if network is disabled
+    if os.environ.get("QUIETPATCH_NO_NETWORK") == "1" or os.environ.get("QP_OFFLINE") == "1":
+        raise RuntimeError("Network disabled in offline mode")
+    
     params = {"keywordSearch": query}
     if version:
         params["version"] = version

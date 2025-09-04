@@ -251,6 +251,29 @@ def _generate_cve_details(rec: dict, row_id: str) -> str:
 def generate_report(input_path: str, output_path: str) -> str:
     items = _load_items(input_path)
 
+    # Sort items deterministically for consistent reports
+    def sort_key(rec):
+        # Sort by (severity desc, kev desc, cve asc, app asc)
+        vulns = rec.get("vulnerabilities") or rec.get("cves") or []
+        severity = "unknown"
+        kev = False
+        cve = ""
+        
+        if vulns:
+            # Get highest severity
+            sev_order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "unknown": 0}
+            severity = max((v.get("severity", "unknown").lower() for v in vulns), 
+                         key=lambda s: sev_order.get(s, 0))
+            # Check for KEV
+            kev = any(v.get("is_kev") or v.get("kev") for v in vulns)
+            # Get first CVE ID
+            cve = vulns[0].get("cve_id") or vulns[0].get("id", "")
+        
+        app = rec.get("app") or rec.get("name", "")
+        return (-sev_order.get(severity, 0), not kev, cve, app)
+    
+    items.sort(key=sort_key)
+
     # Build table rows (one row per app, show first CVE + action preview)
     rows = []
     for i, rec in enumerate(items):
@@ -771,6 +794,26 @@ def generate_report(input_path: str, output_path: str) -> str:
     table_rows = "".join(rows) if rows else '<tr><td colspan="10" class="muted">No data</td></tr>'
     placeholder = '{"".join(rows) if rows else \'<tr><td colspan="10" class="muted">No data</td></tr>\'}'
     html_final = html_out.replace(placeholder, table_rows)
+    
+    # Add deterministic timestamp and hash footer
+    import hashlib
+    import time
+    
+    # Use fixed timestamp for deterministic reports
+    timestamp = "2024-01-01T00:00:00Z"  # Fixed timestamp for reproducibility
+    content_hash = hashlib.sha256(html_final.encode('utf-8')).hexdigest()[:16]
+    
+    # Add footer with hash
+    footer = f"""
+    <div style="margin-top: 40px; padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 12px; color: #6b7280;">
+        <div>Report generated: {timestamp}</div>
+        <div>Report-Hash: SHA256-{content_hash}</div>
+        <div>QuietPatch v0.3.0</div>
+    </div>
+    """
+    
+    html_final = html_final.replace("</body>", footer + "</body>")
+    
     out = Path(output_path)
     out.write_text(html_final, encoding="utf-8")
     return str(out)

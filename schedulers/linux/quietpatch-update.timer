@@ -1,0 +1,12 @@
+[Unit]
+Description=Run QuietPatch catalog updater daily
+Documentation=https://github.com/Matt-C-G/QuietPatch
+Requires=quietpatch-update.service
+
+[Timer]
+OnCalendar=03:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
