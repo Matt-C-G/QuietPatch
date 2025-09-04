@@ -98,6 +98,9 @@ def main():
     p_scan.add_argument("--sbom", metavar="PATH", help="Scan from CycloneDX JSON (no host probing)")
     p_scan.add_argument("--offline", action="store_true", help="Disable online lookups; use local DB only")
     p_scan.add_argument("--html", action="store_true", help="Alias for --also-report")
+    p_scan.add_argument("--mock", action="store_true", help="Use static mock data (CI fast path)")
+    p_scan.add_argument("--apps-from", metavar="PATH", help="Load apps JSON instead of probing host")
+    p_scan.add_argument("--fail-unknowns", action="store_true", help="Exit non-zero if any unknowns")
     p_scan.add_argument("--out", metavar="PATH", help="Write HTML report to this path (implies --also-report)")
     p_scan.add_argument(
         "--exit-on",
@@ -234,11 +237,34 @@ def main():
         except Exception:
             pass
 
-        # Main mapping flow (host or SBOM mode)
+        # Main mapping flow (mock, SBOM, fixture, or host mode)
         if args.offline:
             os.environ["QP_OFFLINE"] = "1"
 
-        if getattr(args, "sbom", None):
+        if getattr(args, "mock", False):
+            # Produce deterministic, fast mock outputs for CI gates
+            apps = [
+                {"app": "ExampleApp", "version": "1.2.3"},
+                {"app": "OpenSSL", "version": "3.0.0"},
+            ]
+            apps_path = outdir / "apps.json"
+            apps_path.write_text(json.dumps(apps, indent=2))
+
+            mock_vulns = [
+                {
+                    "app": "ExampleApp",
+                    "version": "1.2.3",
+                    "vulnerabilities": [
+                        {"cve_id": "CVE-2099-0001", "cvss": 8.1, "severity": "high", "summary": "Mock vulnerability"}
+                    ],
+                },
+                {"app": "OpenSSL", "version": "3.0.0", "vulnerabilities": []},
+            ]
+            vuln_path = outdir / "vuln_log.json"
+            vuln_path.write_text(json.dumps(mock_vulns, indent=2))
+            locs = {"apps": str(apps_path), "vulns": str(vuln_path)}
+
+        elif getattr(args, "sbom", None):
             try:
                 # SBOM mode: parse CycloneDX and map to CVEs
                 from quietpatch.sbom.cyclonedx import load_components
@@ -256,6 +282,29 @@ def main():
             except Exception as e:
                 print(f"SBOM mapping failed: {e}", file=sys.stderr)
                 sys.exit(1)
+        elif getattr(args, "apps_from", None):
+            try:
+                from src.config.config_new import load_config
+                from src.core.cve_mapper_new import map_apps_to_cves
+
+                seed_apps = json.loads(Path(args.apps_from).read_text())
+                # normalize keys to app/version
+                norm_apps = []
+                for a in seed_apps:
+                    if "app" in a:
+                        norm_apps.append({"app": a.get("app") or "", "version": a.get("version") or ""})
+                    elif "name" in a:
+                        norm_apps.append({"app": a.get("name") or "", "version": a.get("version") or ""})
+                cfg = load_config()
+                mapping = map_apps_to_cves(norm_apps, cfg)
+                vuln_path = outdir / "vuln_log.json"
+                vuln_path.write_text(json.dumps(mapping, indent=2))
+                locs = {"apps": str(outdir / "apps.json"), "vulns": str(vuln_path)}
+                (outdir / "apps.json").write_text(json.dumps(norm_apps, indent=2))
+            except Exception as e:
+                print(f"Fixture mapping failed: {e}", file=sys.stderr)
+                sys.exit(1)
+
         else:
             locs = run_mapping(str(outdir))
 
@@ -348,6 +397,24 @@ def main():
                     print(f"SARIF report written: {args.sarif}")
             except Exception as e:
                 print(f"Warning: Could not write exports: {e}")
+
+        # Fail on unknowns (CI gate)
+        if getattr(args, "fail_unknowns", None):
+            try:
+                src_json = outdir / "vuln_log.json"
+                apps_data = json.loads(src_json.read_text()) if src_json.exists() else []
+                unknowns = 0
+                for app in apps_data or []:
+                    for v in app.get("vulnerabilities") or []:
+                        sev = str((v or {}).get("severity") or "").lower()
+                        if sev == "unknown":
+                            unknowns += 1
+                if unknowns > 0:
+                    print(f"Unknown apps with no catalog: {unknowns}")
+                    sys.exit(1)
+            except Exception:
+                # On error evaluating unknowns, be conservative and fail
+                sys.exit(1)
 
         # Exit-on severity threshold (after outputs are written)
         if getattr(args, "exit_on", None):
