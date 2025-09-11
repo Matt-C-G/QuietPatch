@@ -23,7 +23,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\..\LICENSE.txt
-OutputDir=..\..\dist\windows
+OutputDir=..\..\Output
 OutputBaseFilename={#MyAppName}-Setup-v{#MyAppVersion}
 SetupIconFile=..\..\assets\quietpatch.ico
 Compression=lzma
@@ -45,12 +45,13 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 
 [Files]
 ; Main application files
-Source: "..\..\dist\win64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\win64\{#MyAppCLIName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\dist\{#MyAppCLIName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Documentation
-Source: "..\..\VERIFY.md"; DestDir: "{app}\docs"; Flags: ignoreversion
-Source: "..\..\LICENSE.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\..\README-QuickStart.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\VERIFY.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 ; Resources (catalog, policies, etc.)
@@ -63,6 +64,8 @@ Source: "..\..\config\*"; DestDir: "{app}\config"; Flags: ignoreversion recurses
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\QuietPatch CLI"; Filename: "{app}\{#MyAppCLIName}"; WorkingDir: "{app}"
+Name: "{group}\QuickStart Guide"; Filename: "notepad.exe"; Parameters: """{app}\README-QuickStart.txt"""
+Name: "{group}\Verify Download"; Filename: "{app}\VERIFY.md"
 Name: "{group}\{cm:ProgramOnTheWeb,{#MyAppName}}"; Filename: "{#MyAppURL}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
@@ -70,6 +73,7 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "notepad.exe"; Parameters: """{app}\README-QuickStart.txt"""; Description: "Open QuickStart Guide"; Flags: postinstall nowait skipifsilent unchecked
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\data"
