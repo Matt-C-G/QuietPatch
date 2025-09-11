@@ -10,3 +10,6 @@ First launch:
 
 Verify (optional): See VERIFY.md for SHA256 + minisign steps.
 Support: Open a GitHub issue with the error text and OS version.
+
+---
+Maintainer: run scripts\windows\ship-gate.ps1 -Version 0.4.0 -PublicKey "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZwdj/Ac+m8MR" -DoInstallSmoke
