@@ -21,6 +21,7 @@ $RelDir    = 'release'
 $DistDir   = 'dist'
 $OutputDir = 'Output'
 $BinCliDir = Join-Path $DistDir 'quietpatch'
+$CliExe = Join-Path $DistDir 'quietpatch.exe'
 $ExeSetup  = "QuietPatch-Setup-v$Version.exe"
 $ZipCli    = "quietpatch-cli-v$Version-win64.zip"
 $ShaFile   = 'SHA256SUMS.txt'
@@ -121,7 +122,7 @@ function Task-Package {
 
   Say "Creating portable CLI zip"
   if (Test-Path $BinCliDir) {
-    # include QuickStart in the zip root
+    # CLI built as folder - include QuickStart in the zip root
     Copy-Item -Force 'README-QuickStart.txt' $BinCliDir\
     Copy-Item -Force 'VERIFY.md' $BinCliDir\ -ErrorAction SilentlyContinue
     
@@ -131,8 +132,23 @@ function Task-Package {
       Compress-Archive -Path "$BinCliDir\*" -DestinationPath "$RelDir\$ZipCli" -Force
     }
     Say "Portable CLI created with QuickStart included"
+  } elseif (Test-Path $CliExe) {
+    # CLI built as single file - create temp folder for packaging
+    $TempCliDir = Join-Path $DistDir 'quietpatch-portable'
+    New-Item -ItemType Directory -Path $TempCliDir -Force | Out-Null
+    Copy-Item -Force $CliExe $TempCliDir\
+    Copy-Item -Force 'README-QuickStart.txt' $TempCliDir\
+    Copy-Item -Force 'VERIFY.md' $TempCliDir\ -ErrorAction SilentlyContinue
+    
+    if (Get-Command 7z -ErrorAction SilentlyContinue) {
+      7z a "$RelDir\$ZipCli" "$TempCliDir\*"
+    } else {
+      Compress-Archive -Path "$TempCliDir\*" -DestinationPath "$RelDir\$ZipCli" -Force
+    }
+    Remove-Item -Recurse -Force $TempCliDir
+    Say "Portable CLI created with QuickStart included"
   } else {
-    throw "CLI dir not found: $BinCliDir"
+    throw "CLI not found: $BinCliDir or $CliExe"
   }
 
   # Copy additional files to release directory
