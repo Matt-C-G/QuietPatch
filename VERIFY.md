@@ -1,124 +1,44 @@
-# Verify QuietPatch Release
+# Verify your QuietPatch download (v0.4.0)
 
-This document explains how to verify the integrity and authenticity of QuietPatch releases.
+QuietPatch publishes SHA256 checksums and a Minisign signature for every release. Verification proves your download wasn't tampered with.
 
-## Quick Verification
+## Files you need
+- Your downloaded installer/app
+- `SHA256SUMS.txt`
+- `SHA256SUMS.txt.minisig`
 
-```bash
-# Download checksums and verify
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
-shasum -a 256 -c SHA256SUMS
-```
-
-## Cryptographic Verification (Recommended)
-
-### 1. Install Minisign
-
-**macOS:**
-```bash
-brew install minisign
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install minisign
-```
-
-**Windows:**
-Download from [minisign releases](https://github.com/jedisct1/minisign/releases)
-
-### 2. Verify Checksums
-
-```bash
-# Download checksums and signature
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS.minisig
-
-# Verify signature (replace with actual public key)
-minisign -Vm SHA256SUMS -P <YOUR_PUBKEY>
-
-# Verify artifacts match checksums
-shasum -a 256 -c SHA256SUMS
-```
-
-### 3. Windows Verification
-
+## 1) Verify the checksum
+### Windows (PowerShell)
 ```powershell
-# Download checksums
-Invoke-WebRequest -Uri "https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS" -OutFile "SHA256SUMS"
-
-# Verify each file
-Get-ChildItem quietpatch-*.whl | ForEach-Object {
-    $expected = (Select-String -Path "SHA256SUMS" -Pattern $_.Name).Line.Split()[0]
-    $actual = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-    if ($expected -eq $actual) {
-        Write-Host "✅ $($_.Name) - OK"
-    } else {
-        Write-Host "❌ $($_.Name) - MISMATCH"
-    }
-}
+Get-FileHash .\QuietPatch-Setup-v0.4.0.exe -Algorithm SHA256 | Format-List
+# Compare the Hash value to the matching line in SHA256SUMS.txt
 ```
 
-## Verified Installation
-
-For maximum security, install from verified sources:
-
+### macOS / Linux (Terminal)
 ```bash
-# 1. Download and verify checksums
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
-minisign -Vm SHA256SUMS -P <YOUR_PUBKEY>
-
-# 2. Install with binary-only mode (no source builds)
-python -m pip install quietpatch==0.3.0 --only-binary :all:
-
-# 3. Verify installation
-quietpatch --version
-quietpatch env doctor
+shasum -a 256 QuietPatch-v0.4.0.dmg
+# or
+sha256sum QuietPatch-v0.4.0-x86_64.AppImage
+# Compare to SHA256SUMS.txt
 ```
 
-## Release Assets
+## 2) Verify the signed checksum list with Minisign
+Install minisign:
+- **Windows:** Scoop `scoop install minisign` or Chocolatey `choco install minisign`
+- **macOS:** Homebrew `brew install minisign`
+- **Linux:** `apt install minisign` (or your distro equivalent)
 
-Each release includes:
+Then run:
+```bash
+minisign -Vm SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZwdj/Ac+m8MR"
+# Output should include: "Signature and comment signature verified"
+```
 
-- **Wheels**: `quietpatch-*.whl` (Python packages)
-- **Source**: `quietpatch-*.tar.gz` (source distribution)
-- **Database**: `qp_db-YYYYMMDD.tar.zst` (compressed CVE data)
-- **Checksums**: `SHA256SUMS` (integrity verification)
-- **Signature**: `SHA256SUMS.minisig` (authenticity verification)
+## 3) macOS first launch (unsigned for now)
+Right‑click QuietPatch → **Open** → **Open**. You'll only need to do this once.
 
-## Security Model
+## 4) Trouble? Read this
+- If verification fails, **do not run the file**. Re‑download from the official release and try again.
+- Still stuck? Open an issue on the repo with your OS/version and the exact error text.
 
-- **Integrity**: SHA256 checksums prevent tampering
-- **Authenticity**: Minisign signatures verify source
-- **Reproducibility**: Deterministic builds from source
-- **Transparency**: All code and build processes are public
-
-## Troubleshooting
-
-**Checksum mismatch:**
-- Re-download the file
-- Check for network issues
-- Verify you're using the correct release
-
-**Signature verification fails:**
-- Ensure you have the correct public key
-- Check that the signature file is not corrupted
-- Verify the release is from the official repository
-
-**Installation fails:**
-- Run `quietpatch env doctor` for environment issues
-- Check Python version compatibility (3.11-3.12)
-- Use `--only-binary :all:` to avoid source builds
-
-## Public Key
-
-The public key for signature verification will be published in the repository root as `minisign.pub` and in the release notes.
-
-## Reporting Issues
-
-If you find any verification issues:
-
-1. Check the [troubleshooting guide](README.md#troubleshooting)
-2. Run `quietpatch env doctor` for diagnostics
-3. Open an issue with the verification output
-4. Include your platform and Python version
+Replace `<PASTE_QUIETPATCH_PUBLIC_KEY_HERE>` with your minisign public key (not the secret). Example format: RWQ...=, ~56 chars.

@@ -45,8 +45,14 @@ def main():
         "--also-report", action="store_true", help="Immediately render HTML report after scan"
     )
     p_scan.add_argument(
+        "--report", help="Generate HTML report to specified directory"
+    )
+    p_scan.add_argument(
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
+    p_scan.add_argument("--offline", action="store_true", help="Run in offline mode (no network)")
+    p_scan.add_argument("--read-only", action="store_true", help="Read-only mode (no changes)")
+    p_scan.add_argument("--deep", action="store_true", help="Deep component scan (slower)")
     p_scan.add_argument("--snapshot", action="store_true", help="Snapshot current app state")
     p_scan.add_argument("--canary", action="store_true", help="Run canary checkpoint check")
     p_scan.add_argument("--rollback", action="store_true", help="Rollback to last snapshot")
@@ -135,6 +141,12 @@ def main():
         outdir = Path(args.output)
         outdir.mkdir(parents=True, exist_ok=True)
 
+        # Handle report directory
+        report_dir = None
+        if args.report:
+            report_dir = Path(args.report)
+            report_dir.mkdir(parents=True, exist_ok=True)
+
         # optional DB refresh (non-blocking) - simplified
         try:
             # Note: DB refresh logic can be added here later
@@ -142,43 +154,62 @@ def main():
         except Exception:
             pass
 
-        locs = run_mapping(str(outdir))
-
-        # Apply actions to the scan results
         try:
-            from src.core.actions import decorate_actions, load_actions
+            locs = run_mapping(str(outdir))
 
-            actions_file = Path(os.environ.get("QP_ACTIONS_FILE", "config/actions.yml"))
-            actions_map = load_actions(actions_file)
+            # Apply actions to the scan results
+            try:
+                from src.core.actions import decorate_actions, load_actions
 
-            # Read the vulnerability data and apply actions
-            vuln_path = Path(outdir) / "vuln_log.json"
-            if vuln_path.exists():
-                vuln_data = json.loads(vuln_path.read_text())
-                vuln_data_with_actions = decorate_actions(vuln_data, actions_map)
-                vuln_path.write_text(json.dumps(vuln_data_with_actions, indent=2))
-                print(f"Actions applied to {len(vuln_data_with_actions)} apps")
+                actions_file = Path(os.environ.get("QP_ACTIONS_FILE", "config/actions.yml"))
+                actions_map = load_actions(actions_file)
+
+                # Read the vulnerability data and apply actions
+                vuln_path = Path(outdir) / "vuln_log.json"
+                if vuln_path.exists():
+                    vuln_data = json.loads(vuln_path.read_text())
+                    vuln_data_with_actions = decorate_actions(vuln_data, actions_map)
+                    vuln_path.write_text(json.dumps(vuln_data_with_actions, indent=2))
+                    print(f"Actions applied to {len(vuln_data_with_actions)} apps")
+            except Exception as e:
+                print(f"Warning: Could not apply actions: {e}")
+
+            print(json.dumps(locs, indent=2))
+
+            # Generate report if requested
+            if args.also_report or args.report:
+                # prefer plaintext if present; else decrypt
+                src_json = outdir / "vuln_log.json"
+                if not src_json.exists():
+                    # decrypt to temp then render
+                    enc = outdir / "vuln_log.json.enc"
+                    if not enc.exists():
+                        print("No vuln_log.json(.enc) found for reporting", file=sys.stderr)
+                        sys.exit(3)  # catalog missing/invalid
+                    raw = decrypt_file(str(enc), age_identity=os.environ.get("AGE_IDENTITY") or None)
+                    src_json.write_bytes(raw)
+                
+                # Determine output location
+                if args.report:
+                    html_out = report_dir / "quietpatch_report.html"
+                else:
+                    html_out = outdir / "report.html"
+                
+                generate_report(str(src_json), str(html_out))
+                print(f"REPORT: {html_out.absolute()}")
+                
+                if args.open:
+                    _open_file(str(html_out))
+            
+            # Exit with success
+            sys.exit(0)
+            
+        except PermissionError:
+            print("Permission denied. Please run with appropriate privileges.", file=sys.stderr)
+            sys.exit(2)  # environment error
         except Exception as e:
-            print(f"Warning: Could not apply actions: {e}")
-
-        print(json.dumps(locs, indent=2))
-
-        if args.also_report:
-            # prefer plaintext if present; else decrypt
-            src_json = outdir / "vuln_log.json"
-            if not src_json.exists():
-                # decrypt to temp then render
-                enc = outdir / "vuln_log.json.enc"
-                if not enc.exists():
-                    print("No vuln_log.json(.enc) found for reporting", file=sys.stderr)
-                    sys.exit(1)
-                raw = decrypt_file(str(enc), age_identity=os.environ.get("AGE_IDENTITY") or None)
-                src_json.write_bytes(raw)
-            html_out = outdir / "report.html"
-            generate_report(str(src_json), str(html_out))
-            print(f"Report generated: {html_out}")
-            if args.open:
-                _open_file(str(html_out))
+            print(f"Scan failed: {e}", file=sys.stderr)
+            sys.exit(10)  # internal error
 
     elif args.cmd == "report":
         inp = Path(args.input)

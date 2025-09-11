@@ -1,0 +1,14 @@
+{
+  "mozilla:firefox": {
+    "CVE-2024-1234": {
+      "min_version": "100.0",
+      "max_version": "120.0"
+    }
+  },
+  "google:chrome": {
+    "CVE-2024-5678": {
+      "min_version": "90.0",
+      "max_version": "110.0"
+    }
+  }
+}

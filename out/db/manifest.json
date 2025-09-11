@@ -1,0 +1,36 @@
+{
+  "version": "2025-08-22",
+  "files": [
+    {
+      "name": "cpe_to_cves.json.gz",
+      "sha256": "a84b95897336ad5c57cfe510ef0034e6a4857982a91be25c83c7efaffb3c2dcd",
+      "size": 256
+    },
+    {
+      "name": "cve_meta.json.gz",
+      "sha256": "cbdfd78f0a3534ed502434bec35e127625767cd0efc9c9fb16b23bfc548b1501",
+      "size": 391
+    },
+    {
+      "name": "kev.json.gz",
+      "sha256": "82bc686d58d9924f1a02a9c1e7b81f0a1b0f0eefa6b0d8a19f7bfa9d9cc53b4a",
+      "size": 300
+    },
+    {
+      "name": "epss.csv.gz",
+      "sha256": "d100b86c8092feb15c866b719dcea1ca7d64534aa03db09fd7a8df46b3bc5b46",
+      "size": 111
+    },
+    {
+      "name": "aliases.json.gz",
+      "sha256": "78f3cc230c64825da247fde606585ecbcc31cc9b79babb39ce95a126075bac10",
+      "size": 81
+    },
+    {
+      "name": "affects.json.gz",
+      "sha256": "43c1ab3bd7fd51738b8f2f2c8c125ea05aa482656cbc3d94eef400234e06c171",
+      "size": 146
+    }
+  ],
+  "meta": null
+}

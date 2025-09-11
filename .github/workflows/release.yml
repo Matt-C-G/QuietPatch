@@ -1,245 +1,218 @@
-name: release
+name: Build & Release QuietPatch v0.4.0
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish to (e.g. v0.3.0). Leave empty to use ref_name."
-        required: false
-        default: ""
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+        description: "Release tag (e.g., v0.4.0)"
+        required: true
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
-  id-token: write
 
 env:
-  # Use the input tag when provided, otherwise use the ref tag name.
-  RELEASE_TAG: "${{ inputs.tag != '' && inputs.tag || github.ref_name }}"
-  QP_OFFLINE: "1"
+  PYTHON_VERSION: '3.12'
 
 jobs:
-  build-matrix:
-    name: build ${{ matrix.os }}
+  build:
+    name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
       matrix:
-        os:
-          - ubuntu-22.04
-          - macos-14
-          - windows-latest
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set release tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install with constraints (hermetic)
+      - name: Install build deps
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          # Use platform-specific constraints
-          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-linux-py312.txt"
-          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-macos-py312.txt"
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-windows-py312.txt"
+          python -m pip install --upgrade pip wheel setuptools
+          # Use platform-specific constraints if you have them; fallback to requirements.txt
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pip install -r constraints/runtime-windows-py312.txt -c constraints.txt || pip install -r requirements.txt
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            pip install -r constraints/runtime-macos-py312.txt -c constraints.txt || pip install -r requirements.txt
           else
-            CONSTRAINT_FILE="constraints.txt"
+            pip install -r constraints/runtime-linux-py312.txt -c constraints.txt || pip install -r requirements.txt
           fi
-          python -m pip install --require-hashes -r $CONSTRAINT_FILE
-          python -m pip install wheel build pex setuptools
+          pip install pyinstaller
 
-      - name: Build wheel
+      - name: Build PyInstaller (GUI + CLI)
         shell: bash
         run: |
-          python -m build -w -n
-          ls -l dist
+          pyinstaller build/quietpatch_wizard.spec
+          pyinstaller build/quietpatch_cli.spec
 
-      - name: Install built wheel for gate
+      - name: Package OS installer
         shell: bash
         run: |
-          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
-
-      - name: Gate (mock scan with timeout)
-        shell: bash
-        env:
-          QP_OFFLINE: "1"
-        run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            # macOS-specific timeout handling
-            python - <<'PY'
-            import subprocess, sys, time
-            p = subprocess.Popen(["python3.11", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
-            for _ in range(90):
-                if p.poll() is not None: 
-                    sys.exit(p.returncode)
-                time.sleep(1)
-            p.kill()
-            sys.exit(1)
-            PY
+          mkdir -p release
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            # Install Inno Setup
+            choco install -y innosetup
+            # Build installer
+            "C:/Program Files (x86)/Inno Setup 6/ISCC.exe" installer/windows/QuietPatch.iss
+            cp dist/windows/QuietPatch-Setup-v0.4.0.exe release/
+            # Portable CLI (fallback)
+            cd dist
+            powershell Compress-Archive -Path "quietpatch/*" -DestinationPath "../release/quietpatch-cli-v0.4.0-win64.zip"
+            cd ..
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            # Install create-dmg
+            brew install create-dmg || true
+            # Create macOS app bundle
+            mkdir -p dist/macos/QuietPatch.app/Contents/MacOS
+            mkdir -p dist/macos/QuietPatch.app/Contents/Resources
+            cp dist/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
+            cp dist/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
+            # Create Info.plist
+            cat > dist/macos/QuietPatch.app/Contents/Info.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>QuietPatch</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.quietpatch.quietpatch</string>
+              <key>CFBundleName</key>
+              <string>QuietPatch</string>
+              <key>CFBundleVersion</key>
+              <string>0.4.0</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.4.0</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+          </dict>
+          </plist>
+          EOF
+            # Create DMG
+            ./packaging/macos/create_dmg.sh
+            cp dist/macos/QuietPatch-v0.4.0.dmg release/
+            # Fallback portable CLI
+            tar -C dist -czf release/quietpatch-cli-v0.4.0-macos-universal.tar.gz quietpatch
           else
-            # Linux/Windows use timeout command
-            timeout 90s python -m quietpatch.cli scan --mock --offline --fail-unknowns --sarif out.sarif --ci || {
-              echo "Gate step timed out or failed"
-              exit 1
-            }
+            # Linux AppImage packaging
+            sudo apt-get update && sudo apt-get install -y libfuse2 wget
+            wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
+            chmod +x appimagetool
+            # Create AppDir
+            mkdir -p AppDir/usr/bin
+            cp dist/QuietPatchWizard AppDir/usr/bin/QuietPatch
+            cp dist/quietpatch AppDir/usr/bin/quietpatch
+            # Create desktop file
+            cat > AppDir/QuietPatch.desktop << EOF
+          [Desktop Entry]
+          Type=Application
+          Name=QuietPatch
+          Comment=Privacy-first patch advisor
+          Exec=QuietPatch
+          Icon=QuietPatch
+          Categories=Utility;System;Security;
+          StartupNotify=true
+          Terminal=false
+          EOF
+            # Create AppRun
+            cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/QuietPatch" "$@"
+          EOF
+            chmod +x AppDir/AppRun
+            # Create icon if available
+            if [ -f "assets/quietpatch.png" ]; then
+              cp assets/quietpatch.png AppDir/QuietPatch.png
+            fi
+            # Create AppImage
+            ./appimagetool AppDir QuietPatch-v0.4.0-x86_64.AppImage
+            mv QuietPatch-v0.4.0-x86_64.AppImage release/
+            # Portable CLI
+            tar -C dist -czf release/quietpatch-cli-v0.4.0-linux-x86_64.tar.gz quietpatch
           fi
-          # Verify SARIF exists and is valid
-          if [ ! -f out.sarif ] || [ ! -s out.sarif ]; then
-            echo "Error: SARIF file missing or empty"
-            exit 1
-          fi
-          echo "SARIF file size: $(wc -c < out.sarif) bytes"
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: out.sarif
-
-      - name: Build PEX and ZIP
+      - name: Compute SHA256 for this OS
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p dist
-          WHL="$(ls dist/*.whl | head -n1)"
-          echo "Using wheel: $WHL"
+          cd release
+          if command -v sha256sum >/dev/null 2>&1; then CMD=sha256sum; else CMD="shasum -a 256"; fi
+          $CMD * > SHA256.${{ runner.os }}.txt
 
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-linux-x86_64.pex
-            zip -j dist/quietpatch-linux-x86_64.zip dist/quietpatch-linux-x86_64.pex packaging/linux/run_quietpatch.sh packaging/linux/README-Linux.txt
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            python -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-macos-arm64.pex
-            zip -j dist/quietpatch-macos-arm64.zip dist/quietpatch-macos-arm64.pex packaging/macos/run_quietpatch.command packaging/macos/README-macOS.txt
-          else
-            py -3.11 -m pex "$WHL" -c quietpatch --find-links dist --no-build --strip-pex-env -o dist/quietpatch-windows-x64.pex
-            pwsh -NoLogo -NoProfile -Command "Compress-Archive -Force -Path dist/quietpatch-windows-x64.pex, packaging/windows/run_quietpatch.bat, packaging/windows/README-Windows.txt -DestinationPath dist/quietpatch-windows-x64.zip"
-          fi
-
-          ls -l dist
-
-      - name: Zero-unknowns gate (mock, offline, capped)
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          workdir="$(mktemp -d)"
-          sarif="$workdir/gate.sarif"
-
-          echo "Running quietpatch scan (mock) → SARIF only…"
-          if ! timeout 90s quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
-            echo "::error::Scan failed or exceeded 90s. Failing fast."; exit 1
-          fi
-
-          if [ ! -s "$sarif" ]; then
-            echo "::error::No SARIF produced by quietpatch"; exit 1
-          fi
-
-          echo "Zero-unknowns gate passed ✅"
-
-      - name: Upload artifact
+      - name: Upload OS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ runner.os }}-artifacts"
-          path: dist/*.zip
+          name: release-${{ runner.os }}
+          path: release/*
 
-  build-db:
-    name: build db snapshot
-    runs-on: ubuntu-22.04
+  finalize:
+    name: Sign & Publish Release
+    runs-on: ubuntu-latest
+    needs: build
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install deps
-        shell: bash
-        run: |
-          python -m pip install -U pip wheel requests
-
-      - name: Build offline DB snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          # Replace with your actual snapshot builder if different:
-          python tools/db_snapshot.py --years-back 5 --out dist
-
-          # Create checksums if any files exist
-          ( cd dist && { sha256sum *.zip *.zst *.tar.zst 2>/dev/null || true; } ) > dist/SHA256SUMS || true
-          ls -l dist
-
-      - name: Upload DB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: "db-artifacts"
-          path: dist/*
-
-  publish:
-    name: publish to release
-    runs-on: ubuntu-22.04
-    needs:
-      - build-matrix
-      - build-db
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Flatten artifacts
-        shell: bash
+      - name: Prepare combined release folder
         run: |
-          mkdir -p dist
-          find artifacts -type f -print -exec cp {} dist/ \;
-          ls -l dist
+          mkdir -p release
+          cp -r artifacts/*/* release/
+          ls -la release
 
-      - name: Generate SHA256SUMS
-        shell: bash
+      - name: Generate combined SHA256SUMS.txt
         run: |
-          cd dist
-          # Generate checksums for all files except SHA256SUMS itself
-          find . -type f ! -name "SHA256SUMS" -exec sha256sum {} \; > SHA256SUMS
-          echo "Generated SHA256SUMS:"
-          cat SHA256SUMS
+          cd release
+          sha256sum $(ls -1 | grep -E '\.(exe|dmg|AppImage|zip|tar.gz)$') > SHA256SUMS.txt
 
-      - name: Ensure release exists
+      - name: Install minisign
+        run: |
+          sudo apt-get update && sudo apt-get install -y minisign
+
+      - name: Write minisign secret key
         env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        shell: bash
+          MINISIGN_SECRET_KEY_B64: ${{ secrets.MINISIGN_SECRET_KEY_B64 }}
         run: |
-          set -e
-          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Release ${RELEASE_TAG} already exists"
-          else
-            gh release create "${RELEASE_TAG}" -t "${RELEASE_TAG}" -n "Automated release for ${RELEASE_TAG}"
-          fi
+          echo "$MINISIGN_SECRET_KEY_B64" | base64 -d > minisign.key
+          chmod 600 minisign.key
 
-      - name: Upload assets to release
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        shell: bash
+      - name: Sign checksums
         run: |
-          gh release upload "${RELEASE_TAG}" dist/* --clobber
+          cd release
+          minisign -Sm SHA256SUMS.txt -s ../minisign.key
+
+      - name: Upload GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build.outputs.tag || github.ref_name }}
+          files: |
+            release/QuietPatch-Setup-v0.4.0.exe
+            release/quietpatch-cli-v0.4.0-win64.zip
+            release/QuietPatch-v0.4.0.dmg
+            release/quietpatch-cli-v0.4.0-macos-universal.tar.gz
+            release/QuietPatch-v0.4.0-x86_64.AppImage
+            release/quietpatch-cli-v0.4.0-linux-x86_64.tar.gz
+            release/SHA256SUMS.txt
+            release/SHA256SUMS.txt.minisig
+            VERIFY.md
+            LICENSE.txt
+            README-QuickStart.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

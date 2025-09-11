@@ -1,8 +1,8 @@
 Metadata-Version: 2.4
 Name: quietpatch
-Version: 0.3.2
+Version: 0.4.0
 Summary: Vulnerability scanner for installed applications
-Requires-Python: <3.13,>=3.11
+Requires-Python: <3.14,>=3.11
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: PyYAML<7.0.0,>=6.0.2

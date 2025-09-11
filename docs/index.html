@@ -1,92 +1,80 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>QuietPatch – Privacy-first vulnerability scanner</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="QuietPatch is a privacy-first vulnerability scanner that runs fully offline and produces a clean HTML report with clear remediation.">
-<link rel="stylesheet" href="style.css">
-<meta property="og:title" content="QuietPatch">
-<meta property="og:description" content="Privacy-first vulnerability scanner. Offline. Cross-platform. No telemetry.">
-<meta property="og:image" content="assets/screenshot-report.svg">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QuietPatch — Private, offline patch advisor</title>
+  <meta name="description" content="Scan apps, map known CVEs, and get a deterministic report. No telemetry. Ever." />
+  <meta property="og:title" content="QuietPatch — Private, offline patch advisor" />
+  <meta property="og:description" content="Scan apps, map known CVEs, and get a deterministic report. No telemetry. Ever." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --accent:#22d3ee; }
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#0f172a,#111827);color:var(--text);font:16px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif}
+    .wrap{max-width:920px;margin:0 auto;padding:32px}
+    header{padding:24px 0}
+    h1{font-size:clamp(28px,5vw,42px);margin:0 0 8px}
+    p.sub{color:var(--muted);margin:0 0 24px;font-size:clamp(16px,2.6vw,18px)}
+    .cta{display:grid;grid-template-columns:1fr;gap:12px;margin:18px 0}
+    @media (min-width:720px){.cta{grid-template-columns:repeat(3,1fr)}}
+    .btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 18px;border-radius:14px;border:1px solid #1f2937;background:#0b1220;color:var(--text);text-decoration:none;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+    .btn:hover{border-color:#334155;transform:translateY(-1px)}
+    .btn small{display:block;color:var(--muted);font-weight:500}
+    .card{margin-top:18px;padding:18px;border:1px solid #1f2937;border-radius:16px;background:#0b1220}
+    .links{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+    .links a{color:var(--accent);text-decoration:none;border-bottom:1px dotted rgba(34,211,238,.35)}
+    footer{margin:32px 0;color:var(--muted);font-size:14px}
+    code{background:#0b1220;padding:2px 6px;border-radius:6px;border:1px solid #1f2937}
+  </style>
 </head>
 <body>
-<header>
-  <h1>QuietPatch 🔐</h1>
-  <p class="tagline">Privacy-first vulnerability scanner. Offline. Cross-platform. No telemetry. No auto-patching.</p>
-</header>
+  <div class="wrap">
+    <header>
+      <h1>QuietPatch</h1>
+      <p class="sub">Private, offline patch advisor. Scan apps, map known CVEs, and generate a deterministic report. No telemetry. Ever.</p>
+    </header>
 
-<section class="cta">
-  <div class="card">
-    <h2>Install (macOS &amp; Linux)</h2>
-    <pre class="cmd"><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"</code></pre>
-    <button class="copy" data-copy='/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"'>Copy</button>
+    <section class="cta" id="downloads">
+      <a id="btn-win" class="btn" href="https://github.com/OWNER/REPO/releases/download/v0.4.0/QuietPatch-Setup-v0.4.0.exe">
+        <span>Download for Windows<br><small>QuietPatch-Setup-v0.4.0.exe</small></span>
+      </a>
+      <a id="btn-mac" class="btn" href="https://github.com/OWNER/REPO/releases/download/v0.4.0/QuietPatch-v0.4.0.dmg">
+        <span>Download for macOS<br><small>QuietPatch-v0.4.0.dmg</small></span>
+      </a>
+      <a id="btn-linux" class="btn" href="https://github.com/OWNER/REPO/releases/download/v0.4.0/QuietPatch-v0.4.0-x86_64.AppImage">
+        <span>Download for Linux<br><small>QuietPatch-v0.4.0-x86_64.AppImage</small></span>
+      </a>
+    </section>
+
+    <section class="card">
+      <strong>How to verify your download</strong>
+      <div class="links">
+        <a href="https://raw.githubusercontent.com/OWNER/REPO/v0.4.0/VERIFY.md">VERIFY.md</a>
+        <a href="https://github.com/OWNER/REPO/releases/tag/v0.4.0">Release notes</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <strong>Offline privacy</strong>
+      <p>100% offline by default. Zero telemetry. Signed catalog. Reproducible report with footer hash and signature status.</p>
+    </section>
+
+    <footer>
+      <div>© <span id="year"></span> QuietPatch. All rights reserved.</div>
+    </footer>
   </div>
-  <div class="card">
-    <h2>Install (Windows PowerShell)</h2>
-    <pre class="cmd"><code>irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex</code></pre>
-    <button class="copy" data-copy='irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex'>Copy</button>
-  </div>
-</section>
 
-<section class="run">
-  <h2>Run a scan</h2>
-  <pre class="cmd"><code>quietpatch scan --also-report --open</code></pre>
-  <button class="copy" data-copy="quietpatch scan --also-report --open">Copy</button>
-  <p class="hint">Opens <code>report.html</code> in your browser. Works fully offline with the bundled database.</p>
-</section>
-
-<section class="preview">
-  <img src="assets/screenshot-report.svg" alt="QuietPatch report preview" />
-  <ul class="features">
-    <li>📦 App inventory</li>
-    <li>🛡️ CVEs with severity badges (Critical/High/Medium/Low)</li>
-    <li>🚨 KEV &amp; EPSS surfaced</li>
-    <li>🔧 Concrete remediation commands (copy-to-clipboard)</li>
-    <li>📑 Deterministic, reproducible output</li>
-  </ul>
-</section>
-
-<section class="verify">
-  <h2>Verify downloads</h2>
-  <p>We publish checksums for every release. Verify like this:</p>
-  <pre class="cmd"><code>shasum -a 256 -c SHA256SUMS</code></pre>
-  <p>Optional: verify signed checksums with Minisign (see <a href="https://github.com/Matt-C-G/QuietPatch/blob/main/VERIFY.md">VERIFY.md</a>).</p>
-</section>
-
-<section class="faq">
-  <h2>FAQ</h2>
-  <details>
-    <summary>Does QuietPatch change my system?</summary>
-    <p>No. It’s read-only. Remediation commands are suggestions for you to run manually.</p>
-  </details>
-  <details>
-    <summary>Does it need the internet?</summary>
-    <p>No. Use the offline DB snapshot included by the installer. You can refresh with <code>quietpatch update-db</code>.</p>
-  </details>
-  <details>
-    <summary>Which platforms?</summary>
-    <p>macOS (Apple Silicon), Linux x86_64, Windows x64. Requires Python 3.11–3.13 (Windows bundles coming later).</p>
-  </details>
-</section>
-
-<footer>
-  <p>
-    <a href="https://github.com/Matt-C-G/QuietPatch">GitHub</a> ·
-    <a href="https://github.com/Matt-C-G/QuietPatch/blob/main/README.md">README</a> ·
-    <a href="https://github.com/Matt-C-G/QuietPatch/blob/main/LICENSE">MIT License</a>
-  </p>
-</footer>
-
-<script>
-document.addEventListener('click', function(e){
-  const b = e.target.closest('.copy'); if(!b) return;
-  const t = b.getAttribute('data-copy') || '';
-  navigator.clipboard.writeText(t).then(() => {
-    const prev = b.textContent; b.textContent = 'Copied';
-    setTimeout(()=> b.textContent = prev, 1200);
-  });
-});
-</script>
+  <script>
+    // Replace OWNER/REPO once deployed.
+    const OWNER = 'OWNER';
+    const REPO = 'REPO';
+    // Light OS nudging — focus ring on likely platform
+    const ua = navigator.userAgent.toLowerCase();
+    const sel = ua.includes('win') ? '#btn-win' : ua.includes('mac') ? '#btn-mac' : '#btn-linux';
+    const el = document.querySelector(sel); if (el) { el.style.outline = '2px solid var(--accent)'; el.style.boxShadow = '0 0 0 4px rgba(34,211,238,.2)'; }
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>

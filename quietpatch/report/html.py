@@ -259,9 +259,11 @@ def generate_report(input_path: str, output_path: str) -> str:
         kev = False
         cve = ""
         
+        # Define severity order outside the if block
+        sev_order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "unknown": 0}
+        
         if vulns:
             # Get highest severity
-            sev_order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "unknown": 0}
             severity = max((v.get("severity", "unknown").lower() for v in vulns), 
                          key=lambda s: sev_order.get(s, 0))
             # Check for KEV

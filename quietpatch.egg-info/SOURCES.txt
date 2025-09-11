@@ -8,6 +8,7 @@ quietpatch/db_loader.py
 quietpatch/db_state.py
 quietpatch/db_verify.py
 quietpatch/errors.py
+quietpatch/logging_setup.py
 quietpatch.egg-info/PKG-INFO
 quietpatch.egg-info/SOURCES.txt
 quietpatch.egg-info/dependency_links.txt
