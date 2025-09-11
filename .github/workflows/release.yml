@@ -1,4 +1,4 @@
-name: Build & Release QuietPatch v0.4.0
+name: Build & Release QuietPatch v0.4.0s
 
 on:
   workflow_dispatch:
@@ -67,23 +67,38 @@ jobs:
         run: |
           mkdir -p release
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Install Inno Setup
-            choco install -y innosetup
+            # Install Inno Setup and 7zip
+            choco install -y innosetup 7zip
             # Build installer
             "C:/Program Files (x86)/Inno Setup 6/ISCC.exe" installer/windows/QuietPatch.iss
             cp dist/windows/QuietPatch-Setup-v0.4.0.exe release/
-            # Portable CLI (fallback)
+            # Portable CLI (fallback) - use 7z if available, else PowerShell
             cd dist
-            powershell Compress-Archive -Path "quietpatch/*" -DestinationPath "../release/quietpatch-cli-v0.4.0-win64.zip"
+            if command -v 7z >/dev/null 2>&1; then
+              7z a ../release/quietpatch-cli-v0.4.0-win64.zip quietpatch/*
+            else
+              powershell Compress-Archive -Path "quietpatch/*" -DestinationPath "../release/quietpatch-cli-v0.4.0-win64.zip" -Force
+            fi
             cd ..
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             # Install create-dmg
             brew install create-dmg || true
+            # Debug: print dist structure
+            echo "=== dist tree ==="; ls -la dist; (command -v tree >/dev/null && tree -L 2 dist) || true
             # Create macOS app bundle
             mkdir -p dist/macos/QuietPatch.app/Contents/MacOS
             mkdir -p dist/macos/QuietPatch.app/Contents/Resources
-            cp dist/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
-            cp dist/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
+            # Handle both onefile and one-folder PyInstaller outputs
+            if [[ -f dist/QuietPatchWizard ]]; then
+              cp dist/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
+            elif [[ -f dist/QuietPatchWizard/QuietPatchWizard ]]; then
+              cp dist/QuietPatchWizard/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
+            fi
+            if [[ -f dist/quietpatch ]]; then
+              cp dist/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
+            elif [[ -f dist/quietpatch/quietpatch ]]; then
+              cp dist/quietpatch/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
+            fi
             # Create Info.plist
             cat > dist/macos/QuietPatch.app/Contents/Info.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -115,10 +130,21 @@ jobs:
             sudo apt-get update && sudo apt-get install -y libfuse2 wget
             wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
             chmod +x appimagetool
+            # Debug: print dist structure
+            echo "=== dist tree ==="; ls -la dist; (command -v tree >/dev/null && tree -L 2 dist) || true
             # Create AppDir
             mkdir -p AppDir/usr/bin
-            cp dist/QuietPatchWizard AppDir/usr/bin/QuietPatch
-            cp dist/quietpatch AppDir/usr/bin/quietpatch
+            # Handle both onefile and one-folder PyInstaller outputs
+            if [[ -f dist/QuietPatchWizard ]]; then
+              cp dist/QuietPatchWizard AppDir/usr/bin/QuietPatch
+            elif [[ -f dist/QuietPatchWizard/QuietPatchWizard ]]; then
+              cp dist/QuietPatchWizard/QuietPatchWizard AppDir/usr/bin/QuietPatch
+            fi
+            if [[ -f dist/quietpatch ]]; then
+              cp dist/quietpatch AppDir/usr/bin/quietpatch
+            elif [[ -f dist/quietpatch/quietpatch ]]; then
+              cp dist/quietpatch/quietpatch AppDir/usr/bin/quietpatch
+            fi
             # Create desktop file
             cat > AppDir/QuietPatch.desktop << EOF
           [Desktop Entry]
@@ -180,7 +206,9 @@ jobs:
       - name: Generate combined SHA256SUMS.txt
         run: |
           cd release
-          sha256sum $(ls -1 | grep -E '\.(exe|dmg|AppImage|zip|tar.gz)$') > SHA256SUMS.txt
+          # Hash everything we might ship; print the list for debugging
+          ls -1
+          sha256sum * > SHA256SUMS.txt
 
       - name: Install minisign
         run: |
@@ -214,5 +242,6 @@ jobs:
             VERIFY.md
             LICENSE.txt
             README-QuickStart.md
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
