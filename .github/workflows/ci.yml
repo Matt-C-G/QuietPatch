@@ -90,15 +90,9 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install with constraints (hermetic)
-        shell: bash
         run: |
-          set -euxo pipefail
-          case "$RUNNER_OS" in
-            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
-            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
-            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
-          esac
-          python -m pip install -r "$CFILE" --require-hashes
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r constraints/runtime-linux-py312.txt
       - name: Build wheel
         run: |
           python -m build -w -n
@@ -155,15 +149,10 @@ jobs:
         with: { python-version: "3.12", architecture: "x64", cache: "pip" }
 
       - name: Install with constraints (hermetic)
-        shell: bash
+        shell: pwsh
         run: |
-          set -euxo pipefail
-          case "$RUNNER_OS" in
-            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
-            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
-            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
-          esac
-          python -m pip install -r "$CFILE" --require-hashes
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r constraints/runtime-windows-py312.txt
 
       - name: Build wheel
         shell: pwsh
@@ -229,15 +218,9 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install with constraints (hermetic)
-        shell: bash
         run: |
-          set -euxo pipefail
-          case "$RUNNER_OS" in
-            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
-            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
-            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
-          esac
-          python -m pip install -r "$CFILE" --require-hashes
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r constraints/runtime-macos-py312.txt
       - name: Build wheel
         run: |
           python -m build -w -n
