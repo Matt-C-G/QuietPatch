@@ -93,9 +93,11 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install build deps (hermetic)
+        shell: bash
         run: |
           python -m pip install --upgrade "pip<25"
-          python -m pip install --require-hashes -r constraints/build-linux-py312.txt
+          awk '!/^pip==/ {print}' constraints/build-linux-py312.txt > /tmp/build.no-pip.txt
+          python -m pip install --require-hashes -r /tmp/build.no-pip.txt
       - name: Install with constraints (hermetic)
         run: |
           python -m pip install --upgrade "pip<25"
@@ -163,7 +165,11 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade "pip<25"
-          python -m pip install --require-hashes -r constraints/build-windows-py312.txt
+          $src = "constraints/build-windows-py312.txt"
+          $dst = "$env:RUNNER_TEMP\build.no-pip.txt"
+          Get-Content $src | Where-Object { $_ -notmatch '^pip==' } | Set-Content -Path $dst -NoNewline -Encoding ascii
+          Add-Content -Path $dst -Value ''         # ensure trailing newline
+          python -m pip install --require-hashes -r $dst
 
       - name: Install with constraints (hermetic)
         shell: pwsh
@@ -238,9 +244,11 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install build deps (hermetic)
+        shell: bash
         run: |
           python -m pip install --upgrade "pip<25"
-          python -m pip install --require-hashes -r constraints/build-macos-py312.txt
+          awk '!/^pip==/ {print}' constraints/build-macos-py312.txt > /tmp/build.no-pip.txt
+          python -m pip install --require-hashes -r /tmp/build.no-pip.txt
       - name: Install with constraints (hermetic)
         run: |
           python -m pip install --upgrade "pip<25"

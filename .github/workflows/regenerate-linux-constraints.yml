@@ -129,16 +129,19 @@ jobs:
         shell: pwsh
         run: |
           $files = @(
-            'constraints/build-windows-py312.txt',
-            'constraints/runtime-windows-py312.txt'
+            "constraints/runtime-windows-py312.txt",
+            "constraints/build-windows-py312.txt"
           )
+
           foreach ($f in $files) {
-            $bad = Get-Content $f | Where-Object { $_ -match '^\s*[^#].*==' -and $_ -notmatch '--hash=' }
-            if ($bad) {
-              Write-Error "Missing hashes in $f:`n$($bad -join "`n")"
+            # Lines that look like "pkg==x.y.z" with no "--hash="
+            $bad = Select-String -Path $f -Pattern '^[A-Za-z0-9._-]+==[^#\s]+$' | ForEach-Object { $_.Line.Trim() }
+            if ($bad.Count) {
+              $nl = [Environment]::NewLine
+              $msg = "Missing hashes in ${f}:${nl}" + ($bad -join $nl)
+              Write-Error $msg
             }
           }
-          Write-Host "✅ Windows constraints properly pinned with hashes"
       
       - name: Show diff
         run: |
