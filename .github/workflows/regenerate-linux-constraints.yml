@@ -38,8 +38,19 @@ jobs:
       
       - name: Verify SecretStorage and jeepney are included
         run: |
-          grep -q '^SecretStorage==' constraints/runtime-linux-py312.txt || (echo "Missing SecretStorage pin"; exit 1)
-          grep -q '^jeepney==' constraints/runtime-linux-py312.txt || (echo "Missing jeepney pin"; exit 1)
+          grep -iq '^secretstorage==' constraints/runtime-linux-py312.txt
+          grep -iq '^jeepney=='       constraints/runtime-linux-py312.txt
+
+      - name: Verify pins have hashes (optional)
+        run: |
+          awk 'BEGIN{lc=0;hc=0}
+               tolower($0) ~ /^secretstorage==/ {lc=1}
+               lc && $0 ~ /^--hash=/ {hc=1}
+               END{exit !(lc&&hc)}' constraints/runtime-linux-py312.txt
+          awk 'BEGIN{lc=0;hc=0}
+               tolower($0) ~ /^jeepney==/ {lc=1}
+               lc && $0 ~ /^--hash=/ {hc=1}
+               END{exit !(lc&&hc)}' constraints/runtime-linux-py312.txt
           echo "✅ Both SecretStorage and jeepney are properly pinned with hashes"
       
       - name: Show diff
