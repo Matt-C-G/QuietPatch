@@ -1,0 +1,3 @@
+# ensure linux-only keyring deps are pinned with hashes
+secretstorage
+jeepney
