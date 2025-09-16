@@ -1,0 +1,54 @@
+name: Regenerate Linux Constraints
+
+on:
+  workflow_dispatch:
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install pip-tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-tools
+      
+      - name: Regenerate Linux constraints
+        run: |
+          pip-compile \
+            --generate-hashes \
+            --resolver=backtracking \
+            --python-version 3.12 \
+            --platform manylinux_2_28_x86_64 \
+            -o constraints/runtime-linux-py312.txt \
+            pyproject.toml
+      
+      - name: Verify SecretStorage and jeepney are included
+        run: |
+          grep -q '^SecretStorage==' constraints/runtime-linux-py312.txt || (echo "Missing SecretStorage pin"; exit 1)
+          grep -q '^jeepney==' constraints/runtime-linux-py312.txt || (echo "Missing jeepney pin"; exit 1)
+          echo "✅ Both SecretStorage and jeepney are properly pinned with hashes"
+      
+      - name: Show diff
+        run: |
+          echo "=== Generated constraints file ==="
+          head -20 constraints/runtime-linux-py312.txt
+          echo "..."
+          tail -10 constraints/runtime-linux-py312.txt
+      
+      - name: Commit and push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add constraints/runtime-linux-py312.txt
+          git commit -m "fix(constraints): regenerate Linux constraints with Python 3.12
+
+          - Generated on actual Linux runner with Python 3.12
+          - Includes SecretStorage and jeepney with proper hashes
+          - Enables --require-hashes for Linux builds"
+          git push

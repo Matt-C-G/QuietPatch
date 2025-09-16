@@ -1,11 +1,19 @@
 # gui/wizard.py
-import os, sys, pathlib, threading, queue, subprocess, webbrowser, platform, json, shutil
+import os, sys, pathlib, threading, queue, subprocess, webbrowser, platform, json, shutil, stat
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 APPDIR = pathlib.Path(getattr(sys, '_MEIPASS', pathlib.Path(__file__).resolve().parent.parent))
 BIN_NAME = 'quietpatch.exe' if os.name == 'nt' else 'quietpatch'
 CLI = (APPDIR / BIN_NAME)
+
+def _make_executable(p):
+    """Ensure the CLI binary has execute permissions"""
+    try:
+        mode = os.stat(p).st_mode
+        os.chmod(p, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    except Exception:
+        pass
 
 # Cross‑platform app data/log dir
 if sys.platform.startswith('win'):
@@ -118,7 +126,15 @@ class Progress(ttk.Frame):
 
     def start_scan(self, opts):
         self.out.delete('1.0', 'end'); self.pb.start(60); self.view_btn.config(state='disabled')
-        args = [str(CLI), 'scan', '--report', str(REPORTS)]
+        
+        # Ensure CLI is executable
+        cli_path = str(CLI)
+        if not os.path.isfile(cli_path):
+            self.c.err('Scan failed', 'CLI not found.', ['Reinstall QuietPatch.']); return
+        if not os.access(cli_path, os.X_OK):
+            _make_executable(cli_path)
+        
+        args = [cli_path, 'scan', '--report', str(REPORTS)]
         if opts.get('offline'): args += ['--offline']
         if opts.get('readonly'): args += ['--read-only']
         if opts.get('deep'): args += ['--deep']

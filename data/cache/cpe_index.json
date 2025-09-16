@@ -47,5 +47,10 @@
   "Microsoft PowerPoint:16.100.3": "cpe:2.3:a:microsoft_powerpoint:microsoft_powerpoint:16.100.3:*:*:*:*:*:*:*:*",
   "Microsoft Teams:25227.301.3887.7726": "cpe:2.3:a:microsoft_teams:microsoft_teams:*:*:*:*:*:*:*:*:*",
   "DuckDuckGo:1.153.0": "cpe:2.3:a:duckduckgo:duckduckgo:1.153.0:*:*:*:*:*:*:*",
-  "Discord:0.0.358": "cpe:2.3:a:*:discord:0.0.358:*:*:*:*:*:*:*:*"
+  "Discord:0.0.358": "cpe:2.3:a:*:discord:0.0.358:*:*:*:*:*:*:*:*",
+  "Firefox:142.0.1": "cpe:2.3:a:firefox:firefox:142.0.1:*:*:*:*:*:*:*:*",
+  "Microsoft PowerPoint:16.100.4": "cpe:2.3:a:microsoft_powerpoint:microsoft_powerpoint:*:*:*:*:*:*:*:*:*",
+  "DuckDuckGo:1.154.0": "cpe:2.3:a:*:duckduckgo:1:*:*:*:*:*:*:*:*",
+  "Prime Video:10.94": "cpe:2.3:a:prime_video:prime_video:10.94:*:*:*:*:*:*:*:*",
+  "Discord:0.0.359": "cpe:2.3:a:discord:discord:0.0.359:*:*:*:*:*:*:*:*"
 }
