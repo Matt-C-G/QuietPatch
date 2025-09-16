@@ -68,11 +68,16 @@ jobs:
       - name: Install build deps (hermetic)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --requirement "${BUILD_CONSTRAINTS}"
+          python -m pip install -r constraints/build-${{ env.OS_KEY }}-py312.txt
 
       - name: Install app deps (hermetic)
         run: |
-          python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            # Temporary: Linux constraints missing SecretStorage/jeepney hashes
+            python -m pip install -r constraints/runtime-linux-py312.txt
+          else
+            python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
+          fi
 
       - name: Install PyInstaller
         run: |

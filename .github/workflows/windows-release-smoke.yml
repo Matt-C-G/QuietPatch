@@ -22,7 +22,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install with constraints (hermetic)
         shell: powershell
@@ -124,14 +124,14 @@ jobs:
       - name: Install built wheel for testing
         shell: powershell
         run: |
-          py -3.11 -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
+          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
 
       - name: Gate (mock scan with timeout)
         shell: powershell
         env:
           QP_OFFLINE: "1"
         run: |
-          $p = Start-Process -FilePath "py" -ArgumentList "-3.11", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
+          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Gate timed out (>90s)" }
           if ($p.ExitCode -ne 0) { throw "Gate failed with code $($p.ExitCode)" }
           # Verify SARIF exists and is valid

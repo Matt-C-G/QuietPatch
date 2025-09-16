@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PY_VER: "3.11"
+  PY_VER: "3.12"
   QP_OFFLINE: "1"
 
 jobs:
@@ -146,19 +146,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11", architecture: "x64", cache: "pip" }
+        with: { python-version: "3.12", architecture: "x64", cache: "pip" }
 
       - name: Install with constraints (hermetic)
         shell: pwsh
         run: |
-          py -3.11 -m pip install --upgrade pip
-          py -3.11 -m pip install --require-hashes -r constraints.txt
-          py -3.11 -m pip install wheel build pex setuptools
+          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install wheel build pex setuptools
 
       - name: Build wheel
         shell: pwsh
         run: |
-          py -3.11 -m build -w -n
+          python -m build -w -n
           Get-ChildItem dist\*.whl | Format-List
 
       - name: Build PEX from local wheel (deps from PyPI)
@@ -166,10 +166,10 @@ jobs:
         env:
           PEX_IGNORE_RCFILES: '1'
         run: |
-          py -3.11 -m pip install pex==2.54.2
+          python -m pip install pex==2.54.2
           New-Item -ItemType Directory -Force -Path dist-pex | Out-Null
           $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
-          py -3.11 -m pex $whl `
+          python -m pex $whl `
             -c quietpatch `
             --find-links dist `
             --no-build `
@@ -179,14 +179,14 @@ jobs:
       - name: Install built wheel for gate
         shell: pwsh
         run: |
-          py -3.11 -m pip install dist\*.whl --force-reinstall
+          python -m pip install dist\*.whl --force-reinstall
 
       - name: Gate (mock scan with timeout)
         shell: pwsh
         env:
           QP_OFFLINE: "1"
         run: |
-          $p = Start-Process -FilePath "py" -ArgumentList "-3.11", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
+          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Gate timed out (>90s)" }
           if ($p.ExitCode -ne 0) { throw "Gate failed with code $($p.ExitCode)" }
           # Verify SARIF exists and is valid
@@ -251,7 +251,7 @@ jobs:
         run: |
           python - <<'PY'
           import subprocess, sys, time
-          p = subprocess.Popen(["python3.11", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
+          p = subprocess.Popen(["python3", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
           for _ in range(90):
               if p.poll() is not None: 
                   sys.exit(p.returncode)
