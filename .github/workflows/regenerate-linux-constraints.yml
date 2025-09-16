@@ -15,34 +15,23 @@ jobs:
       
       - name: Pin packaging stack (pip <25 + pip-tools 7.4.x)
         run: |
-          python -m pip install -U "pip<25" "setuptools>=68" wheel "pip-tools>=7.4.1,<7.5"
-          python -m pip --version
-          pip-compile --version
-      
+          python -m pip install --upgrade "pip<25" "pip-tools>=7.4,<7.5" build
+
       - name: Regenerate constraints (Linux, py312)
         run: |
-          python -m piptools compile -q --generate-hashes -o constraints/runtime-linux-py312.txt pyproject.toml
+          mkdir -p constraints
+          cat > constraints/linux-extra.in << 'EOF'
+          # ensure linux-only keyring deps are pinned with hashes
+          secretstorage
+          jeepney
+          EOF
 
-      - name: Force-pin Linux-only transitive deps (SecretStorage/jeepney)
-        run: |
-          set -e
-          mkdir -p wheelhouse
-          python -m pip download --only-binary=:all: -d wheelhouse "SecretStorage==3.4.0" "jeepney==0.8.0"
-          py() {
-            python - "$@" <<'PY'
-import glob, hashlib, os, sys
-out = []
-for whl in sorted(glob.glob("wheelhouse/*.whl")):
-    name = os.path.basename(whl).lower()
-    h = hashlib.sha256(open(whl, "rb").read()).hexdigest()
-    if name.startswith("secretstorage-"):
-        out.append(f"SecretStorage==3.4.0 \\\n    --hash=sha256:{h}\n    # via keyring")
-    if name.startswith("jeepney-"):
-        out.append(f"jeepney==0.8.0 \\\n    --hash=sha256:{h}\n    # via keyring")
-open("constraints/runtime-linux-py312.txt","a").write("\n" + "\n".join(out) + "\n")
-PY
-          }
-          py
+          pip-compile \
+            --generate-hashes \
+            --resolver=backtracking \
+            --strip-extras \
+            --output-file constraints/runtime-linux-py312.txt \
+            pyproject.toml constraints/linux-extra.in
       
       - name: Show diff
         run: git --no-pager diff --color -- constraints/runtime-linux-py312.txt || true

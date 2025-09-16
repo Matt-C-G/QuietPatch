@@ -1,8 +1,8 @@
 name: ci
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
@@ -90,20 +90,15 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install with constraints (hermetic)
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          # Use platform-specific constraints
-          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-linux-py312.txt"
-          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-macos-py312.txt"
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-windows-py312.txt"
-          else
-            CONSTRAINT_FILE="constraints.txt"
-          fi
-          python -m pip install --require-hashes -r $CONSTRAINT_FILE
-          python -m pip install wheel build pex setuptools
+          set -euxo pipefail
+          case "$RUNNER_OS" in
+            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
+            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
+            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
+          esac
+          python -m pip install -r "$CFILE" --require-hashes
       - name: Build wheel
         run: |
           python -m build -w -n
@@ -160,11 +155,15 @@ jobs:
         with: { python-version: "3.12", architecture: "x64", cache: "pip" }
 
       - name: Install with constraints (hermetic)
-        shell: pwsh
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --require-hashes -r constraints.txt
-          python -m pip install wheel build pex setuptools
+          set -euxo pipefail
+          case "$RUNNER_OS" in
+            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
+            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
+            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
+          esac
+          python -m pip install -r "$CFILE" --require-hashes
 
       - name: Build wheel
         shell: pwsh
@@ -187,12 +186,12 @@ jobs:
             --strip-pex-env `
             -o dist-pex\quietpatch-win-py311.pex
 
-      - name: Install built wheel for gate
+      - name: Install built wheel for gate (Windows)
         shell: pwsh
         run: |
-          $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1 -ExpandProperty FullName
-          if (!$wheel) { Write-Error "No wheel found in dist/"; exit 1 }
-          python -m pip install --force-reinstall "$wheel"
+          Get-ChildItem dist\*.whl | ForEach-Object {
+            python -m pip install $_.FullName --force-reinstall
+          }
 
       - name: Gate (mock scan with timeout)
         shell: pwsh
@@ -230,20 +229,15 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install with constraints (hermetic)
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          # Use platform-specific constraints
-          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-linux-py312.txt"
-          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-macos-py312.txt"
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            CONSTRAINT_FILE="constraints/runtime-windows-py312.txt"
-          else
-            CONSTRAINT_FILE="constraints.txt"
-          fi
-          python -m pip install --require-hashes -r $CONSTRAINT_FILE
-          python -m pip install wheel build pex setuptools
+          set -euxo pipefail
+          case "$RUNNER_OS" in
+            Linux)   CFILE=constraints/runtime-linux-py312.txt ;;
+            macOS)   CFILE=constraints/runtime-macos-py312.txt ;;
+            Windows) CFILE=constraints/runtime-windows-py312.txt ;;
+          esac
+          python -m pip install -r "$CFILE" --require-hashes
       - name: Build wheel
         run: |
           python -m build -w -n
