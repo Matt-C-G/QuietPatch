@@ -1,4 +1,4 @@
-name: Regenerate Linux Constraints
+name: Regenerate Constraints
 
 on:
   workflow_dispatch:
@@ -9,7 +9,10 @@ permissions:
 
 jobs:
   regenerate:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +27,9 @@ jobs:
         run: |
           python -m pip install --upgrade "pip<25" "pip-tools>=7.4,<7.5" build
 
-      - name: Regenerate constraints (Linux, py312)
+      # Linux runtime (already working)
+      - if: matrix.os == 'ubuntu-latest'
+        name: Compile Linux runtime constraints
         run: |
           mkdir -p constraints
           cat > constraints/linux-extra.in << 'EOF'
@@ -39,16 +44,34 @@ jobs:
             --strip-extras \
             --output-file constraints/runtime-linux-py312.txt \
             pyproject.toml constraints/linux-extra.in
+
+      # Windows runtime (new)
+      - if: matrix.os == 'windows-latest'
+        name: Compile Windows runtime constraints
+        run: |
+          mkdir -p constraints
+          pip-compile \
+            --generate-hashes \
+            --resolver=backtracking \
+            --strip-extras \
+            --output-file constraints/runtime-windows-py312.txt \
+            pyproject.toml constraints/windows-extra.in
       
-      - name: Show diff
-        run: git --no-pager diff --color -- constraints/runtime-linux-py312.txt || true
-      
-      - name: Verify SecretStorage and jeepney are included
+      # Verify the critical pins exist
+      - if: matrix.os == 'windows-latest'
+        name: Verify pywin32-ctypes is pinned
+        shell: bash
+        run: grep -i '^pywin32-ctypes==' constraints/runtime-windows-py312.txt
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: Verify SecretStorage/jeepney are pinned
+        shell: bash
         run: |
           grep -iq '^secretstorage==' constraints/runtime-linux-py312.txt
           grep -iq '^jeepney=='       constraints/runtime-linux-py312.txt
 
-      - name: Verify pins have hashes
+      - if: matrix.os == 'ubuntu-latest'
+        name: Verify Linux pins have hashes
         run: |
           python - <<'PY'
           import pathlib, sys
@@ -73,35 +96,64 @@ jobs:
               check(pkg)
           print("✅ Both SecretStorage and jeepney are properly pinned with hashes")
           PY
+
+      - if: matrix.os == 'windows-latest'
+        name: Verify Windows pins have hashes
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          p = pathlib.Path("constraints/runtime-windows-py312.txt")
+          t = [ln.rstrip().lower() for ln in p.read_text().splitlines()]
+          def check(pkg: str):
+              i = next((k for k,ln in enumerate(t) if ln.startswith(f"{pkg}==")), None)
+              if i is None:
+                  print(f"missing pin: {pkg}", file=sys.stderr); sys.exit(1)
+              j = i + 1
+              found = False
+              while j < len(t):
+                  ln = t[j].lstrip()
+                  if ln.startswith("--hash="):
+                      found = True; break
+                  if ln and not ln.startswith(("#","--hash=")):
+                      break   # next requirement reached
+                  j += 1
+              if not found:
+                  print(f"missing --hash lines for {pkg}", file=sys.stderr); sys.exit(1)
+          for pkg in ("pywin32-ctypes",):
+              check(pkg)
+          print("✅ pywin32-ctypes is properly pinned with hashes")
+          PY
       
       - name: Show diff
         run: |
           echo "=== Generated constraints file ==="
-          head -20 constraints/runtime-linux-py312.txt
-          echo "..."
-          tail -10 constraints/runtime-linux-py312.txt
-
-      - name: Detect changes
-        id: diff
-        run: |
-          if git diff --quiet --exit-code -- constraints/runtime-linux-py312.txt; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            head -20 constraints/runtime-linux-py312.txt
+            echo "..."
+            tail -10 constraints/runtime-linux-py312.txt
           else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            head -20 constraints/runtime-windows-py312.txt
+            echo "..."
+            tail -10 constraints/runtime-windows-py312.txt
           fi
-      
-      - name: Create PR with regenerated constraints
-        if: steps.diff.outputs.changed == 'true'
+
+      # Commit/PR only when there are changes
+      - name: Check for changes
+        id: diff
+        shell: bash
+        run: |
+          git status --porcelain constraints/ > /tmp/changes.txt
+          if [ -s /tmp/changes.txt ]; then echo "changed=true" >> $GITHUB_OUTPUT; else echo "changed=false" >> $GITHUB_OUTPUT; fi
+
+      - if: steps.diff.outputs.changed == 'true'
+        name: Create PR with regenerated constraints
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.CONSTRAINTS_PR_TOKEN }}  # <-- use PAT, not GITHUB_TOKEN
+          commit-message: "ci: regenerate constraints (py312, ${{ matrix.os }})"
+          branch: "chore/constraints-py312-${{ matrix.os }}-${{ github.run_id }}"
+          title: "ci: regenerate constraints (py312, ${{ matrix.os }})"
           add-paths: |
             constraints/runtime-linux-py312.txt
-          branch: chore/constraints-linux-py312-${{ github.run_id }}
-          title: "ci: regenerate Linux constraints (py312)"
-          commit-message: "ci: regenerate Linux constraints (py312)"
-          body: |
-            Automated constraints refresh for Linux (py312).
-            Includes SecretStorage/jeepney with hashes.
-          signoff: true
-          delete-branch: true
+            constraints/runtime-windows-py312.txt
+          labels: ci

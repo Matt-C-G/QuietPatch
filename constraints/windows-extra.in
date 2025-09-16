@@ -1,0 +1,2 @@
+# Extra transitive deps that must be pinned on Windows
+pywin32-ctypes
