@@ -94,14 +94,14 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CONSTRAINTS_PR_TOKEN }}  # <-- use PAT, not GITHUB_TOKEN
+          add-paths: |
+            constraints/runtime-linux-py312.txt
+          branch: chore/constraints-linux-py312-${{ github.run_id }}
           title: "ci: regenerate Linux constraints (py312)"
           commit-message: "ci: regenerate Linux constraints (py312)"
           body: |
-            Automated refresh of Linux constraints with pip-tools (pip<25).
-            Ensures SecretStorage and jeepney are pinned with hashes.
-          add-paths: |
-            constraints/runtime-linux-py312.txt
-          branch: chore/constraints-linux-py312
-          branch-suffix: timestamp
-          base: main
+            Automated constraints refresh for Linux (py312).
+            Includes SecretStorage/jeepney with hashes.
+          signoff: true
+          delete-branch: true
