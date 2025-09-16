@@ -126,30 +126,19 @@ jobs:
 
       - if: matrix.os == 'windows-latest'
         name: Verify Windows pins have hashes
+        shell: pwsh
         run: |
-          python - <<'PY'
-          import pathlib, sys
-          p = pathlib.Path("constraints/runtime-windows-py312.txt")
-          t = [ln.rstrip().lower() for ln in p.read_text().splitlines()]
-          def check(pkg: str):
-              i = next((k for k,ln in enumerate(t) if ln.startswith(f"{pkg}==")), None)
-              if i is None:
-                  print(f"missing pin: {pkg}", file=sys.stderr); sys.exit(1)
-              j = i + 1
-              found = False
-              while j < len(t):
-                  ln = t[j].lstrip()
-                  if ln.startswith("--hash="):
-                      found = True; break
-                  if ln and not ln.startswith(("#","--hash=")):
-                      break   # next requirement reached
-                  j += 1
-              if not found:
-                  print(f"missing --hash lines for {pkg}", file=sys.stderr); sys.exit(1)
-          for pkg in ("pywin32-ctypes",):
-              check(pkg)
-          print("✅ pywin32-ctypes is properly pinned with hashes")
-          PY
+          $files = @(
+            'constraints/build-windows-py312.txt',
+            'constraints/runtime-windows-py312.txt'
+          )
+          foreach ($f in $files) {
+            $bad = Get-Content $f | Where-Object { $_ -match '^\s*[^#].*==' -and $_ -notmatch '--hash=' }
+            if ($bad) {
+              Write-Error "Missing hashes in $f:`n$($bad -join "`n")"
+            }
+          }
+          Write-Host "✅ Windows constraints properly pinned with hashes"
       
       - name: Show diff
         run: |
