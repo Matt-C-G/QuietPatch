@@ -13,16 +13,20 @@ jobs:
         with:
           python-version: '3.12'
       
-      - name: Install pip-tools (pin)
-        run: python -m pip install "pip-tools>=7.4.1,<8"
-      
-      - name: Regenerate Linux constraints
+      - name: Pin packaging stack (pip <25 + pip-tools 7.4.x)
         run: |
-          python -m piptools compile \
-            --resolver=backtracking \
-            --generate-hashes \
+          python -m pip install -U "pip<25" "setuptools>=68" wheel "pip-tools>=7.4.1,<7.5"
+          python -m pip --version
+          pip-compile --version
+      
+      - name: Regenerate constraints (Linux, py312)
+        run: |
+          pip-compile --generate-hashes \
             -o constraints/runtime-linux-py312.txt \
             pyproject.toml
+      
+      - name: Show diff
+        run: git --no-pager diff --color -- constraints/runtime-linux-py312.txt || true
       
       - name: Verify SecretStorage and jeepney are included
         run: |

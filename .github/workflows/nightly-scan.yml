@@ -57,7 +57,7 @@ jobs:
           quietpatch scan --offline --sarif nightly-scan.sarif
 
       - name: Upload SARIF
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: nightly-scan.sarif
