@@ -80,17 +80,28 @@ jobs:
           head -20 constraints/runtime-linux-py312.txt
           echo "..."
           tail -10 constraints/runtime-linux-py312.txt
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet --exit-code -- constraints/runtime-linux-py312.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
       
       - name: Create PR with regenerated constraints
+        if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           title: "ci: regenerate Linux constraints (py312)"
+          commit-message: "ci: regenerate Linux constraints (py312)"
           body: |
             Automated refresh of Linux constraints with pip-tools (pip<25).
             Ensures SecretStorage and jeepney are pinned with hashes.
-          commit-message: "ci: regenerate Linux constraints (py312)"
-          branch: chore/constraints-linux-py312      # new/update branch
-          branch-suffix: timestamp                   # avoid collisions
+          add-paths: |
+            constraints/runtime-linux-py312.txt
+          branch: chore/constraints-linux-py312
+          branch-suffix: timestamp
           base: main
-          labels: ci, dependencies
