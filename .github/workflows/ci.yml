@@ -98,12 +98,7 @@ jobs:
           else
             CONSTRAINT_FILE="constraints.txt"
           fi
-          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
-          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            python -m pip install -r $CONSTRAINT_FILE
-          else
-            python -m pip install --require-hashes -r $CONSTRAINT_FILE
-          fi
+          python -m pip install --require-hashes -r $CONSTRAINT_FILE
           python -m pip install wheel build pex setuptools
       - name: Build wheel
         run: |
@@ -237,12 +232,7 @@ jobs:
           else
             CONSTRAINT_FILE="constraints.txt"
           fi
-          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
-          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            python -m pip install -r $CONSTRAINT_FILE
-          else
-            python -m pip install --require-hashes -r $CONSTRAINT_FILE
-          fi
+          python -m pip install --require-hashes -r $CONSTRAINT_FILE
           python -m pip install wheel build pex setuptools
       - name: Build wheel
         run: |

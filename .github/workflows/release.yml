@@ -72,12 +72,7 @@ jobs:
 
       - name: Install app deps (hermetic)
         run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            # Temporary: Linux constraints missing SecretStorage/jeepney hashes
-            python -m pip install -r constraints/runtime-linux-py312.txt
-          else
-            python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
-          fi
+          python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
 
       - name: Install PyInstaller
         run: |
