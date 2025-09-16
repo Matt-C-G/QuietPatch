@@ -41,17 +41,31 @@ jobs:
           grep -iq '^secretstorage==' constraints/runtime-linux-py312.txt
           grep -iq '^jeepney=='       constraints/runtime-linux-py312.txt
 
-      - name: Verify pins have hashes (optional)
+      - name: Verify pins have hashes
         run: |
-          awk 'BEGIN{lc=0;hc=0}
-               tolower($0) ~ /^secretstorage==/ {lc=1}
-               lc && $0 ~ /^--hash=/ {hc=1}
-               END{exit !(lc&&hc)}' constraints/runtime-linux-py312.txt
-          awk 'BEGIN{lc=0;hc=0}
-               tolower($0) ~ /^jeepney==/ {lc=1}
-               lc && $0 ~ /^--hash=/ {hc=1}
-               END{exit !(lc&&hc)}' constraints/runtime-linux-py312.txt
-          echo "✅ Both SecretStorage and jeepney are properly pinned with hashes"
+          python - <<'PY'
+          import pathlib, sys
+          p = pathlib.Path("constraints/runtime-linux-py312.txt")
+          t = [ln.rstrip().lower() for ln in p.read_text().splitlines()]
+          def check(pkg: str):
+              i = next((k for k,ln in enumerate(t) if ln.startswith(f"{pkg}==")), None)
+              if i is None:
+                  print(f"missing pin: {pkg}", file=sys.stderr); sys.exit(1)
+              j = i + 1
+              found = False
+              while j < len(t):
+                  ln = t[j].lstrip()
+                  if ln.startswith("--hash="):
+                      found = True; break
+                  if ln and not ln.startswith(("#","--hash=")):
+                      break   # next requirement reached
+                  j += 1
+              if not found:
+                  print(f"missing --hash lines for {pkg}", file=sys.stderr); sys.exit(1)
+          for pkg in ("secretstorage", "jeepney"):
+              check(pkg)
+          print("✅ Both SecretStorage and jeepney are properly pinned with hashes")
+          PY
       
       - name: Show diff
         run: |
