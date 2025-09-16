@@ -11,7 +11,7 @@ jobs:
   regenerate:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,14 +48,41 @@ jobs:
       # Windows runtime (new)
       - if: matrix.os == 'windows-latest'
         name: Compile Windows runtime constraints
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path constraints | Out-Null
+          pip-compile `
+            --generate-hashes `
+            --resolver=backtracking `
+            --strip-extras `
+            --output-file constraints/runtime-windows-py312.txt `
+            pyproject.toml constraints/windows-extra.in
+
+      # Build constraints (all platforms)
+      - if: matrix.os == 'ubuntu-latest'
+        name: Compile build constraints (Linux)
         run: |
           mkdir -p constraints
-          pip-compile \
-            --generate-hashes \
-            --resolver=backtracking \
-            --strip-extras \
-            --output-file constraints/runtime-windows-py312.txt \
-            pyproject.toml constraints/windows-extra.in
+          printf "build<2\nsetuptools>=68\nwheel\n" > constraints/_build.in
+          pip-compile --generate-hashes -o constraints/build-linux-py312.txt constraints/_build.in
+
+      - if: matrix.os == 'macos-latest'
+        name: Compile build constraints (macOS)
+        run: |
+          mkdir -p constraints
+          printf "build<2\nsetuptools>=68\nwheel\n" > constraints/_build.in
+          pip-compile --generate-hashes -o constraints/build-macos-py312.txt constraints/_build.in
+
+      - if: matrix.os == 'windows-latest'
+        name: Compile build constraints (Windows)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path constraints | Out-Null
+          Set-Content constraints\_build.in "build<2`r`nsetuptools>=68`r`nwheel`r`n"
+          pip-compile `
+            --generate-hashes `
+            -o constraints\build-windows-py312.txt `
+            constraints\_build.in
       
       # Verify the critical pins exist
       - if: matrix.os == 'windows-latest'
@@ -157,3 +184,6 @@ jobs:
             constraints/runtime-linux-py312.txt
             constraints/runtime-windows-py312.txt
             constraints/runtime-macos-py312.txt
+            constraints/build-linux-py312.txt
+            constraints/build-macos-py312.txt
+            constraints/build-windows-py312.txt
