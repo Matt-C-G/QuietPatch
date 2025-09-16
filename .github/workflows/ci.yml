@@ -18,6 +18,9 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -95,7 +98,12 @@ jobs:
           else
             CONSTRAINT_FILE="constraints.txt"
           fi
-          python -m pip install --require-hashes -r $CONSTRAINT_FILE
+          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
+            python -m pip install -r $CONSTRAINT_FILE
+          else
+            python -m pip install --require-hashes -r $CONSTRAINT_FILE
+          fi
           python -m pip install wheel build pex setuptools
       - name: Build wheel
         run: |
@@ -132,6 +140,7 @@ jobs:
           echo "SARIF file size: $(wc -c < out.sarif) bytes"
 
       - name: Upload SARIF
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: out.sarif
@@ -198,6 +207,7 @@ jobs:
           Write-Host "SARIF file size: $((Get-Item 'out.sarif').Length) bytes"
 
       - name: Upload SARIF
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: out.sarif
@@ -227,7 +237,12 @@ jobs:
           else
             CONSTRAINT_FILE="constraints.txt"
           fi
-          python -m pip install --require-hashes -r $CONSTRAINT_FILE
+          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
+            python -m pip install -r $CONSTRAINT_FILE
+          else
+            python -m pip install --require-hashes -r $CONSTRAINT_FILE
+          fi
           python -m pip install wheel build pex setuptools
       - name: Build wheel
         run: |
@@ -269,6 +284,7 @@ jobs:
           echo "SARIF file size: $(wc -c < out.sarif) bytes"
 
       - name: Upload SARIF
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: out.sarif

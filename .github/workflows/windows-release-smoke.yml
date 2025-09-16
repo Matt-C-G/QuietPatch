@@ -15,6 +15,9 @@ jobs:
   build-windows-zip:
     name: Build Windows ZIP (standardized)
     runs-on: windows-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,6 +146,7 @@ jobs:
           Write-Host "SARIF file size: $((Get-Item 'out.sarif').Length) bytes"
 
       - name: Upload SARIF
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: out.sarif

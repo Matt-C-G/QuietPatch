@@ -13,6 +13,9 @@ jobs:
   nightly-scan:
     name: Nightly real scan (catalog regression test)
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,6 +57,7 @@ jobs:
           quietpatch scan --offline --sarif nightly-scan.sarif
 
       - name: Upload SARIF
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: nightly-scan.sarif

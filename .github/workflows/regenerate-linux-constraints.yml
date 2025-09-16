@@ -20,11 +20,8 @@ jobs:
       
       - name: Regenerate Linux constraints
         run: |
-          pip-compile \
+          python -m piptools compile \
             --generate-hashes \
-            --resolver=backtracking \
-            --python-version=3.12 \
-            --platform=manylinux_2_28_x86_64 \
             -o constraints/runtime-linux-py312.txt \
             pyproject.toml
       
