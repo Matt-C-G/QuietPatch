@@ -1,4 +1,4 @@
-# Verify your QuietPatch download (v0.4.0)
+# Verify your QuietPatch download (v0.4.1)
 
 QuietPatch publishes SHA256 checksums and a Minisign signature for every release. Verification proves your download wasn't tampered with.
 
@@ -30,7 +30,7 @@ Install minisign:
 
 Then run:
 ```bash
-minisign -Vm SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZwdj/Ac+m8MR"
+minisign -Vm SHA256SUMS.txt -P "RWR+ZWz43+sK91p5t8lM4c56RmE3rCbcuCvJs17yqjwV/boM5vDDoBG6"
 # Output should include: "Signature and comment signature verified"
 ```
 

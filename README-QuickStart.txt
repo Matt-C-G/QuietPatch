@@ -1,4 +1,4 @@
-QuietPatch QuickStart (v0.4.0)
+QuietPatch QuickStart (v0.4.1)
 
 1) Install or run QuietPatch.
 2) Click "Start Scan" (Read-only by default).
@@ -12,4 +12,4 @@ Verify (optional): See VERIFY.md for SHA256 + minisign steps.
 Support: Open a GitHub issue with the error text and OS version.
 
 ---
-Maintainer: run scripts\windows\ship-gate.ps1 -Version 0.4.0 -PublicKey "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZwdj/Ac+m8MR" -DoInstallSmoke
+Maintainer: run scripts\windows\ship-gate.ps1 -Version 0.4.1 -PublicKey "RWR+ZWz43+sK91p5t8lM4c56RmE3rCbcuCvJs17yqjwV/boM5vDDoBG6" -DoInstallSmoke
