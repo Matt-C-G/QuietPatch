@@ -146,7 +146,10 @@ jobs:
           Write-Host "SARIF file size: $((Get-Item 'out.sarif').Length) bytes"
 
       - name: Upload SARIF
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
+        permissions:
+          security-events: write
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: out.sarif

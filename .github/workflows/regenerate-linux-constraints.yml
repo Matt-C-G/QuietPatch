@@ -21,9 +21,28 @@ jobs:
       
       - name: Regenerate constraints (Linux, py312)
         run: |
-          pip-compile --generate-hashes \
-            -o constraints/runtime-linux-py312.txt \
-            pyproject.toml
+          python -m piptools compile -q --generate-hashes -o constraints/runtime-linux-py312.txt pyproject.toml
+
+      - name: Force-pin Linux-only transitive deps (SecretStorage/jeepney)
+        run: |
+          set -e
+          mkdir -p wheelhouse
+          python -m pip download --only-binary=:all: -d wheelhouse "SecretStorage==3.4.0" "jeepney==0.8.0"
+          py() {
+            python - "$@" <<'PY'
+import glob, hashlib, os, sys
+out = []
+for whl in sorted(glob.glob("wheelhouse/*.whl")):
+    name = os.path.basename(whl).lower()
+    h = hashlib.sha256(open(whl, "rb").read()).hexdigest()
+    if name.startswith("secretstorage-"):
+        out.append(f"SecretStorage==3.4.0 \\\n    --hash=sha256:{h}\n    # via keyring")
+    if name.startswith("jeepney-"):
+        out.append(f"jeepney==0.8.0 \\\n    --hash=sha256:{h}\n    # via keyring")
+open("constraints/runtime-linux-py312.txt","a").write("\n" + "\n".join(out) + "\n")
+PY
+          }
+          py
       
       - name: Show diff
         run: git --no-pager diff --color -- constraints/runtime-linux-py312.txt || true
