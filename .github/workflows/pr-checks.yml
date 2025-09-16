@@ -46,8 +46,7 @@ jobs:
 
       - name: Install app deps (hermetic)
         run: |
-          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
-          python -m pip install --requirement "${RUNTIME_CONSTRAINTS}"
+          python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
 
       - name: Build wheel
         run: |
