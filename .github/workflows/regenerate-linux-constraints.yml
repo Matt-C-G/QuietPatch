@@ -149,11 +149,11 @@ jobs:
         name: Create PR with regenerated constraints
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.CONSTRAINTS_PR_TOKEN }}  # <-- use PAT, not GITHUB_TOKEN
-          commit-message: "ci: regenerate constraints (py312, ${{ matrix.os }})"
-          branch: "chore/constraints-py312-${{ matrix.os }}-${{ github.run_id }}"
-          title: "ci: regenerate constraints (py312, ${{ matrix.os }})"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/constraints-py312-${{ github.run_id }}
+          title: "ci: regenerate constraints (py312)"
+          commit-message: "ci: regenerate constraints (py312)"
           add-paths: |
             constraints/runtime-linux-py312.txt
             constraints/runtime-windows-py312.txt
-          labels: ci
+            constraints/runtime-macos-py312.txt
