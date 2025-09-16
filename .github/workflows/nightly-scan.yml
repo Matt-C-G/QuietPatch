@@ -51,7 +51,7 @@ jobs:
         env:
           QP_OFFLINE: "1"
         run: |
-          quietpatch scan --offline --sarif nightly-scan.sarif --ci
+          quietpatch scan --offline --sarif nightly-scan.sarif
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3

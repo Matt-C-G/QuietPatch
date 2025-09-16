@@ -92,7 +92,7 @@ jobs:
         run: |
           python - <<'PY'
           import subprocess, sys, time
-          p = subprocess.Popen(["python3.12", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
+          p = subprocess.Popen(["python3.12", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif"])
           for _ in range(90):
               if p.poll() is not None: 
                   sys.exit(p.returncode)

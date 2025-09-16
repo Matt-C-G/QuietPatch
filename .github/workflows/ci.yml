@@ -120,7 +120,7 @@ jobs:
           QP_OFFLINE: "1"
         run: |
           set -euo pipefail
-          timeout 90s python -m quietpatch.cli scan --mock --offline --fail-unknowns --sarif out.sarif --ci || {
+          timeout 90s python -m quietpatch.cli scan --mock --offline --fail-unknowns --sarif out.sarif || {
             echo "Gate step timed out or failed"
             exit 1
           }
@@ -179,14 +179,16 @@ jobs:
       - name: Install built wheel for gate
         shell: pwsh
         run: |
-          python -m pip install dist\*.whl --force-reinstall
+          $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1 -ExpandProperty FullName
+          if (!$wheel) { Write-Error "No wheel found in dist/"; exit 1 }
+          python -m pip install --force-reinstall "$wheel"
 
       - name: Gate (mock scan with timeout)
         shell: pwsh
         env:
           QP_OFFLINE: "1"
         run: |
-          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
+          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif" -PassThru -NoNewWindow
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Gate timed out (>90s)" }
           if ($p.ExitCode -ne 0) { throw "Gate failed with code $($p.ExitCode)" }
           # Verify SARIF exists and is valid
@@ -251,7 +253,7 @@ jobs:
         run: |
           python - <<'PY'
           import subprocess, sys, time
-          p = subprocess.Popen(["python3", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci"])
+          p = subprocess.Popen(["python3", "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif"])
           for _ in range(90):
               if p.poll() is not None: 
                   sys.exit(p.returncode)

@@ -124,14 +124,16 @@ jobs:
       - name: Install built wheel for testing
         shell: powershell
         run: |
-          python -m pip install --no-deps --force-reinstall dist/quietpatch-*.whl
+          $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1 -ExpandProperty FullName
+          if (!$wheel) { Write-Error "No wheel found in dist/"; exit 1 }
+          python -m pip install --no-deps --force-reinstall "$wheel"
 
       - name: Gate (mock scan with timeout)
         shell: powershell
         env:
           QP_OFFLINE: "1"
         run: |
-          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif", "--ci" -PassThru -NoNewWindow
+          $p = Start-Process -FilePath "python" -ArgumentList "-m", "quietpatch.cli", "scan", "--mock", "--offline", "--fail-unknowns", "--sarif", "out.sarif" -PassThru -NoNewWindow
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw "Gate timed out (>90s)" }
           if ($p.ExitCode -ne 0) { throw "Gate failed with code $($p.ExitCode)" }
           # Verify SARIF exists and is valid
