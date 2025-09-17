@@ -67,8 +67,8 @@ jobs:
 
       - name: Install build deps (hermetic)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r constraints/build-${{ env.OS_KEY }}-py312.txt
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r constraints/build-${{ env.OS_KEY }}-py312.txt
 
       - name: Install app deps (hermetic)
         run: |
@@ -84,8 +84,7 @@ jobs:
 
       - name: Build PyInstaller (GUI + CLI)
         run: |
-          pyinstaller build/quietpatch_cli.spec
-          pyinstaller build/quietpatch_wizard.spec
+          pyinstaller build/quietpatch_ci.spec
 
       - name: Package OS installer
         shell: bash
@@ -200,8 +199,8 @@ EOF
 
       - name: Install build deps (hermetic)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --requirement constraints/build-linux-py312.txt
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r constraints/build-linux-py312.txt
 
       - name: Install app deps (hermetic)
         run: |
