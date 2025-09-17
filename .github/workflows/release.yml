@@ -116,6 +116,18 @@ jobs:
         shell: bash
         run: ls -alh dist/
 
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            # Windows doesn't have shasum, use PowerShell
+            powershell -Command "Get-FileHash *.whl *.tar.gz -Algorithm SHA256 | ForEach-Object { '{0}  {1}' -f $_.Hash.ToLower(), $_.Path }" > SHA256SUMS.txt
+          else
+            shasum -a 256 *.whl *.tar.gz > SHA256SUMS.txt
+          fi
+          cat SHA256SUMS.txt
+
       - name: Install runtime deps + test install of the wheel
         shell: bash
         run: |
@@ -150,5 +162,6 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
