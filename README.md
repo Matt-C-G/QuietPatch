@@ -34,18 +34,19 @@ python -m pip install quietpatch==0.4.2 --only-binary :all:
 
 > **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
 
-## 📥 Downloads
+## 📥 Downloads (v0.4.2)
 
-Prebuilt wheels and source tarball are attached to the **[v0.4.2 release](../../releases/tag/v0.4.2)**.
+**Direct downloads from the [v0.4.2 release](https://github.com/Matt-C-G/QuietPatch/releases/tag/v0.4.2):**
 
-Typical asset names:
-- `quietpatch-0.4.2-py3-none-any.whl` (pure)
-- `quietpatch-0.4.2-cp312-*-manylinux*.whl` (Linux)
-- `quietpatch-0.4.2-cp312-*-macosx*.whl` (macOS)
-- `quietpatch-0.4.2-cp312-*-win_amd64.whl` (Windows)
-- `quietpatch-0.4.2.tar.gz` (sdist)
+- **Universal wheel**: [`quietpatch-0.4.2-py3-none-any.whl`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.2/quietpatch-0.4.2-py3-none-any.whl) (68.72 KiB) - works on all platforms
+- **Source tarball**: [`quietpatch-0.4.2.tar.gz`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.2/quietpatch-0.4.2.tar.gz) (63.19 KiB) - for building from source
 
-> Use `pip install <asset-url>` if you prefer installing directly from an asset.
+**Install from PyPI:**
+```bash
+pip install quietpatch==0.4.2
+```
+
+> Use `pip install <asset-url>` if you prefer installing directly from a release asset.
 
 ---
 
