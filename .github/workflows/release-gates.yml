@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade "pip<25"
-          python -m pip install --no-deps setuptools wheel build
+          python -m pip install --no-deps setuptools wheel build pyproject-hooks
 
       - name: Install with constraints (hermetic)
         shell: bash
