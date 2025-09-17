@@ -84,7 +84,8 @@ jobs:
 
       - name: Build PyInstaller (GUI + CLI)
         run: |
-          pyinstaller build/quietpatch_ci.spec
+          pyinstaller build/quietpatch_cli.spec
+          pyinstaller build/quietpatch_wizard.spec
 
       - name: Package OS installer
         shell: bash
