@@ -1,0 +1,1890 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>QuietPatch – Vulnerability Report</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            margin: 24px;
+            line-height: 1.5;
+        }}
+        h1 {{ margin-bottom: 12px; }}
+        
+        .safety-banner {{
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            color: #92400e;
+        }}
+        .safety-banner strong {{
+            color: #78350f;
+        }}
+        
+        .toolbar {{
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 12px 0 18px;
+            flex-wrap: wrap;
+        }}
+        input[type="search"] {{
+            padding: 6px 10px;
+            min-width: 320px;
+        }}
+        
+        .filter-pills {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .filter-pill {{
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }}
+        .filter-pill:hover {{
+            background: #f3f4f6;
+        }}
+        .filter-pill.active {{
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }}
+        .sort-hint { font-size: 12px; color: #6b7280; }
+        
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 16px;
+        }}
+        th, td {{
+            border-bottom: 1px solid #eee;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }}
+        th {{
+            position: sticky;
+            top: 0;
+            background: #fafafa;
+            font-weight: 600;
+        }}
+        
+        .action-cell {{
+            max-width: 300px;
+        }}
+        .action-content {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }}
+        .command {{
+            background: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            flex: 1;
+            word-break: break-all;
+        }}
+        .action-url {{
+            color: #2563eb;
+            text-decoration: none;
+            flex: 1;
+            word-break: break-all;
+        }}
+        .action-url:hover {{
+            text-decoration: underline;
+        }}
+        .action-note {{
+            font-size: 12px;
+            color: #6b7280;
+            font-style: italic;
+        }}
+        .copy-btn {{
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        .copy-btn:hover {{
+            background: #2563eb;
+        }}
+        .copy-btn:active {{
+            background: #1d4ed8;
+        }}
+        
+        .expand-btn {{
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }}
+        .expand-btn:hover {{
+            background: #059669;
+        }}
+        
+        .details-row {{
+            background: #f9fafb;
+        }}
+        .details-cell {{
+            padding: 16px !important;
+        }}
+        .cve-details h4 {{
+            margin: 0 0 12px 0;
+            color: #374151;
+        }}
+        .cve-item {{
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }}
+        .cve-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }}
+        .cve-id {{
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-weight: 600;
+            color: #1f2937;
+        }}
+        .cve-meta {{
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+        .cvss, .epss {{
+            font-size: 12px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }}
+        .kev-badge {{
+            background: #dc2626;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }}
+        .cve-summary {{
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+        
+        .badge {{
+            padding: 0 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid transparent;
+        }}
+        /* New accessible badge palette */
+        .badge-critical {{ background:#ffe5e5; color:#8b0000; border-color:#ffb3b3; }}
+        .badge-high {{ background:#fff0e6; color:#a14b00; border-color:#ffc299; }}
+        .badge-medium {{ background:#fff7e0; color:#866a00; border-color:#ffe08a; }}
+        .badge-low {{ background:#e9f8ec; color:#1e6b2d; border-color:#bde5c8; }}
+        .badge-unknown {{ background:#f1f3f5; color:#495057; border-color:#dde2e6; }}
+        .badge-inferred {{ border-style: dotted; }}
+        /* Legacy classes kept for compatibility (mapped to new look) */
+        .badge-crit {{ background:#ffe5e5; color:#8b0000; border:1px solid #ffb3b3; }}
+        .badge-med {{ background:#fff7e0; color:#866a00; border:1px solid #ffe08a; }}
+        .badge-unk {{ background:#f1f3f5; color:#495057; border:1px solid #dde2e6; }}
+        
+        .muted {{ color:#6b7280; }}
+        
+        .copy-success {{
+            background: #10b981 !important;
+        }}
+        
+        .hidden {{
+            display: none !important;
+        }}
+        /* Summary banner */
+        .summary-banner {{
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            margin: 12px 0 16px;
+        }}
+        .summary-banner strong {{ font-weight: 700; }}
+        /* Dark theme overrides (active when html lacks data-theme='light') */
+        html:not([data-theme='light']) body { background:#0b1220; color:#e2e8f0; }
+        html:not([data-theme='light']) th { background:#111827; color:#e2e8f0; }
+        html:not([data-theme='light']) .details-row { background:#0f172a; }
+        html:not([data-theme='light']) .action-url { color:#93c5fd; }
+        html:not([data-theme='light']) .command { background:#1f2937; color:#e2e8f0; }
+        html:not([data-theme='light']) .cve-item { background:#0f172a; border-color:#22304d; }
+        html:not([data-theme='light']) .cvss,
+        html:not([data-theme='light']) .epss { background:#1a243a; color:#94a3b8; }
+        html:not([data-theme='light']) .summary-banner { background:#111827; border-color:#22304d; }
+    </style>
+</head>
+<body>
+    <h1>QuietPatch – Vulnerability Report</h1>
+    <div class="summary-banner" role="region" aria-label="Scan summary">Scanned <strong>39</strong> apps • <strong>39</strong> vulnerable • <strong>1</strong> critical (3 KEV) • 33 unknowns</div>
+    
+    <div class="safety-banner">
+        <strong>⚠️ Safety Notice:</strong> Commands are suggestions. Review before running. 
+        Never execute commands without understanding what they do.
+    </div>
+    
+    <div class="toolbar">
+        <input id="q" type="search" placeholder="Search app or CVE or summary">
+        <span class="sort-hint">Tip: click headers to sort</span>
+        <div class="filter-pills">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="low">Low</button>
+            <button class="filter-pill" data-filter="medium">Medium</button>
+            <button class="filter-pill" data-filter="high">High</button>
+            <button class="filter-pill" data-filter="critical">Critical</button>
+            <button class="filter-pill" data-filter="kev">KEV</button>
+        </div>
+        <button class="copy-btn" onclick="qpToggleTheme()" title="Toggle theme">Toggle theme</button>
+    </div>
+    
+    <table id="tbl">
+        <thead>
+            <tr>
+                <th onclick="qpSort(0,false)">App</th>
+                <th onclick="qpSort(1,false)">Version</th>
+                <th>Action</th>
+                <th onclick="qpSort(3,false)">CVE</th>
+                <th onclick="qpSort(4,true)">CVSS</th>
+                <th onclick="qpSort(5,true)">Severity</th>
+                <th onclick="qpSort(6,true)">KEV</th>
+                <th onclick="qpSort(7,true)">EPSS</th>
+                <th onclick="qpSort(8,false)">Summary</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="row-0" class="data-row" data-severity="critical" data-kev="true"><td class="app-cell">Wireshark</td><td class="version-cell">4.4.5</td><td class="action-cell">
+        <div class="action-content">
+            <span>brew upgrade --cask wireshark || brew install --cask wireshark</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'brew upgrade --cask wireshark || brew install --cask wireshark')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3745</td><td class="cvss-cell">9.8</td><td class="severity-cell"><span class="badge badge-critical" aria-label="Severity: Critical" title="Severity: Critical">Critical</span></td><td class="kev-cell">✓</td><td class="epss-cell">0.97</td><td class="summary-cell">Wireshark packet analyzer critical vulnerability - arbitrary code execution</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-0')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-0" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-0">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3745</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 9.8</span>
+                        <span class="badge badge-critical" aria-label="Severity: Critical" title="Severity: Critical">Critical</span>
+                        <span class="kev-badge">KEV</span>
+                        <span class="epss">EPSS: 0.97</span>
+                    </span>
+                </div>
+                <div class="cve-summary">Wireshark packet analyzer critical vulnerability - arbitrary code execution</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-1" class="data-row" data-severity="high" data-kev="true"><td class="app-cell">Microsoft Word</td><td class="version-cell">16.100.4</td><td class="action-cell">
+        <div class="action-content">
+            <span>&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps WORD</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, '&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps WORD')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3529</td><td class="cvss-cell">8.1</td><td class="severity-cell"><span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span></td><td class="kev-cell">✓</td><td class="epss-cell">0.89</td><td class="summary-cell">Microsoft Word remote code execution vulnerability via malicious documents</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-1')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-1" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-1">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3529</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 8.1</span>
+                        <span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span>
+                        <span class="kev-badge">KEV</span>
+                        <span class="epss">EPSS: 0.89</span>
+                    </span>
+                </div>
+                <div class="cve-summary">Microsoft Word remote code execution vulnerability via malicious documents</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-2" class="data-row" data-severity="high" data-kev="true"><td class="app-cell">zoom.us</td><td class="version-cell">6.5.9 (61929)</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3654</td><td class="cvss-cell">7.5</td><td class="severity-cell"><span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span></td><td class="kev-cell">✓</td><td class="epss-cell">0.83</td><td class="summary-cell">Zoom client privilege escalation vulnerability</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-2')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-2" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-2">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3654</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 7.5</span>
+                        <span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span>
+                        <span class="kev-badge">KEV</span>
+                        <span class="epss">EPSS: 0.83</span>
+                    </span>
+                </div>
+                <div class="cve-summary">Zoom client privilege escalation vulnerability</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-3" class="data-row" data-severity="high" data-kev="false"><td class="app-cell">Safari</td><td class="version-cell">18.6</td><td class="action-cell">
+        <div class="action-content">
+            <span>softwareupdate -l &amp;&amp; sudo softwareupdate -ia</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'softwareupdate -l &amp;&amp; sudo softwareupdate -ia')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3089</td><td class="cvss-cell">8.2</td><td class="severity-cell"><span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span></td><td class="kev-cell">—</td><td class="epss-cell">0.92</td><td class="summary-cell">Safari WebKit memory corruption vulnerability - remote code execution</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-3')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-3" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-3">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3089</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 8.2</span>
+                        <span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span>
+                        
+                        <span class="epss">EPSS: 0.92</span>
+                    </span>
+                </div>
+                <div class="cve-summary">Safari WebKit memory corruption vulnerability - remote code execution</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-4" class="data-row" data-severity="high" data-kev="false"><td class="app-cell">OpenVPN Connect</td><td class="version-cell">3.6.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>brew upgrade --cask openvpn-connect || brew install --cask openvpn-connect</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'brew upgrade --cask openvpn-connect || brew install --cask openvpn-connect')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3812</td><td class="cvss-cell">8.0</td><td class="severity-cell"><span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span></td><td class="kev-cell">—</td><td class="epss-cell">0.78</td><td class="summary-cell">OpenVPN Connect authentication bypass vulnerability</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-4')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-4" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-4">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3812</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 8.0</span>
+                        <span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span>
+                        
+                        <span class="epss">EPSS: 0.78</span>
+                    </span>
+                </div>
+                <div class="cve-summary">OpenVPN Connect authentication bypass vulnerability</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-5" class="data-row" data-severity="medium" data-kev="false"><td class="app-cell">Microsoft Excel</td><td class="version-cell">16.100.4</td><td class="action-cell">
+        <div class="action-content">
+            <span>&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps XCEL</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, '&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps XCEL')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2024-3530</td><td class="cvss-cell">6.8</td><td class="severity-cell"><span class="badge badge-medium" aria-label="Severity: Medium" title="Severity: Medium">Medium</span></td><td class="kev-cell">—</td><td class="epss-cell">0.72</td><td class="summary-cell">Microsoft Excel information disclosure vulnerability</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-5')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-5" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-5">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2024-3530</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 6.8</span>
+                        <span class="badge badge-medium" aria-label="Severity: Medium" title="Severity: Medium">Medium</span>
+                        
+                        <span class="epss">EPSS: 0.72</span>
+                    </span>
+                </div>
+                <div class="cve-summary">Microsoft Excel information disclosure vulnerability</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-6" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">AppCleaner</td><td class="version-cell">3.6.8</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-6')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-6" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-6">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-7" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Cursor</td><td class="version-cell">1.5.9</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-7')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-7" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-7">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-8" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Discord</td><td class="version-cell">0.0.359</td><td class="action-cell">
+        <div class="action-content">
+            <span>open https://discord.com/download</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'open https://discord.com/download')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-8')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-8" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-8">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-9" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Disk Drill</td><td class="version-cell">6.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-9')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-9" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-9">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-10" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">DiskEditor</td><td class="version-cell">1.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-10')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-10" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-10">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-11" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">DuckDuckGo</td><td class="version-cell">1.154.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-11')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-11" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-11">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-12" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">File Metadata</td><td class="version-cell">1.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-12')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-12" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-12">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-13" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Firefox</td><td class="version-cell">142.0.1</td><td class="action-cell">
+        <div class="action-content">
+            <span>brew upgrade --cask firefox || brew install --cask firefox</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'brew upgrade --cask firefox || brew install --cask firefox')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-13')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-13" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-13">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-14" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">GarageBand</td><td class="version-cell">10.4.10</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-14')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-14" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-14">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-15" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Hex Fiend</td><td class="version-cell">2.15</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-15')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-15" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-15">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-16" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Hidden Folks</td><td class="version-cell">2.0.6</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-16')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-16" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-16">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-17" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">ImageOptim</td><td class="version-cell">1.9.3</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-17')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-17" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-17">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-18" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Itsycal</td><td class="version-cell">0.15.3</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-18')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-18" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-18">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-19" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Keynote</td><td class="version-cell">13.2</td><td class="action-cell">
+        <div class="action-content">
+            <span>softwareupdate -l &amp;&amp; sudo softwareupdate -ia</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'softwareupdate -l &amp;&amp; sudo softwareupdate -ia')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-19')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-19" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-19">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-20" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">LockDown Browser</td><td class="version-cell">2.1.3</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-20')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-20" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-20">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-21" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Microsoft PowerPoint</td><td class="version-cell">16.100.4</td><td class="action-cell">
+        <div class="action-content">
+            <span>&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps PPT3</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, '&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps PPT3')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-21')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-21" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-21">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-22" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Microsoft Teams</td><td class="version-cell">25227.301.3887.7726</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-22')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-22" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-22">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-23" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Numbers</td><td class="version-cell">13.2</td><td class="action-cell">
+        <div class="action-content">
+            <span>softwareupdate -l &amp;&amp; sudo softwareupdate -ia</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'softwareupdate -l &amp;&amp; sudo softwareupdate -ia')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-23')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-23" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-23">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-24" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">OneDrive</td><td class="version-cell">25.140.0720</td><td class="action-cell">
+        <div class="action-content">
+            <span>&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps ONDR</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, '&quot;/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate&quot; --install --apps ONDR')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-24')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-24" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-24">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-25" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">PDFgear</td><td class="version-cell">2.15</td><td class="action-cell">
+        <div class="action-content">
+            <span>open https://pdfgear.com/download</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'open https://pdfgear.com/download')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-25')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-25" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-25">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-26" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Pages</td><td class="version-cell">13.2</td><td class="action-cell">
+        <div class="action-content">
+            <span>softwareupdate -l &amp;&amp; sudo softwareupdate -ia</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'softwareupdate -l &amp;&amp; sudo softwareupdate -ia')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-26')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-26" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-26">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-27" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">PayPal Honey</td><td class="version-cell">17.0.55</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-27')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-27" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-27">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-28" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">PokerStars</td><td class="version-cell">77.535</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-28')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-28" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-28">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-29" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">PowerShell</td><td class="version-cell">7.5.2</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-29')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-29" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-29">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-30" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Prime Video</td><td class="version-cell">10.94</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-30')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-30" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-30">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-31" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Raycast</td><td class="version-cell">1.70.2</td><td class="action-cell">
+        <div class="action-content">
+            <span>brew upgrade --cask raycast || brew install --cask raycast</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'brew upgrade --cask raycast || brew install --cask raycast')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-31')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-31" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-31">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-32" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">SF Symbols</td><td class="version-cell">6.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-32')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-32" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-32">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-33" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">TI Connect CE</td><td class="version-cell">6.0.0.2688</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-33')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-33" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-33">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-34" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Transfer</td><td class="version-cell">2.2.1</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-34')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-34" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-34">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-35" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Webex</td><td class="version-cell">45.8.0.32875</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-35')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-35" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-35">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-36" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">Windows App</td><td class="version-cell">11.2.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-36')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-36" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-36">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-37" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">iMovie</td><td class="version-cell">10.4</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-37')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-37" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-37">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-38" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">iTerm</td><td class="version-cell">3.5.14</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-38')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-38" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-38">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id"></span>
+                    <span class="cve-meta">
+                        
+                        <span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span>
+                        
+                        
+                    </span>
+                </div>
+                
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            
+        </tbody>
+    </table>
+
+<script>
+    // theme persistence (toggle light/dark by html data-attr)
+    (function(){
+        try {{
+            var key='qp-theme';
+            var t=localStorage.getItem(key)||'dark';
+            if(t==='light') document.documentElement.setAttribute('data-theme','light');
+            window.qpToggleTheme=function(){{
+                var isLight=document.documentElement.getAttribute('data-theme')==='light';
+                var next=isLight?'dark':'light';
+                if(next==='light') document.documentElement.setAttribute('data-theme','light'); else document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem(key,next);
+            }};
+        }} catch(e) {{}}
+    })();
+    const q = document.getElementById('q');
+    const filterPills = document.querySelectorAll('.filter-pill');
+    const tbody = document.querySelector('#tbl tbody');
+    
+    let currentFilter = 'all';
+    
+    function matches(txt, needle) {{
+        return txt.toLowerCase().indexOf(needle) !== -1;
+    }}
+    
+    function matchesFilter(row, filter) {{
+        if (filter === 'all') return true;
+        
+        const severity = row.dataset.severity;
+        const hasKev = row.dataset.kev === 'true';
+        
+        if (filter === 'kev') return hasKev;
+        return severity === filter;
+    }}
+    
+    function refilter() {{
+        const needle = q.value.trim().toLowerCase();
+        
+        for (const row of tbody.querySelectorAll('.data-row')) {{
+            const hay = (row.querySelector('.app-cell').innerText + " " + 
+                        row.querySelector('.action-cell').innerText + " " + 
+                        row.querySelector('.cve-cell').innerText + " " + 
+                        row.querySelector('.summary-cell').innerText).toLowerCase();
+            
+            const matchesSearch = !needle || matches(hay, needle);
+            const matchesFilterType = matchesFilter(row, currentFilter);
+            
+            const show = matchesSearch && matchesFilterType;
+            row.style.display = show ? "" : "none";
+            
+            // Hide details row if main row is hidden
+            const detailsRow = document.getElementById(`details-${{row.id}}`);
+            if (detailsRow) {{
+                detailsRow.style.display = show ? "none" : "none";
+            }}
+        }}
+    }}
+    
+    function toggleDetails(rowId) {{
+        const detailsRow = document.getElementById(`details-${{rowId}}`);
+        const expandBtn = document.querySelector(`#${{rowId}} .expand-btn`);
+        
+        if (detailsRow.style.display === 'none') {{
+            detailsRow.style.display = '';
+            expandBtn.textContent = '📋';
+            expandBtn.title = 'Hide CVEs';
+        }} else {{
+            detailsRow.style.display = 'none';
+            expandBtn.textContent = '📋';
+            expandBtn.title = 'Show all CVEs';
+        }}
+    }}
+    
+    function setActiveFilter(filter) {{
+        currentFilter = filter;
+        
+        // Update pill states
+        filterPills.forEach(pill => {{
+            pill.classList.toggle('active', pill.dataset.filter === filter);
+        }});
+        
+        refilter();
+    }}
+    
+    function copyToClipboard(button, text) {{
+        navigator.clipboard.writeText(text).then(() => {{
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = "✓";
+            button.classList.add('copy-success');
+            
+            setTimeout(() => {{
+                button.textContent = originalText;
+                button.classList.remove('copy-success');
+            }}, 1500);
+        }}).catch(err => {{
+            console.error('Failed to copy: ', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = "✓";
+            button.classList.add('copy-success');
+            
+            setTimeout(() => {{
+                button.textContent = originalText;
+                button.classList.remove('copy-success');
+            }}, 1500);
+        }});
+    }}
+    
+    // Event listeners
+    q.addEventListener('input', refilter);
+    
+    filterPills.forEach(pill => {{
+        pill.addEventListener('click', () => {{
+            setActiveFilter(pill.dataset.filter);
+        }});
+    }});
+    // simple table sort
+    function qpSort(colIndex, desc) {{
+        const body = tbody;
+        const rows = Array.from(body.querySelectorAll('.data-row'));
+        rows.sort((a, b) => {{
+            const ax = (a.children[colIndex]?.textContent || '').trim();
+            const bx = (b.children[colIndex]?.textContent || '').trim();
+            const na = Number(ax.replace(/[^0-9.]/g, ''));
+            const nb = Number(bx.replace(/[^0-9.]/g, ''));
+            let cmp;
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) cmp = na - nb; else cmp = ax.localeCompare(bx, undefined, {{ numeric: true, sensitivity: 'base' }});
+            return desc ? -cmp : cmp;
+        }});
+        for (const r of rows) {{ body.appendChild(r); const d=document.getElementById('details-'+r.id); if(d) body.appendChild(d); }}
+    }}
+</script>
+
+    <div style="margin-top: 40px; padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 12px; color: #6b7280;">
+        <div>Report generated: 2024-01-01T00:00:00Z</div>
+        <div>Report-Hash: SHA256-f12e2cdace6c0040</div>
+        <div>QuietPatch v0.3.0</div>
+    </div>
+    </body>
+</html>

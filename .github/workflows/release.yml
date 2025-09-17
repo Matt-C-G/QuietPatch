@@ -76,20 +76,41 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
 
-      - name: Upgrade pip (pin)
-        run: python -m pip install --upgrade "pip<25" "wheel" "setuptools"
+      - name: Prep toolchain
+        shell: bash
+        run: |
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --no-deps setuptools wheel build
 
       - name: Install build deps (hermetic by constraints)
-        # NOTE: build toolchain itself is NOT hashed in these files; install it separately.
         run: |
           python -m pip install -r "${{ matrix.build_constraints }}"
 
-      - name: Install 'build' backend explicitly (fixes No module named build.__main__)
+      - name: Clean workspace (avoid build module shadowing)
+        shell: bash
         run: |
-          python -m pip install "build==1.2.2"
+          rm -rf build/ dist/ ./*.egg-info
 
-      - name: Build wheel
-        run: python -m build -w -n
+      # Optional: sanity check project version matches the tag
+      - name: Check version matches tag
+        if: ${{ env.TAG != '' }}
+        shell: bash
+        run: |
+          TAG="${TAG#v}"
+          PYVER=$(python - <<'PY'
+          import tomllib, pathlib, re
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          print(data.get("project", {}).get("version", ""))
+          PY
+          )
+          echo "Tag: $TAG / pyproject version: $PYVER"
+          test "$TAG" = "$PYVER" || { echo "::error::Version ($PYVER) != tag ($TAG)"; exit 1; }
+
+      - name: Build wheel + sdist
+        shell: bash
+        run: |
+          # Use console script to avoid `python -m build` shadowing
+          pyproject-build -w -s -n
 
       - name: Show dist
         shell: bash

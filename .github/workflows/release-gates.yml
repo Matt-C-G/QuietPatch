@@ -19,18 +19,25 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install with constraints (hermetic)
+      - name: Prep toolchain
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --no-deps setuptools wheel build
+
+      - name: Install with constraints (hermetic)
+        shell: bash
+        run: |
+          # If you meant your macOS runtime constraints, point to that file instead of "constraints.txt"
+          # python -m pip install -r constraints/runtime-macos-py312.txt
+          python -m pip install -r constraints.txt
           python -m pip install -r requirements.ci.txt -r requirements-ci.txt
 
-      - name: Ensure build backend is present
-        run: python -m pip install "build==1.2.2"
-
-      - name: Build wheel
+      - name: Clean & build wheel
+        shell: bash
         run: |
-          python -m build -w -n
+          rm -rf build/ dist/ ./*.egg-info
+          pyproject-build -w -s -n
 
       - name: Install built wheel for testing
         run: |

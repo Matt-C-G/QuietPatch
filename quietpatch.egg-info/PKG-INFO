@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: quietpatch
-Version: 0.4.0
+Version: 0.4.1
 Summary: Vulnerability scanner for installed applications
 Requires-Python: <3.14,>=3.11
 Description-Content-Type: text/markdown
@@ -10,7 +10,8 @@ Requires-Dist: charset-normalizer<4.0.0,>=3.4.3
 Requires-Dist: requests<2.33.0,>=2.32.3
 Requires-Dist: cryptography<44.0.0,>=42.0.0
 Requires-Dist: keyring<26.0.0,>=25.0.0
-Requires-Dist: zstandard<0.23.0,>=0.22.0
+Requires-Dist: zstandard<0.26.0,>=0.23.0
+Requires-Dist: cffi<3.0.0,>=2.0.0
 Provides-Extra: test
 Requires-Dist: pytest>=8.2; extra == "test"
 Requires-Dist: PyYAML==6.0.2; extra == "test"
