@@ -25,6 +25,9 @@ jobs:
           python -m pip install --require-hashes -r constraints.txt
           python -m pip install -r requirements.ci.txt -r requirements-ci.txt
 
+      - name: Ensure build backend is present
+        run: python -m pip install "build==1.2.2"
+
       - name: Build wheel
         run: |
           python -m build -w -n

@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'                 # only tags trigger via push
+  release:
+    types: [published]       # also trigger when a release is published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.4.2)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write            # needed to upload assets to the release
+
+concurrency:
+  group: release-${{ github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # hard-guard so branch pushes never run the job
+    if: ${{ github.event_name == 'release' || github.ref_type == 'tag' || inputs.tag != '' }}
+    name: Build & Upload (${{ matrix.os }}, ${{ matrix.py }}, ${{ matrix.build_constraints }}, ${{ matrix.runtime_constraints }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  py: '3.12',
+              build_constraints: 'constraints/build-linux-py312.txt',
+              runtime_constraints: 'constraints/runtime-linux-py312.txt' }
+          - { os: macos-latest,   py: '3.12',
+              build_constraints: 'constraints/build-macos-py312.txt',
+              runtime_constraints: 'constraints/runtime-macos-py312.txt' }
+          - { os: windows-latest, py: '3.12',
+              build_constraints: 'constraints/build-windows-py312.txt',
+              runtime_constraints: 'constraints/runtime-windows-py312.txt' }
+
+    env:
+      # Resolve the tag in ALL trigger modes (tag push, release, manual)
+      TAG: >-
+        ${{
+          github.ref_type == 'tag' && github.ref_name ||
+          (github.event_name == 'release' && github.event.release.tag_name) ||
+          inputs.tag
+        }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug event
+        run: |
+          echo "EVENT: ${{ github.event_name }}"
+          echo "REF:   ${{ github.ref }}"
+          echo "REF_TYPE: ${{ github.ref_type }}"
+          echo "REF_NAME: ${{ github.ref_name }}"
+          echo "TAG env: ${TAG}"
+
+      - name: Resolve tag to build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TAG:-}" ]; then
+            echo "::error::Could not determine tag. For manual runs, pass input 'tag' (e.g. v0.4.2)."
+            exit 1
+          fi
+          echo "Using TAG=${TAG}"
+
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Upgrade pip (pin)
+        run: python -m pip install --upgrade "pip<25" "wheel" "setuptools"
+
+      - name: Install build deps (hermetic by constraints)
+        # NOTE: build toolchain itself is NOT hashed in these files; install it separately.
+        run: |
+          python -m pip install -r "${{ matrix.build_constraints }}"
+
+      - name: Install 'build' backend explicitly (fixes No module named build.__main__)
+        run: |
+          python -m pip install "build==1.2.2"
+
+      - name: Build wheel
+        run: python -m build -w -n
+
+      - name: Show dist
+        shell: bash
+        run: ls -alh dist/
+
+      - name: Install runtime deps + test install of the wheel
+        shell: bash
+        run: |
+          # create a fresh venv per-platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            python -m venv venv
+            PY=venv\\Scripts\\python.exe
+            PIP=venv\\Scripts\\pip.exe
+          else
+            python -m venv venv
+            PY=venv/bin/python
+            PIP=venv/bin/pip
+          fi
+
+          "$PIP" install -r "${{ matrix.runtime_constraints }}"
+          WHL="$("$PY" - <<'PY'
+          import glob
+          files = sorted(glob.glob('dist/*.whl'))
+          print(files[0] if files else '')
+          PY
+          )"
+
+          test -n "$WHL" || { echo "::error::No wheel in dist/"; exit 1; }
+          echo "Installing $WHL"
+          "$PIP" install "$WHL"
+          "$PY" -c "import quietpatch; print('quietpatch import OK, version:', getattr(quietpatch,'__version__','?'))"
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
