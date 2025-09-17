@@ -64,40 +64,24 @@ jobs:
         shell: bash
         run: |
           pip-compile --generate-hashes --resolver=backtracking \
-            --output-file constraints/build-linux-py312.txt - <<'IN'
-          pip<25
-          setuptools<76
-          build==1.3.0
-          packaging==25.0
-          pyproject-hooks==1.2.0
-IN
+            --output-file constraints/build-linux-py312.txt \
+            constraints/build-linux-py312.in
 
       - if: matrix.os == 'macos-latest'
         name: Compile build constraints (macOS)
         shell: bash
         run: |
           pip-compile --generate-hashes --resolver=backtracking \
-            --output-file constraints/build-macos-py312.txt - <<'IN'
-          pip<25
-          setuptools<76
-          build==1.3.0
-          packaging==25.0
-          pyproject-hooks==1.2.0
-IN
+            --output-file constraints/build-macos-py312.txt \
+            constraints/build-macos-py312.in
 
       - if: matrix.os == 'windows-latest'
         name: Compile build constraints (Windows)
         shell: pwsh
-        run: >
-          pip-compile --generate-hashes --resolver=backtracking
-          --output-file constraints/build-windows-py312.txt
-          --upgrade --allow-unsafe - <<'IN'
-          pip<25
-          setuptools<76
-          build==1.3.0
-          packaging==25.0
-          pyproject-hooks==1.2.0
-IN
+        run: |
+          pip-compile --generate-hashes --resolver=backtracking `
+            --output-file constraints/build-windows-py312.txt `
+            constraints/build-windows-py312.in
       
       # Verify the critical pins exist
       - if: matrix.os == 'windows-latest'
@@ -141,22 +125,38 @@ IN
 
       - if: matrix.os == 'windows-latest'
         name: Verify Windows pins have hashes
-        shell: pwsh
+        shell: python
         run: |
-          $files = @(
+          import sys, re, pathlib
+          
+          files = [
             "constraints/runtime-windows-py312.txt",
             "constraints/build-windows-py312.txt"
-          )
-
-          foreach ($f in $files) {
-            # Lines that look like "pkg==x.y.z" with no "--hash="
-            $bad = Select-String -Path $f -Pattern '^[A-Za-z0-9._-]+==[^#\s]+$' | ForEach-Object { $_.Line.Trim() }
-            if ($bad.Count) {
-              $nl = [Environment]::NewLine
-              $msg = "Missing hashes in ${f}:${nl}" + ($bad -join $nl)
-              Write-Error $msg
-            }
-          }
+          ]
+          
+          missing = []
+          for file_path in files:
+            if not pathlib.Path(file_path).exists():
+              continue
+            content = pathlib.Path(file_path).read_text()
+            
+            # Find package lines that don't have hash lines following them
+            for match in re.finditer(r'^([A-Za-z0-9._-]+)==([^\n]+)$', content, re.MULTILINE):
+              pkg_line = match.group(0)
+              pkg_name = match.group(1)
+              
+              # Look for hash lines after this package line
+              after_match = content[match.end():]
+              if not re.search(r'^\s*--hash=sha256:[0-9a-f]{64}', after_match, re.MULTILINE):
+                missing.append(f"{file_path}: {pkg_line}")
+          
+          if missing:
+            print("Missing hashes for:")
+            for item in missing:
+              print(f"  {item}")
+            sys.exit(1)
+          
+          print("✅ Windows constraints properly pinned with hashes")
       
       - name: Show diff
         shell: bash
