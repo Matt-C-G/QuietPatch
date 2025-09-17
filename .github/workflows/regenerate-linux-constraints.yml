@@ -61,28 +61,43 @@ jobs:
       # Build constraints (all platforms)
       - if: matrix.os == 'ubuntu-latest'
         name: Compile build constraints (Linux)
+        shell: bash
         run: |
-          mkdir -p constraints
-          printf "build<2\nsetuptools>=68\nwheel\n" > constraints/_build.in
-          pip-compile --generate-hashes -o constraints/build-linux-py312.txt constraints/_build.in
+          pip-compile --generate-hashes --resolver=backtracking \
+            --output-file constraints/build-linux-py312.txt - <<'IN'
+          pip<25
+          setuptools<76
+          build==1.3.0
+          packaging==25.0
+          pyproject-hooks==1.2.0
+IN
 
       - if: matrix.os == 'macos-latest'
         name: Compile build constraints (macOS)
+        shell: bash
         run: |
-          mkdir -p constraints
-          printf "build<2\nsetuptools>=68\nwheel\n" > constraints/_build.in
-          pip-compile --generate-hashes -o constraints/build-macos-py312.txt constraints/_build.in
+          pip-compile --generate-hashes --resolver=backtracking \
+            --output-file constraints/build-macos-py312.txt - <<'IN'
+          pip<25
+          setuptools<76
+          build==1.3.0
+          packaging==25.0
+          pyproject-hooks==1.2.0
+IN
 
       - if: matrix.os == 'windows-latest'
         name: Compile build constraints (Windows)
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path constraints | Out-Null
-          Set-Content constraints\_build.in "build<2`r`nsetuptools>=68`r`nwheel`r`n"
-          pip-compile `
-            --generate-hashes `
-            -o constraints\build-windows-py312.txt `
-            constraints\_build.in
+        run: >
+          pip-compile --generate-hashes --resolver=backtracking
+          --output-file constraints/build-windows-py312.txt
+          --upgrade --allow-unsafe - <<'IN'
+          pip<25
+          setuptools<76
+          build==1.3.0
+          packaging==25.0
+          pyproject-hooks==1.2.0
+IN
       
       # Verify the critical pins exist
       - if: matrix.os == 'windows-latest'
@@ -144,34 +159,30 @@ jobs:
           }
       
       - name: Show diff
+        shell: bash
         run: |
           echo "=== Generated constraints file ==="
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            head -20 constraints/runtime-linux-py312.txt
-            echo "..."
-            tail -10 constraints/runtime-linux-py312.txt
-          else
-            head -20 constraints/runtime-windows-py312.txt
-            echo "..."
-            tail -10 constraints/runtime-windows-py312.txt
-          fi
+          git --no-pager diff --unified=0 -- constraints/ | cat
 
       # Commit/PR only when there are changes
       - name: Check for changes
         id: diff
         shell: bash
         run: |
-          git status --porcelain constraints/ > /tmp/changes.txt
-          if [ -s /tmp/changes.txt ]; then echo "changed=true" >> $GITHUB_OUTPUT; else echo "changed=false" >> $GITHUB_OUTPUT; fi
+          if git status --porcelain | grep -q '^ M\|^A\|^??'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - if: steps.diff.outputs.changed == 'true'
         name: Create PR with regenerated constraints
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: chore/constraints-py312-${{ github.run_id }}
-          title: "ci: regenerate constraints (py312)"
-          commit-message: "ci: regenerate constraints (py312)"
+          branch: chore/constraints-${{ runner.os }}-py312-${{ github.run_id }}
+          title: "ci: regenerate constraints (${{ runner.os }}, py312)"
+          commit-message: "ci: regenerate constraints (${{ runner.os }}, py312)"
           add-paths: |
             constraints/runtime-linux-py312.txt
             constraints/runtime-windows-py312.txt
