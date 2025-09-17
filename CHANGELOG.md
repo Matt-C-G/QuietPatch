@@ -1,3 +1,15 @@
+## [0.4.2] - 2025-09-17
+### Fixed
+- Hermetic build: ensure build backend is present (setuptools.build_meta) by pinning toolchain in build constraints and `pip<25`.
+- PR Checks: reliable wheel build with hashes.
+- Release: multi-OS wheels uploaded as assets.
+
+### Changed
+- Updated README install/download instructions and version badge.
+
+### Internal
+- Constraints regenerated with hashes for build toolchain across platforms.
+
 ## v0.3.0
 - Enhance HTML report UI with severity badges, stats banner, accessibility
 - Add `doctor` command to diagnose environment and provide fixes
