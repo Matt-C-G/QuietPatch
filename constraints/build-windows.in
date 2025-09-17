@@ -1,0 +1,8 @@
+# constraints/build-windows.in
+# Build toolchain for Windows (explicit colorama dependency)
+build<2
+packaging<26
+pyproject-hooks<2
+setuptools<76
+wheel<0.46
+colorama==0.4.6
