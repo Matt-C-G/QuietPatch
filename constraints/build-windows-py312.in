@@ -2,3 +2,4 @@
 setuptools<76
 wheel<0.45
 build<2
+colorama  # Windows-specific dependency for build
