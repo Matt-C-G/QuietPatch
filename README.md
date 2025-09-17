@@ -1,5 +1,6 @@
 # QuietPatch 🔐
 
+![version](https://img.shields.io/badge/version-v0.4.2-blue.svg)
 [![CI](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -15,7 +16,7 @@
 
 **Install:**
 ```bash
-python -m pip install quietpatch==0.3.2
+python -m pip install quietpatch==0.4.2
 quietpatch env doctor
 quietpatch db fetch
 quietpatch scan --offline --html
@@ -28,10 +29,23 @@ curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256S
 shasum -a 256 -c SHA256SUMS
 
 # Install with binary-only mode
-python -m pip install quietpatch==0.3.2 --only-binary :all:
+python -m pip install quietpatch==0.4.2 --only-binary :all:
 ```
 
 > **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
+
+## 📥 Downloads
+
+Prebuilt wheels and source tarball are attached to the **[v0.4.2 release](../../releases/tag/v0.4.2)**.
+
+Typical asset names:
+- `quietpatch-0.4.2-py3-none-any.whl` (pure)
+- `quietpatch-0.4.2-cp312-*-manylinux*.whl` (Linux)
+- `quietpatch-0.4.2-cp312-*-macosx*.whl` (macOS)
+- `quietpatch-0.4.2-cp312-*-win_amd64.whl` (Windows)
+- `quietpatch-0.4.2.tar.gz` (sdist)
+
+> Use `pip install <asset-url>` if you prefer installing directly from an asset.
 
 ---
 
