@@ -66,8 +66,24 @@ jobs:
           sarif="$workdir/gate.sarif"
 
           echo "Running quietpatch scan (mock) → SARIF only…"
-          if ! timeout 90s quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
-            echo "::error::Scan failed or exceeded 90s. Failing fast."; exit 1
+          # Use gtimeout on macOS (from coreutils) or timeout on Linux
+          if command -v gtimeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="gtimeout"
+          elif command -v timeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="timeout"
+          else
+            # Fallback: run without timeout
+            TIMEOUT_CMD=""
+          fi
+
+          if [ -n "$TIMEOUT_CMD" ]; then
+            if ! $TIMEOUT_CMD 90s quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
+              echo "::error::Scan failed or exceeded 90s. Failing fast."; exit 1
+            fi
+          else
+            if ! quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
+              echo "::error::Scan failed. Failing fast."; exit 1
+            fi
           fi
 
           if [ ! -s "$sarif" ]; then
