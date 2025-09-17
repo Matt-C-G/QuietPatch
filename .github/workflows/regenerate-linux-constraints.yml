@@ -120,7 +120,7 @@ jobs:
                   print(f"missing --hash lines for {pkg}", file=sys.stderr); sys.exit(1)
           for pkg in ("secretstorage", "jeepney"):
               check(pkg)
-          print("✅ Both SecretStorage and jeepney are properly pinned with hashes")
+          print("Both SecretStorage and jeepney are properly pinned with hashes")
           PY
 
       - if: matrix.os == 'windows-latest'
@@ -156,7 +156,7 @@ jobs:
               print(f"  {item}")
             sys.exit(1)
           
-          print("✅ Windows constraints properly pinned with hashes")
+          print("Windows constraints properly pinned with hashes")
       
       - name: Show diff
         shell: bash
