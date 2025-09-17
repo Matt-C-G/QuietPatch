@@ -93,8 +93,12 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install build deps (hermetic)
+        shell: bash
         run: |
           python -m pip install --upgrade "pip<25"
+          # bootstrap outside hash-mode (pinned tightly)
+          python -m pip install --upgrade "setuptools<76" "wheel<1"
+          # now install the real, hashed build deps
           python -m pip install --require-hashes -r constraints/build-linux-py312.txt
       - name: Install with constraints (hermetic)
         run: |
@@ -163,6 +167,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade "pip<25"
+          python -m pip install --upgrade "setuptools<76" "wheel<1"
           python -m pip install --require-hashes -r constraints/build-windows-py312.txt
 
       - name: Install with constraints (hermetic)
@@ -238,8 +243,10 @@ jobs:
           python-version: ${{ env.PY_VER }}
           cache: "pip"
       - name: Install build deps (hermetic)
+        shell: bash
         run: |
           python -m pip install --upgrade "pip<25"
+          python -m pip install --upgrade "setuptools<76" "wheel<1"
           python -m pip install --require-hashes -r constraints/build-macos-py312.txt
       - name: Install with constraints (hermetic)
         run: |
