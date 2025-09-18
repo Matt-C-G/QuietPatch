@@ -1,6 +1,6 @@
 # QuietPatch 🔐
 
-![version](https://img.shields.io/badge/version-v0.4.3-blue.svg)
+![version](https://img.shields.io/badge/version-v0.4.4-blue.svg)
 [![CI](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -16,7 +16,7 @@
 
 **Install:**
 ```bash
-python -m pip install quietpatch==0.4.3
+python -m pip install quietpatch==0.4.4
 quietpatch env doctor
 quietpatch db fetch
 quietpatch scan --offline --html
@@ -29,23 +29,40 @@ curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256S
 shasum -a 256 -c SHA256SUMS
 
 # Install with binary-only mode
-python -m pip install quietpatch==0.4.3 --only-binary :all:
+python -m pip install quietpatch==0.4.4 --only-binary :all:
 ```
 
 > **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
 
-## 📥 Downloads (v0.4.3)
+## 📥 Downloads (v0.4.4)
 
-**Direct downloads from the [v0.4.3 release](https://github.com/Matt-C-G/QuietPatch/releases/tag/v0.4.3):**
+**Direct downloads from the [v0.4.4 release](https://github.com/Matt-C-G/QuietPatch/releases/tag/v0.4.4):**
 
-- **Universal wheel**: [`quietpatch-0.4.3-py3-none-any.whl`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.3/quietpatch-0.4.3-py3-none-any.whl) (68.7 KiB) - works on all platforms
-  - SHA256: `98f85ec03922ad85bf99fff462a056f09be89993808663d1951db6bec60cdd40`
-- **Source tarball**: [`quietpatch-0.4.3.tar.gz`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.3/quietpatch-0.4.3.tar.gz) (63.2 KiB) - for building from source
-  - SHA256: `7d67225fca09accffec4356bb7fa7dd7d85d74ca084f4d4715180c4a5e53cfa7`
+- **Universal wheel**: [`quietpatch-0.4.4-py3-none-any.whl`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.4/quietpatch-0.4.4-py3-none-any.whl) - works on all platforms
+- **Source tarball**: [`quietpatch-0.4.4.tar.gz`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.4/quietpatch-0.4.4.tar.gz) - for building from source
+
+**Verify (SHA256):**
+
+The release includes `SHA256SUMS.txt`. After downloading:
+
+```bash
+# macOS/Linux
+shasum -a 256 -c SHA256SUMS.txt
+
+# Windows (PowerShell)
+Get-FileHash .\quietpatch-0.4.4-py3-none-any.whl -Algorithm SHA256
+Get-FileHash .\quietpatch-0.4.4.tar.gz -Algorithm SHA256
+```
+
+> If you prefer to inline the hashes here as before, replace these with:
+> ```
+> quietpatch-0.4.4-py3-none-any.whl  REPLACE_WITH_SHA256_AFTER_RELEASE
+> quietpatch-0.4.4.tar.gz            REPLACE_WITH_SHA256_AFTER_RELEASE
+> ```
 
 **Install from PyPI:**
 ```bash
-pip install quietpatch==0.4.3
+pip install quietpatch==0.4.4
 ```
 
 > Use `pip install <asset-url>` if you prefer installing directly from a release asset.
