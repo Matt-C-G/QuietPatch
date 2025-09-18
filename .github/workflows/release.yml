@@ -122,7 +122,7 @@ jobs:
           cd dist
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             # Windows doesn't have shasum, use PowerShell
-            powershell -Command "Get-FileHash *.whl *.tar.gz -Algorithm SHA256 | ForEach-Object { \"{0}  {1}\" -f \$_.Hash.ToLower(), \$_.Path }" > SHA256SUMS.txt
+            powershell -Command "Get-ChildItem *.whl, *.tar.gz | Get-FileHash -Algorithm SHA256 | ForEach-Object { \"{0}  {1}\" -f \$_.Hash.ToLower(), \$_.Path }" > SHA256SUMS.txt
           else
             shasum -a 256 *.whl *.tar.gz > SHA256SUMS.txt
           fi
