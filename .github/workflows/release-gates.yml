@@ -4,6 +4,8 @@ on:
 
 env:
   QP_OFFLINE: "1"
+  # Only upload from scheduled, non-mock scans when explicitly enabled.
+  QP_UPLOAD_SARIF: ${{ secrets.QP_UPLOAD_SARIF || 'false' }}
 
 jobs:
   gates:
@@ -134,8 +136,8 @@ jobs:
           fi
           echo "SARIF file size: $(wc -c < out.sarif) bytes"
 
-      - name: Upload SARIF
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
+      - name: Upload SARIF (disabled for mock runs)
+        if: ${{ env.QP_UPLOAD_SARIF == 'true' && github.event_name == 'schedule' }}
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
