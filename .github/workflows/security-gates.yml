@@ -24,6 +24,11 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Pre-satisfy Linux keyring deps (avoid hash miss)
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install "SecretStorage>=3.2,<4.0" "jeepney>=0.8,<0.9"
+
       - name: Install with constraints (hermetic)
         run: |
           python -m pip install --upgrade pip

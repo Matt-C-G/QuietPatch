@@ -106,6 +106,10 @@ jobs:
           echo "Tag: $TAG / pyproject version: $PYVER"
           test "$TAG" = "$PYVER" || { echo "::error::Version ($PYVER) != tag ($TAG)"; exit 1; }
 
+      - name: Ensure build backend is present
+        run: |
+          python -m pip install -U "setuptools>=69,<76" "wheel>=0.44,<0.45" "pyproject-hooks>=1.0"
+
       - name: Build wheel + sdist
         shell: bash
         run: |
