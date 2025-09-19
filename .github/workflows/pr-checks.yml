@@ -39,15 +39,16 @@ jobs:
           test -f "${BUILD_CONSTRAINTS}" || (echo "Missing build constraints file"; exit 2)
           test -f "${RUNTIME_CONSTRAINTS}" || (echo "Missing runtime constraints file"; exit 2)
 
+      # --- FIX 1: pin pip and install toolchain from build constraints with hashes
       - name: Install build deps (hermetic)
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r constraints/build-linux-py312.txt
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --require-hashes -r "${BUILD_CONSTRAINTS}"
 
+      # --- FIX 2: install runtime deps with hashes as well
       - name: Install app deps (hermetic)
         run: |
-          # Temporary: Linux constraints missing SecretStorage/jeepney hashes
-          python -m pip install -r constraints/runtime-linux-py312.txt
+          python -m pip install --require-hashes -r "${RUNTIME_CONSTRAINTS}"
 
       - name: Install test deps
         run: |
@@ -57,9 +58,11 @@ jobs:
         run: |
           python -m pip install -e .
 
-      - name: Build wheel
+      - name: Clean & build wheel
+        shell: bash
         run: |
-          python -m build -w -n
+          rm -rf build/ dist/ ./*.egg-info
+          pyproject-build -w -n
 
       - name: Run tests
         run: pytest -q

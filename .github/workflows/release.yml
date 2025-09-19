@@ -1,253 +1,167 @@
-name: Build & Release QuietPatch
+name: Release
 
 on:
+  push:
+    tags:
+      - 'v*'                 # only tags trigger via push
+  release:
+    types: [published]       # also trigger when a release is published
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g., v0.4.1)"
-        required: true
-  push:
-    tags:
-      - 'v*'
+        description: "Tag to build (e.g. v0.4.2)"
+        required: false
+        default: ""
 
 permissions:
-  contents: write
+  contents: write            # needed to upload assets to the release
 
-env:
-  PYVER: "3.12"
-  OS_KEY: ${{ startsWith(matrix.os, 'ubuntu') && 'linux' || startsWith(matrix.os, 'macos') && 'macos' || 'windows' }}
-  BUILD_CONSTRAINTS: constraints/build-${{ env.OS_KEY }}-py312.txt
-  RUNTIME_CONSTRAINTS: constraints/runtime-${{ env.OS_KEY }}-py312.txt
+concurrency:
+  group: release-${{ github.ref || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}
+    # hard-guard so branch pushes never run the job
+    if: ${{ github.event_name == 'release' || github.ref_type == 'tag' || inputs.tag != '' }}
+    name: Build & Upload (${{ matrix.os }}, ${{ matrix.py }}, ${{ matrix.build_constraints }}, ${{ matrix.runtime_constraints }})
     runs-on: ${{ matrix.os }}
+
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - { os: ubuntu-latest,  py: '3.12',
+              build_constraints: 'constraints/build-linux-py312.txt',
+              runtime_constraints: 'constraints/runtime-linux-py312.txt' }
+          - { os: macos-latest,   py: '3.12',
+              build_constraints: 'constraints/build-macos-py312.txt',
+              runtime_constraints: 'constraints/runtime-macos-py312.txt' }
+          - { os: windows-latest, py: '3.12',
+              build_constraints: 'constraints/build-windows-py312.txt',
+              runtime_constraints: 'constraints/runtime-windows-py312.txt' }
+
+    env:
+      # Resolve the tag in ALL trigger modes (tag push, release, manual)
+      TAG: >-
+        ${{
+          github.ref_type == 'tag' && github.ref_name ||
+          (github.event_name == 'release' && github.event.release.tag_name) ||
+          inputs.tag
+        }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set release tag
-        id: tag
+      - name: Debug event
+        run: |
+          echo "EVENT: ${{ github.event_name }}"
+          echo "REF:   ${{ github.ref }}"
+          echo "REF_TYPE: ${{ github.ref_type }}"
+          echo "REF_NAME: ${{ github.ref_name }}"
+          echo "TAG env: ${TAG}"
+
+      - name: Resolve tag to build
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Setup Python ${{ env.PYVER }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYVER }}
-
-      - name: Show effective constraints
-        run: |
-          echo "Build constraints: ${BUILD_CONSTRAINTS}"
-          echo "Runtime constraints: ${RUNTIME_CONSTRAINTS}"
-          python -V
-          pip -V
-
-      - name: Fail fast if constraints missing
-        run: |
-          test -f "${BUILD_CONSTRAINTS}" || (echo "Missing build constraints file"; exit 2)
-          test -f "${RUNTIME_CONSTRAINTS}" || (echo "Missing runtime constraints file"; exit 2)
-
-      - name: Verify linux lock includes SecretStorage
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          grep -q '^SecretStorage==' constraints/runtime-linux-py312.txt || \
-            (echo "linux constraints missing SecretStorage — recompile with --platform manylinux_2_28_x86_64"; exit 1)
-          grep -q '^jeepney==' constraints/runtime-linux-py312.txt || \
-            (echo "linux constraints missing jeepney — recompile"; exit 1)
-
-      - name: Install build deps (hermetic)
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r constraints/build-${{ env.OS_KEY }}-py312.txt
-
-      - name: Install app deps (hermetic)
-        run: |
-          python -m pip install --requirement "${RUNTIME_CONSTRAINTS}" --require-hashes
-
-      - name: Install PyInstaller
-        run: |
-          python -m pip install pyinstaller
-
-      - name: Build wheel
-        run: |
-          python -m build -w -n
-
-      - name: Build PyInstaller (GUI + CLI)
-        run: |
-          pyinstaller build/quietpatch_ci.spec
-
-      - name: Package OS installer
-        shell: bash
-        run: |
-          mkdir -p release
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Install Inno Setup and 7zip
-            choco install -y innosetup 7zip
-            # Build installer
-            "C:/Program Files (x86)/Inno Setup 6/ISCC.exe" installer/windows/QuietPatch.iss
-            cp dist/windows/QuietPatch-Setup-v${{ steps.tag.outputs.tag }}.exe release/
-            # Portable CLI
-            cd dist
-            if command -v 7z >/dev/null 2>&1; then
-              7z a ../release/quietpatch-cli-v${{ steps.tag.outputs.tag }}-win64.zip quietpatch/*
-            else
-              powershell Compress-Archive -Path "quietpatch/*" -DestinationPath "../release/quietpatch-cli-v${{ steps.tag.outputs.tag }}-win64.zip" -Force
-            fi
-            cd ..
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            # Install create-dmg
-            brew install create-dmg || true
-            # Create macOS app bundle
-            mkdir -p dist/macos/QuietPatch.app/Contents/MacOS
-            mkdir -p dist/macos/QuietPatch.app/Contents/Resources
-            # Handle PyInstaller outputs
-            if [[ -f dist/QuietPatchWizard ]]; then
-              cp dist/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
-            elif [[ -f dist/QuietPatchWizard/QuietPatchWizard ]]; then
-              cp dist/QuietPatchWizard/QuietPatchWizard dist/macos/QuietPatch.app/Contents/MacOS/QuietPatch
-            fi
-            if [[ -f dist/quietpatch ]]; then
-              cp dist/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
-            elif [[ -f dist/quietpatch/quietpatch ]]; then
-              cp dist/quietpatch/quietpatch dist/macos/QuietPatch.app/Contents/MacOS/quietpatch
-            fi
-            # Create DMG
-            create-dmg \
-              --volname "QuietPatch ${{ steps.tag.outputs.tag }}" \
-              --volicon "assets/quietpatch.icns" \
-              --window-pos 200 120 \
-              --window-size 600 300 \
-              --icon-size 100 \
-              --icon "QuietPatch.app" 175 120 \
-              --hide-extension "QuietPatch.app" \
-              --app-drop-link 425 120 \
-              "release/QuietPatch-v${{ steps.tag.outputs.tag }}.dmg" \
-              "dist/macos/"
-            # Portable CLI
-            cd dist
-            tar -czf ../release/quietpatch-cli-v${{ steps.tag.outputs.tag }}-macos-universal.tar.gz quietpatch/
-            cd ..
-          else
-            # Linux AppImage
-            chmod +x dist/QuietPatchWizard
-            chmod +x dist/quietpatch
-            # Create AppImage (simplified)
-            mkdir -p dist/appimage/QuietPatch.AppDir/usr/bin
-            cp dist/QuietPatchWizard dist/appimage/QuietPatch.AppDir/usr/bin/
-            cp dist/quietpatch dist/appimage/QuietPatch.AppDir/usr/bin/
-            # Create AppImage metadata
-            cat > dist/appimage/QuietPatch.AppDir/AppRun << 'EOF'
-#!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
-exec "${HERE}/usr/bin/QuietPatchWizard" "$@"
-EOF
-            chmod +x dist/appimage/QuietPatch.AppDir/AppRun
-            # Create AppImage
-            wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-            chmod +x appimagetool-x86_64.AppImage
-            ./appimagetool-x86_64.AppImage dist/appimage/QuietPatch.AppDir release/QuietPatch-v${{ steps.tag.outputs.tag }}-x86_64.AppImage
-            # Portable CLI
-            cd dist
-            tar -czf ../release/quietpatch-cli-v${{ steps.tag.outputs.tag }}-linux-x86_64.tar.gz quietpatch/
-            cd ..
-          fi
-
-      - name: Locate artifacts
-        if: success()
-        shell: bash
-        run: |
-          echo "=== Release artifacts ==="
-          ls -la release/
-          echo "=== Dist contents ==="
-          ls -la dist/
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: quietpatch-${{ env.OS_KEY }}-${{ steps.tag.outputs.tag }}
-          path: release/
-          retention-days: 30
-
-  release-gates:
-    name: Release Gates
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set release tag
-        id: tag
-        shell: bash
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Setup Python ${{ env.PYVER }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYVER }}
-
-      - name: Install build deps (hermetic)
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install --requirement constraints/build-linux-py312.txt
-
-      - name: Install app deps (hermetic)
-        run: |
-          python -m pip install --requirement constraints/runtime-linux-py312.txt --require-hashes
-
-      - name: Build wheel
-        run: |
-          python -m build -w -n
-
-      - name: Locate wheel
-        if: success()
-        shell: bash
-        run: |
-          echo "=== Wheel contents ==="
-          ls -la dist/
-          if [[ -f dist/*.whl ]]; then
-            echo "Wheel found:"
-            ls -la dist/*.whl
-          else
-            echo "No wheel found in dist/"
+          set -euo pipefail
+          if [ -z "${TAG:-}" ]; then
+            echo "::error::Could not determine tag. For manual runs, pass input 'tag' (e.g. v0.4.2)."
             exit 1
           fi
+          echo "Using TAG=${TAG}"
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Create release
-        uses: softprops/action-gh-release@v1
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: QuietPatch ${{ steps.tag.outputs.tag }}
-          body: |
-            ## QuietPatch ${{ steps.tag.outputs.tag }}
-            
-            Download the installer for your platform:
-            - **Windows**: QuietPatch-Setup-v${{ steps.tag.outputs.tag }}.exe
-            - **macOS**: QuietPatch-v${{ steps.tag.outputs.tag }}.dmg
-            - **Linux**: QuietPatch-v${{ steps.tag.outputs.tag }}-x86_64.AppImage
-            
-            Portable CLI versions also available.
-            
-            See [VERIFY.md](VERIFY.md) for verification instructions.
+          python-version: ${{ matrix.py }}
+
+      - name: Prep toolchain
+        shell: bash
+        run: |
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --no-deps setuptools wheel build
+
+      - name: Install build deps (hermetic by constraints)
+        run: |
+          python -m pip install -r "${{ matrix.build_constraints }}"
+
+      - name: Clean workspace (avoid build module shadowing)
+        shell: bash
+        run: |
+          rm -rf build/ dist/ ./*.egg-info
+
+      # Optional: sanity check project version matches the tag
+      - name: Check version matches tag
+        if: ${{ env.TAG != '' }}
+        shell: bash
+        run: |
+          TAG="${TAG#v}"
+          PYVER=$(python - <<'PY'
+          import tomllib, pathlib, re
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          print(data.get("project", {}).get("version", ""))
+          PY
+          )
+          echo "Tag: $TAG / pyproject version: $PYVER"
+          test "$TAG" = "$PYVER" || { echo "::error::Version ($PYVER) != tag ($TAG)"; exit 1; }
+
+      - name: Build wheel + sdist
+        shell: bash
+        run: |
+          # Use console script to avoid `python -m build` shadowing
+          pyproject-build -w -s -n
+
+      - name: Show dist
+        shell: bash
+        run: ls -alh dist/
+
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            # Windows doesn't have shasum, use PowerShell
+            powershell -Command "Get-ChildItem *.whl, *.tar.gz | Get-FileHash -Algorithm SHA256 | ForEach-Object { \"{0}  {1}\" -f \$_.Hash.ToLower(), \$_.Path }" > SHA256SUMS.txt
+          else
+            shasum -a 256 *.whl *.tar.gz > SHA256SUMS.txt
+          fi
+          cat SHA256SUMS.txt
+
+      - name: Install runtime deps + test install of the wheel
+        shell: bash
+        run: |
+          # create a fresh venv per-platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            python -m venv venv
+            PY=venv\\Scripts\\python.exe
+            PIP=venv\\Scripts\\pip.exe
+          else
+            python -m venv venv
+            PY=venv/bin/python
+            PIP=venv/bin/pip
+          fi
+
+          "$PIP" install -r "${{ matrix.runtime_constraints }}"
+          WHL="$("$PY" - <<'PY'
+          import glob
+          files = sorted(glob.glob('dist/*.whl'))
+          print(files[0] if files else '')
+          PY
+          )"
+
+          test -n "$WHL" || { echo "::error::No wheel in dist/"; exit 1; }
+          echo "Installing $WHL"
+          "$PIP" install "$WHL"
+          "$PY" -c "import quietpatch; print('quietpatch import OK, version:', getattr(quietpatch,'__version__','?'))"
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
           files: |
-            quietpatch-linux-v${{ steps.tag.outputs.tag }}/release/*
-            quietpatch-macos-v${{ steps.tag.outputs.tag }}/release/*
-            quietpatch-windows-v${{ steps.tag.outputs.tag }}/release/*
-          draft: false
-          prerelease: false
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

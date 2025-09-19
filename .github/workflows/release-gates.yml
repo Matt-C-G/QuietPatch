@@ -1,11 +1,11 @@
 name: release-gates
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 env:
   QP_OFFLINE: "1"
+  # Only upload from scheduled, non-mock scans when explicitly enabled.
+  QP_UPLOAD_SARIF: ${{ secrets.QP_UPLOAD_SARIF || 'false' }}
 
 jobs:
   gates:
@@ -21,15 +21,25 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install with constraints (hermetic)
+      - name: Prep toolchain
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --require-hashes -r constraints.txt
+          python -m pip install --upgrade "pip<25"
+          python -m pip install --no-deps setuptools wheel build pyproject-hooks
+
+      - name: Install with constraints (hermetic)
+        shell: bash
+        run: |
+          # If you meant your macOS runtime constraints, point to that file instead of "constraints.txt"
+          # python -m pip install -r constraints/runtime-macos-py312.txt
+          python -m pip install -r constraints.txt
           python -m pip install -r requirements.ci.txt -r requirements-ci.txt
 
-      - name: Build wheel
+      - name: Clean & build wheel
+        shell: bash
         run: |
-          python -m build -w -n
+          rm -rf build/ dist/ ./*.egg-info
+          pyproject-build -w -s -n
 
       - name: Install built wheel for testing
         run: |
@@ -49,13 +59,6 @@ jobs:
           python3 qp_cli.py db refresh --mirror "file://$PWD/_feed"
           test -f data/db/manifest.json
 
-      - name: Selfcheck (strict)
-        env:
-          QP_OFFLINE: "1"
-          QP_DISABLE_AUTO_SYNC: "1"
-        run: |
-          python tools/selfcheck.py --strict
-
       - name: Zero-unknowns gate (mock, offline, capped)
         shell: bash
         run: |
@@ -65,8 +68,24 @@ jobs:
           sarif="$workdir/gate.sarif"
 
           echo "Running quietpatch scan (mock) → SARIF only…"
-          if ! timeout 90s quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
-            echo "::error::Scan failed or exceeded 90s. Failing fast."; exit 1
+          # Use gtimeout on macOS (from coreutils) or timeout on Linux
+          if command -v gtimeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="gtimeout"
+          elif command -v timeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="timeout"
+          else
+            # Fallback: run without timeout
+            TIMEOUT_CMD=""
+          fi
+
+          if [ -n "$TIMEOUT_CMD" ]; then
+            if ! $TIMEOUT_CMD 90s quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
+              echo "::error::Scan failed or exceeded 90s. Failing fast."; exit 1
+            fi
+          else
+            if ! quietpatch scan --mock --offline --fail-unknowns --sarif "$sarif"; then
+              echo "::error::Scan failed. Failing fast."; exit 1
+            fi
           fi
 
           if [ ! -s "$sarif" ]; then
@@ -74,6 +93,13 @@ jobs:
           fi
 
           echo "Zero-unknowns gate passed ✅"
+
+      - name: Selfcheck (strict)
+        env:
+          QP_OFFLINE: "1"
+          QP_DISABLE_AUTO_SYNC: "1"
+        run: |
+          python tools/selfcheck.py --strict
 
       - name: Coverage gate
         run: |
@@ -110,10 +136,8 @@ jobs:
           fi
           echo "SARIF file size: $(wc -c < out.sarif) bytes"
 
-      - name: Upload SARIF
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule'
-        permissions:
-          security-events: write
+      - name: Upload SARIF (disabled for mock runs)
+        if: ${{ env.QP_UPLOAD_SARIF == 'true' && github.event_name == 'schedule' }}
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:

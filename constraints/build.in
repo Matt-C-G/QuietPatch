@@ -1,0 +1,9 @@
+# constraints/build.in
+# Build toolchain used by CI (compiled with hashes)
+build<2
+packaging<26
+pyproject-hooks<2
+setuptools<76
+wheel<0.46
+# Windows-only transitive dep of `build`
+colorama==0.4.6 ; platform_system == "Windows"

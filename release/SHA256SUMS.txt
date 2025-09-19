@@ -1,0 +1,2 @@
+36e6e166abb45ba04d9a83bea33413c1b270382a588442f5c02fad9ec9ec5881  QuietPatch-v0.4.0.zip
+a0c946849276df71b35af9c10e634744cd1bb69958d57cfe569ce693a26f12f6  quietpatch-cli-v0.4.0-macos-universal.tar.gz
