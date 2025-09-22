@@ -1,50 +1,491 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuietPatch Demo</title>
+    <meta charset="utf-8">
+    <title>QuietPatch – Vulnerability Report</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 40px; background: #f8fafc; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { color: #1e293b; margin-bottom: 20px; }
-        .status { padding: 16px; border-radius: 8px; margin: 20px 0; }
-        .success { background: #dcfce7; border: 1px solid #16a34a; color: #166534; }
-        .info { background: #dbeafe; border: 1px solid #2563eb; color: #1e40af; }
-        code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; }
-        .url { font-size: 18px; font-weight: 600; color: #2563eb; }
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            margin: 24px;
+            line-height: 1.5;
+        }}
+        h1 {{ margin-bottom: 12px; }}
+        
+        .safety-banner {{
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            color: #92400e;
+        }}
+        .safety-banner strong {{
+            color: #78350f;
+        }}
+        
+        .toolbar {{
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 12px 0 18px;
+            flex-wrap: wrap;
+        }}
+        input[type="search"] {{
+            padding: 6px 10px;
+            min-width: 320px;
+        }}
+        
+        .filter-pills {{
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .filter-pill {{
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }}
+        .filter-pill:hover {{
+            background: #f3f4f6;
+        }}
+        .filter-pill.active {{
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }}
+        .sort-hint { font-size: 12px; color: #6b7280; }
+        
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 16px;
+        }}
+        th, td {{
+            border-bottom: 1px solid #eee;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }}
+        th {{
+            position: sticky;
+            top: 0;
+            background: #fafafa;
+            font-weight: 600;
+        }}
+        
+        .action-cell {{
+            max-width: 300px;
+        }}
+        .action-content {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }}
+        .command {{
+            background: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            flex: 1;
+            word-break: break-all;
+        }}
+        .action-url {{
+            color: #2563eb;
+            text-decoration: none;
+            flex: 1;
+            word-break: break-all;
+        }}
+        .action-url:hover {{
+            text-decoration: underline;
+        }}
+        .action-note {{
+            font-size: 12px;
+            color: #6b7280;
+            font-style: italic;
+        }}
+        .copy-btn {{
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        .copy-btn:hover {{
+            background: #2563eb;
+        }}
+        .copy-btn:active {{
+            background: #1d4ed8;
+        }}
+        
+        .expand-btn {{
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }}
+        .expand-btn:hover {{
+            background: #059669;
+        }}
+        
+        .details-row {{
+            background: #f9fafb;
+        }}
+        .details-cell {{
+            padding: 16px !important;
+        }}
+        .cve-details h4 {{
+            margin: 0 0 12px 0;
+            color: #374151;
+        }}
+        .cve-item {{
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }}
+        .cve-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }}
+        .cve-id {{
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-weight: 600;
+            color: #1f2937;
+        }}
+        .cve-meta {{
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+        .cvss, .epss {{
+            font-size: 12px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }}
+        .kev-badge {{
+            background: #dc2626;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }}
+        .cve-summary {{
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+        
+        .badge {{
+            padding: 0 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid transparent;
+        }}
+        /* New accessible badge palette */
+        .badge-critical {{ background:#ffe5e5; color:#8b0000; border-color:#ffb3b3; }}
+        .badge-high {{ background:#fff0e6; color:#a14b00; border-color:#ffc299; }}
+        .badge-medium {{ background:#fff7e0; color:#866a00; border-color:#ffe08a; }}
+        .badge-low {{ background:#e9f8ec; color:#1e6b2d; border-color:#bde5c8; }}
+        .badge-unknown {{ background:#f1f3f5; color:#495057; border-color:#dde2e6; }}
+        .badge-inferred {{ border-style: dotted; }}
+        /* Legacy classes kept for compatibility (mapped to new look) */
+        .badge-crit {{ background:#ffe5e5; color:#8b0000; border:1px solid #ffb3b3; }}
+        .badge-med {{ background:#fff7e0; color:#866a00; border:1px solid #ffe08a; }}
+        .badge-unk {{ background:#f1f3f5; color:#495057; border:1px solid #dde2e6; }}
+        
+        .muted {{ color:#6b7280; }}
+        
+        .copy-success {{
+            background: #10b981 !important;
+        }}
+        
+        .hidden {{
+            display: none !important;
+        }}
+        /* Summary banner */
+        .summary-banner {{
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            margin: 12px 0 16px;
+        }}
+        .summary-banner strong {{ font-weight: 700; }}
+        /* Dark theme overrides (active when html lacks data-theme='light') */
+        html:not([data-theme='light']) body { background:#0b1220; color:#e2e8f0; }
+        html:not([data-theme='light']) th { background:#111827; color:#e2e8f0; }
+        html:not([data-theme='light']) .details-row { background:#0f172a; }
+        html:not([data-theme='light']) .action-url { color:#93c5fd; }
+        html:not([data-theme='light']) .command { background:#1f2937; color:#e2e8f0; }
+        html:not([data-theme='light']) .cve-item { background:#0f172a; border-color:#22304d; }
+        html:not([data-theme='light']) .cvss,
+        html:not([data-theme='light']) .epss { background:#1a243a; color:#94a3b8; }
+        html:not([data-theme='light']) .summary-banner { background:#111827; border-color:#22304d; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔐 QuietPatch Demo</h1>
-        
-        <div class="status success">
-            <strong>✅ GitHub Pages is working!</strong><br>
-            Custom domain: <span class="url">www.quietpatch.dev</span>
-        </div>
-        
-        <div class="status info">
-            <strong>📁 File structure:</strong><br>
-            <code>docs/CNAME</code> → <code>www.quietpatch.dev</code><br>
-            <code>docs/demo/index.html</code> → <code>/QuietPatch/demo/</code>
-        </div>
-        
-        <h2>Next Steps</h2>
-        <ol>
-            <li><strong>DNS Configuration:</strong> Point <code>www.quietpatch.dev</code> CNAME to <code>matt-c-g.github.io</code></li>
-            <li><strong>GitHub Pages Settings:</strong> Set custom domain to <code>www.quietpatch.dev</code></li>
-            <li><strong>Enable HTTPS:</strong> After DNS propagates, enable "Enforce HTTPS"</li>
-        </ol>
-        
-        <h2>Verify DNS</h2>
-        <p>Run this command to check DNS propagation:</p>
-        <pre><code>nslookup -type=CNAME www.quietpatch.dev</code></pre>
-        <p>Should return: <code>www.quietpatch.dev canonical name = matt-c-g.github.io.</code></p>
-        
-        <h2>Test URL</h2>
-        <p>Once DNS is configured, this page will be available at:</p>
-        <p><a href="https://www.quietpatch.dev/QuietPatch/demo/" class="url">https://www.quietpatch.dev/QuietPatch/demo/</a></p>
+    <h1>QuietPatch – Vulnerability Report</h1>
+    <div class="summary-banner" role="region" aria-label="Scan summary">Scanned <strong>2</strong> apps • <strong>1</strong> vulnerable • <strong>0</strong> critical (0 KEV) • 0 unknowns ✅</div>
+    
+    <div class="safety-banner">
+        <strong>⚠️ Safety Notice:</strong> Commands are suggestions. Review before running. 
+        Never execute commands without understanding what they do.
     </div>
-</body>
+    
+    <div class="toolbar">
+        <input id="q" type="search" placeholder="Search app or CVE or summary">
+        <span class="sort-hint">Tip: click headers to sort</span>
+        <div class="filter-pills">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="low">Low</button>
+            <button class="filter-pill" data-filter="medium">Medium</button>
+            <button class="filter-pill" data-filter="high">High</button>
+            <button class="filter-pill" data-filter="critical">Critical</button>
+            <button class="filter-pill" data-filter="kev">KEV</button>
+        </div>
+        <button class="copy-btn" onclick="qpToggleTheme()" title="Toggle theme">Toggle theme</button>
+    </div>
+    
+    <table id="tbl">
+        <thead>
+            <tr>
+                <th onclick="qpSort(0,false)">App</th>
+                <th onclick="qpSort(1,false)">Version</th>
+                <th>Action</th>
+                <th onclick="qpSort(3,false)">CVE</th>
+                <th onclick="qpSort(4,true)">CVSS</th>
+                <th onclick="qpSort(5,true)">Severity</th>
+                <th onclick="qpSort(6,true)">KEV</th>
+                <th onclick="qpSort(7,true)">EPSS</th>
+                <th onclick="qpSort(8,false)">Summary</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="row-0" class="data-row" data-severity="high" data-kev="false"><td class="app-cell">ExampleApp</td><td class="version-cell">1.2.3</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">CVE-2099-0001</td><td class="cvss-cell">8.1</td><td class="severity-cell"><span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell">Mock vulnerability</td>
+                <td class="expand-cell">
+                    <button class="expand-btn" onclick="toggleDetails('row-0')" title="Show all CVEs">
+                        📋
+                    </button>
+                </td>
+            </tr>
+                <tr class="details-row" id="details-row-0" style="display: none;">
+                    <td colspan="10" class="details-cell">
+                        
+        <div class="cve-details" id="cve-details-row-0">
+            <h4>All CVEs (1)</h4>
+            
+            <div class="cve-item">
+                <div class="cve-header">
+                    <span class="cve-id">CVE-2099-0001</span>
+                    <span class="cve-meta">
+                        <span class="cvss">CVSS: 8.1</span>
+                        <span class="badge badge-high" aria-label="Severity: High" title="Severity: High">High</span>
+                        
+                        
+                    </span>
+                </div>
+                <div class="cve-summary">Mock vulnerability</div>
+            </div>
+        
+        </div>
+    
+                    </td>
+                </tr>
+            <tr id="row-1" class="data-row" data-severity="unknown" data-kev="false"><td class="app-cell">OpenSSL</td><td class="version-cell">3.0.0</td><td class="action-cell">
+        <div class="action-content">
+            <span>Open the app → Check built-in updater or vendor site for updates.</span>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'Open the app → Check built-in updater or vendor site for updates.')" title="Copy text">
+                📋
+            </button>
+        </div>
+    </td><td class="cve-cell">—</td><td class="cvss-cell">—</td><td class="severity-cell"><span class="badge badge-unknown" aria-label="Severity: Unknown" title="Severity: Unknown">Unknown</span></td><td class="kev-cell">—</td><td class="epss-cell">—</td><td class="summary-cell"></td><td class="expand-cell">—</td></tr>
+        </tbody>
+    </table>
+
+<script>
+    // theme persistence (toggle light/dark by html data-attr)
+    (function(){
+        try {{
+            var key='qp-theme';
+            var t=localStorage.getItem(key)||'dark';
+            if(t==='light') document.documentElement.setAttribute('data-theme','light');
+            window.qpToggleTheme=function(){{
+                var isLight=document.documentElement.getAttribute('data-theme')==='light';
+                var next=isLight?'dark':'light';
+                if(next==='light') document.documentElement.setAttribute('data-theme','light'); else document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem(key,next);
+            }};
+        }} catch(e) {{}}
+    })();
+    const q = document.getElementById('q');
+    const filterPills = document.querySelectorAll('.filter-pill');
+    const tbody = document.querySelector('#tbl tbody');
+    
+    let currentFilter = 'all';
+    
+    function matches(txt, needle) {{
+        return txt.toLowerCase().indexOf(needle) !== -1;
+    }}
+    
+    function matchesFilter(row, filter) {{
+        if (filter === 'all') return true;
+        
+        const severity = row.dataset.severity;
+        const hasKev = row.dataset.kev === 'true';
+        
+        if (filter === 'kev') return hasKev;
+        return severity === filter;
+    }}
+    
+    function refilter() {{
+        const needle = q.value.trim().toLowerCase();
+        
+        for (const row of tbody.querySelectorAll('.data-row')) {{
+            const hay = (row.querySelector('.app-cell').innerText + " " + 
+                        row.querySelector('.action-cell').innerText + " " + 
+                        row.querySelector('.cve-cell').innerText + " " + 
+                        row.querySelector('.summary-cell').innerText).toLowerCase();
+            
+            const matchesSearch = !needle || matches(hay, needle);
+            const matchesFilterType = matchesFilter(row, currentFilter);
+            
+            const show = matchesSearch && matchesFilterType;
+            row.style.display = show ? "" : "none";
+            
+            // Hide details row if main row is hidden
+            const detailsRow = document.getElementById(`details-${{row.id}}`);
+            if (detailsRow) {{
+                detailsRow.style.display = show ? "none" : "none";
+            }}
+        }}
+    }}
+    
+    function toggleDetails(rowId) {{
+        const detailsRow = document.getElementById(`details-${{rowId}}`);
+        const expandBtn = document.querySelector(`#${{rowId}} .expand-btn`);
+        
+        if (detailsRow.style.display === 'none') {{
+            detailsRow.style.display = '';
+            expandBtn.textContent = '📋';
+            expandBtn.title = 'Hide CVEs';
+        }} else {{
+            detailsRow.style.display = 'none';
+            expandBtn.textContent = '📋';
+            expandBtn.title = 'Show all CVEs';
+        }}
+    }}
+    
+    function setActiveFilter(filter) {{
+        currentFilter = filter;
+        
+        // Update pill states
+        filterPills.forEach(pill => {{
+            pill.classList.toggle('active', pill.dataset.filter === filter);
+        }});
+        
+        refilter();
+    }}
+    
+    function copyToClipboard(button, text) {{
+        navigator.clipboard.writeText(text).then(() => {{
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = "✓";
+            button.classList.add('copy-success');
+            
+            setTimeout(() => {{
+                button.textContent = originalText;
+                button.classList.remove('copy-success');
+            }}, 1500);
+        }}).catch(err => {{
+            console.error('Failed to copy: ', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = "✓";
+            button.classList.add('copy-success');
+            
+            setTimeout(() => {{
+                button.textContent = originalText;
+                button.classList.remove('copy-success');
+            }}, 1500);
+        }});
+    }}
+    
+    // Event listeners
+    q.addEventListener('input', refilter);
+    
+    filterPills.forEach(pill => {{
+        pill.addEventListener('click', () => {{
+            setActiveFilter(pill.dataset.filter);
+        }});
+    }});
+    // simple table sort
+    function qpSort(colIndex, desc) {{
+        const body = tbody;
+        const rows = Array.from(body.querySelectorAll('.data-row'));
+        rows.sort((a, b) => {{
+            const ax = (a.children[colIndex]?.textContent || '').trim();
+            const bx = (b.children[colIndex]?.textContent || '').trim();
+            const na = Number(ax.replace(/[^0-9.]/g, ''));
+            const nb = Number(bx.replace(/[^0-9.]/g, ''));
+            let cmp;
+            if (!Number.isNaN(na) && !Number.isNaN(nb)) cmp = na - nb; else cmp = ax.localeCompare(bx, undefined, {{ numeric: true, sensitivity: 'base' }});
+            return desc ? -cmp : cmp;
+        }});
+        for (const r of rows) {{ body.appendChild(r); const d=document.getElementById('details-'+r.id); if(d) body.appendChild(d); }}
+    }}
+</script>
+
+    <div style="margin-top: 40px; padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 12px; color: #6b7280;">
+        <div>Report generated: 2024-01-01T00:00:00Z</div>
+        <div>Report-Hash: SHA256-4241286d002ca88c</div>
+        <div>QuietPatch v0.3.0</div>
+    </div>
+    </body>
 </html>
