@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuietPatch Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 40px; background: #f8fafc; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1e293b; margin-bottom: 20px; }
+        .status { padding: 16px; border-radius: 8px; margin: 20px 0; }
+        .success { background: #dcfce7; border: 1px solid #16a34a; color: #166534; }
+        .info { background: #dbeafe; border: 1px solid #2563eb; color: #1e40af; }
+        code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; }
+        .url { font-size: 18px; font-weight: 600; color: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 QuietPatch Demo</h1>
+        
+        <div class="status success">
+            <strong>✅ GitHub Pages is working!</strong><br>
+            Custom domain: <span class="url">www.quietpatch.dev</span>
+        </div>
+        
+        <div class="status info">
+            <strong>📁 File structure:</strong><br>
+            <code>docs/CNAME</code> → <code>www.quietpatch.dev</code><br>
+            <code>docs/demo/index.html</code> → <code>/QuietPatch/demo/</code>
+        </div>
+        
+        <h2>Next Steps</h2>
+        <ol>
+            <li><strong>DNS Configuration:</strong> Point <code>www.quietpatch.dev</code> CNAME to <code>matt-c-g.github.io</code></li>
+            <li><strong>GitHub Pages Settings:</strong> Set custom domain to <code>www.quietpatch.dev</code></li>
+            <li><strong>Enable HTTPS:</strong> After DNS propagates, enable "Enforce HTTPS"</li>
+        </ol>
+        
+        <h2>Verify DNS</h2>
+        <p>Run this command to check DNS propagation:</p>
+        <pre><code>nslookup -type=CNAME www.quietpatch.dev</code></pre>
+        <p>Should return: <code>www.quietpatch.dev canonical name = matt-c-g.github.io.</code></p>
+        
+        <h2>Test URL</h2>
+        <p>Once DNS is configured, this page will be available at:</p>
+        <p><a href="https://www.quietpatch.dev/QuietPatch/demo/" class="url">https://www.quietpatch.dev/QuietPatch/demo/</a></p>
+    </div>
+</body>
+</html>
