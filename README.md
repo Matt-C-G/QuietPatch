@@ -10,6 +10,19 @@
 
 ---
 
+## ⚡ Live Demo (Safe / Offline)
+- **HTML report:** https://matt-c-g.github.io/QuietPatch/demo/
+- **1-page triage (PDF):** [QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf)
+- **Screenshots:** [Report Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Report_Screenshot.png), [Terminal Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Terminal_Screenshot_Cropped.png)
+
+### Run locally (no host data)
+```bash
+python3 -m venv .venv && ./.venv/bin/python -m pip install -e .
+mkdir -p demo && ./.venv/bin/quietpatch scan --offline --mock --out demo/report.html
+```
+
+---
+
 ## 🚀 Quick Start
 
 **Supported Python:** 3.11–3.12 (3.13 not yet)
