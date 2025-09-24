@@ -1,262 +1,43 @@
-# QuietPatch 🔐
+# Endpoint Proof Pack
 
-![version](https://img.shields.io/badge/version-v0.4.6-blue.svg)
-[![CI](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+**What this proves** — Sensor health ≥98% (7-day), ASR FP <1/100 devices, BitLocker On with escrow present, recovery drill passed.
 
-> Privacy-first vulnerability scanner.  
-> Runs fully offline, cross-platform (macOS · Linux · Windows), produces a clean HTML report with clear remediation steps.  
-> No telemetry · No auto-patching · Deterministic results.
+**Quick Start**
+1) Run scripts: `.\scripts\check_sensor.ps1 -Simulate` and `.\scripts\check_bitlocker.ps1 -Simulate`
+2) Review SOPs in `sops/` for operational procedures
+3) Check evidence screenshots in `evidence/` for portal views
+4) Export one-pager from `onepager/` for executive summary
 
----
+## 🔗 Quick Links
+- **[Scripts](scripts/)** — PowerShell automation for sensor and BitLocker checks
+- **[SOPs](sops/)** — 3 one-page standard operating procedures
+- **[Evidence](evidence/)** — Redacted portal screenshots
+- **[JSON Artifacts](examples/sample_outputs/)** — Generated data for tickets
+- **[One-pager](onepager/)** — Executive summary documentation
+- **[Live Demo](https://matt-c-g.github.io/endpoint-labs/)** — GitHub Pages portfolio
 
-## ⚡ Live Demo (Safe / Offline)
-- **HTML report:** https://matt-c-g.github.io/QuietPatch/demo/
-- **1-page triage (PDF):** [QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf)
-- **Screenshots:** [Report Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Report_Screenshot.png), [Terminal Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Terminal_Screenshot_Cropped.png)
+## 📁 What's Inside
+- `scripts/` — PowerShell checks (sensor + BitLocker) with exit codes and hash artifacts
+- `sops/` — three 1-page SOPs (Defender, ASR, BitLocker)
+- `examples/sample_outputs/` — JSON outputs from scripts
+- `evidence/` — redacted screenshots (Defender portal, ASR hits, BitLocker recovery)
+- `onepager/` — recruiter-friendly summary
 
-### Run locally (no host data)
-```bash
-python3 -m venv .venv && ./.venv/bin/python -m pip install -e .
-mkdir -p demo && ./.venv/bin/quietpatch scan --offline --mock --out demo/report.html
-```
+## 🎯 Key Metrics Achieved
+- **Sensor Health:** ≥98% (7-day average)
+- **ASR False Positives:** <1/100 devices
+- **BitLocker Coverage:** 80-90% of pilot group
+- **Recovery Drill:** PASSED with key rotation
 
----
-
-## 🚀 Quick Start
-
-**Supported Python:** 3.11–3.12 (3.13 not yet)
-
-**Install:**
-```bash
-python -m pip install quietpatch==0.4.6
-quietpatch env doctor
-quietpatch db fetch
-quietpatch scan --offline --html
-```
-
-**Verified install (security-conscious):**
-```bash
-# Download and verify checksums
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256SUMS
-shasum -a 256 -c SHA256SUMS
-
-# Install with binary-only mode
-python -m pip install quietpatch==0.4.6 --only-binary :all:
-```
-
-> **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
-
-## 📥 Downloads (v0.4.6)
-
-**Direct downloads from the [v0.4.6 release](https://github.com/Matt-C-G/QuietPatch/releases/tag/v0.4.6):**
-
-- **Universal wheel**: [`quietpatch-0.4.6-py3-none-any.whl`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.6/quietpatch-0.4.6-py3-none-any.whl) - works on all platforms
-  - SHA256: `4a922e7659ff8ce7e424d39247575b4fff39e3a6292eec25136442cf0011fa11`
-- **Source tarball**: [`quietpatch-0.4.6.tar.gz`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.6/quietpatch-0.4.6.tar.gz) - for building from source
-  - SHA256: `0d6ef53d4326ad9623d8c790689afbfedb61b1a5be18344c6ca823a431a64025`
-
-**Verify (SHA256):**
-
-The release includes [`SHA256SUMS.txt`](https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.6/SHA256SUMS.txt). After downloading:
-
-```bash
-# macOS/Linux
-curl -LO https://github.com/Matt-C-G/QuietPatch/releases/download/v0.4.6/SHA256SUMS.txt
-shasum -a 256 -c SHA256SUMS.txt
-
-# Windows (PowerShell)
-Get-FileHash .\quietpatch-0.4.6-py3-none-any.whl -Algorithm SHA256
-Get-FileHash .\quietpatch-0.4.6.tar.gz -Algorithm SHA256
-```
-
-**Install from PyPI:**
-```bash
-pip install quietpatch==0.4.6
-```
-
-> Use `pip install <asset-url>` if you prefer installing directly from a release asset.
-
----
-
-## 📦 Alternative Install Methods
-
-**One-command installers:**
-
-macOS / Linux
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.sh)"
-```
-
-Windows (PowerShell)
+## 🧪 Quick Test
 ```powershell
-irm https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/install.ps1 | iex
+pwsh
+cd endpoint-labs
+.\scripts\check_sensor.ps1 -Simulate
+.\scripts\check_bitlocker.ps1 -Simulate
 ```
 
-**Package managers:**
+Artifacts land in `examples/sample_outputs/` (attach to tickets).
 
-macOS (Homebrew)
-```bash
-brew tap matt-c-g/quietpatch && brew install quietpatch
-```
-
-Windows (Scoop)
-```powershell
-scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
-scoop install quietpatch
-```
-
-**Standalone executables:**
-Download from [Releases](https://github.com/Matt-C-G/QuietPatch/releases) - no Python required.
-
-**Docker (Alpine/containerized):**
-```bash
-# Pull and run
-docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" ghcr.io/matt-c-g/quietpatch:latest env doctor
-docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" ghcr.io/matt-c-g/quietpatch:latest scan --offline --html
-
-# Or build locally
-docker build -t quietpatch .
-docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offline --html
-```
-
----
-
-## ✨ What You Get
-
-* 📦 Inventory of apps & versions
-* 🛡️ CVEs with severity badges (Critical/High/Medium/Low)
-* 🚨 KEV + EPSS flagged clearly
-* 🔧 Concrete remediation commands (copy-to-clipboard)
-* 📑 Deterministic, reproducible report for audits
-
-<p align="center">
-  <img src="docs/assets/screenshot-report.svg" alt="QuietPatch Report Preview" width="820"/>
-</p>
-
----
-
-## 🔒 Why QuietPatch?
-
-* **Privacy-first**: No telemetry. The app never sends data. Nightly jobs run on our infra against our test images only.
-* **Offline-first**: signed CVE DB snapshot; nothing leaves your machine
-* **No surprises**: never auto-patches, all fixes are suggestions
-* **Cross-platform**: works the same on macOS, Linux, and Windows
-* **Enterprise-ready**: systemd / launchd / Task Scheduler templates
-
----
-
-## ⚙️ Advanced Options
-
-* Policies: tune results with ready-made presets
-
-  ```bash
-  quietpatch scan --policy policies/policy-critical-only.yml
-  ```
-* JSON export: machine-readable for SIEM/ticketing
-
-  ```bash
-  quietpatch scan --json-out report.json
-  ```
-* Doctor: diagnose environment and provide fixes
-
-  ```bash
-  quietpatch doctor --open-check
-  ```
-* Recurring scans: use included service templates (systemd/launchd/Task Scheduler)
-
----
-
-## 🛠️ For Developers
-
-```bash
-git clone https://github.com/Matt-C-G/QuietPatch.git
-cd QuietPatch
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pytest -q
-```
-
----
-
-## 📄 License & Data
-
-* License: [MIT](LICENSE)
-* Data sources: [NVD](https://nvd.nist.gov/), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/)
-
-## 🔄 Version Support Policy
-
-**We support exactly two CPython minor versions:**
-- **Current**: Python 3.11, 3.12
-- **Next**: Python 3.12, 3.13 (when 3.13 support is added)
-- **Deprecated**: None currently
-- **End of life**: Python 3.10 and below, 3.14 and above
-
-**Policy:**
-- New versions added only after thorough testing with wheels + constraints
-- Old versions deprecated when new ones are added
-- Python 3.13 support will be added in a future release
-- See [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) for full details
-
-## 🔐 Security & Integrity
-
-**Database Security:**
-- All catalogs are minisign-verified before extraction
-- Path traversal protection prevents `../` attacks
-- Downgrade protection blocks rollback attacks
-- Epoch-based versioning ensures monotonic updates
-
-**Platform Support:**
-- Alpine not supported; use Docker image
-- Two Python minors supported (3.11/3.12)
-- No telemetry; diagnostics bundle is local-only and opt-in
-
-**Supply Chain:**
-- Cryptographic verification with Minisign signatures
-- Binary-only installation option for security-conscious users
-- Deterministic reports with content hashing
-- Automated security testing in CI/CD
-
----
-
-## 🔧 Troubleshooting
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| "Requires Python ≥3.11" | Using 3.9/3.10/3.13 | Install 3.12; re-run install |
-| "zstandard not found" | Env resolved wrong dep | `python -m pip install "zstandard>=0.22,<0.23"` |
-| "DB not found (offline)" | No catalog downloaded | `quietpatch db fetch` |
-| Gatekeeper blocks (macOS) | Unsigned | `xattr -dr com.apple.quarantine /path/to/python /usr/local/bin/quietpatch` |
-| SARIF empty in CI | Wrong path | Ensure `--sarif out.sarif` and upload step |
-
-**Quick diagnosis:**
-```bash
-quietpatch env doctor  # Shows exact fix commands
-```
-
-## 🔑 Verify Downloads
-
-```bash
-shasum -a 256 -c SHA256SUMS
-```
-
-Optional: verify Minisign signatures (VERIFY.md).
-
-Windows Authenticode
-```powershell
-Get-AuthenticodeSignature .\quietpatch-windows-x64.exe | Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
-# Expect Status: Valid
-```
-
-macOS notarization
-```bash
-spctl --assess -vv quietpatch-macos-arm64.zip   # Expect: accepted
-xcrun stapler validate quietpatch-macos-arm64.zip  # Expect: The validate action worked!
-```
-
----
-
-## 🙏 Thanks
-
-QuietPatch builds on the open-source security ecosystem.
-Thanks to early testers and contributors for shaping the tool.
+## 📄 License
+MIT License - see [LICENSE](LICENSE) file for details.
