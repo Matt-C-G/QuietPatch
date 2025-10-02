@@ -1,0 +1,71 @@
+{
+  "bundle_id": "quietpatch-2025-10-01",
+  "created_utc": "2025-10-01T12:00:00Z",
+  "targets": [
+    {
+      "id": "edge-128.0.0.0",
+      "platform": "windows",
+      "artifact": "artifacts/msedge-128-x64.msi",
+      "sha256": "REPLACE_ME",
+      "install": "scripts/windows/install.ps1 -Path artifacts\\msedge-128-x64.msi",
+      "verify": "scripts/windows/verify.ps1 -Name 'Microsoft Edge' -MinVersion '128.0.0.0'",
+      "rollback": "scripts/windows/rollback.ps1 -Name 'Microsoft Edge' -To '127.0.x'",
+      "policy": {
+        "maintenance_window": "Sun 02:00-04:00 local",
+        "max_parallel": 50,
+        "rings": [
+          {"name": "ring0-canary", "percent": 2, "success_ratio": 0.98, "max_failures": 1},
+          {"name": "ring1-early",  "percent": 8, "success_ratio": 0.97, "max_failures": 5},
+          {"name": "ring2-main",   "percent": 40, "success_ratio": 0.95, "max_failures": 20},
+          {"name": "ring3-tail",   "percent": 50, "success_ratio": 0.95, "max_failures": 40}
+        ],
+        "rollback_window_minutes": 5
+      }
+    },
+    {
+      "id": "openssl-3.0.14",
+      "platform": "linux",
+      "artifact": "artifacts/openssl_3.0.14_amd64.deb",
+      "sha256": "REPLACE_ME",
+      "install": "scripts/linux/install.sh -pkg openssl_3.0.14_amd64.deb",
+      "verify": "scripts/linux/verify.sh -cmd 'openssl version' -min '3.0.14'",
+      "rollback": "scripts/linux/rollback.sh -pkg openssl_3.0.13_amd64.deb",
+      "policy": {
+        "maintenance_window": "Sun 02:00-04:00 local",
+        "max_parallel": 25,
+        "rings": [
+          {"name": "ring0-canary", "percent": 5, "success_ratio": 0.98, "max_failures": 2},
+          {"name": "ring1-early",  "percent": 15, "success_ratio": 0.97, "max_failures": 8},
+          {"name": "ring2-main",   "percent": 40, "success_ratio": 0.95, "max_failures": 20},
+          {"name": "ring3-tail",   "percent": 40, "success_ratio": 0.95, "max_failures": 30}
+        ],
+        "rollback_window_minutes": 10
+      }
+    },
+    {
+      "id": "iterm2-3.5.12",
+      "platform": "macos",
+      "artifact": "artifacts/iterm2-3.5.12.pkg",
+      "sha256": "REPLACE_ME",
+      "install": "scripts/macos/install.sh -pkg iterm2-3.5.12.pkg",
+      "verify": "scripts/macos/verify.sh -app iTerm -min '3.5.12'",
+      "rollback": "scripts/macos/rollback.sh -pkg iterm2-3.5.10.pkg",
+      "policy": {
+        "maintenance_window": "Sun 02:00-04:00 local",
+        "max_parallel": 20,
+        "rings": [
+          {"name": "ring0-canary", "percent": 3, "success_ratio": 0.98, "max_failures": 1},
+          {"name": "ring1-early",  "percent": 12, "success_ratio": 0.97, "max_failures": 5},
+          {"name": "ring2-main",   "percent": 35, "success_ratio": 0.95, "max_failures": 15},
+          {"name": "ring3-tail",   "percent": 50, "success_ratio": 0.95, "max_failures": 25}
+        ],
+        "rollback_window_minutes": 8
+      }
+    }
+  ],
+  "approvals": {
+    "change_id": "CAB-2025-10-01-042",
+    "approved_by": "IT Change Board",
+    "requested_by": "Matthew Graham"
+  }
+}
