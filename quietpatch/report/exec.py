@@ -68,8 +68,9 @@ def build_exec_report(template_dir: str, scan: str, out_pdf: str, kpi: str|None=
         ensure_dir(out_html)
         with open(out_html, "w", encoding="utf-8") as f:
             f.write(html)
-    ensure_dir(out_pdf)
-    html_to_pdf(html, out_pdf)
+    if out_pdf:
+        ensure_dir(out_pdf)
+        html_to_pdf(html, out_pdf)
     
     # Optional signing
     if sign and sign_key:

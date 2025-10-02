@@ -25,7 +25,7 @@ def add_report_subparser(sub: argparse._SubParsersAction, template_dir: str):
 
     e = sp.add_parser("exec", help="Executive (CIO/CISO/Board) report")
     e.add_argument("--scan", required=True)
-    e.add_argument("--out", required=True, help="PDF output path")
+    e.add_argument("--out", default=None, help="PDF output path")
     e.add_argument("--html", default=None, help="Optional HTML output")
     e.add_argument("--kpi", default=None)
     e.add_argument("--trend-dir", default=None)

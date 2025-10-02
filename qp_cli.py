@@ -8,9 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from quietpatch.report.html import (
-    generate_report,  # assumes you have generate_report(input_json, out_html)
-)
 from quietpatch.report.cli import add_report_subparser
 from src.config.encryptor_v3 import decrypt_file  # for report
 from src.core.cve_mapper_new import run as run_mapping  # scan path
@@ -204,7 +201,8 @@ def main():
                 else:
                     html_out = outdir / "report.html"
                 
-                generate_report(str(src_json), str(html_out))
+                # Legacy report generation - use new dual-report system instead
+                print(f"Legacy report generation not implemented. Use 'quietpatch report tech' or 'quietpatch report exec' for new reports.")
                 print(f"REPORT: {html_out.absolute()}")
                 
                 if args.open:
@@ -233,14 +231,16 @@ def main():
                 tmp = html_out.with_suffix(".tmp.json")
                 tmp.write_bytes(raw)
                 try:
-                    generate_report(str(tmp), str(html_out))
+                    # Legacy report generation - use new dual-report system instead
+                    print(f"Legacy report generation not implemented. Use 'quietpatch report tech' or 'quietpatch report exec' for new reports.")
                 finally:
                     try:
                         tmp.unlink()
                     except Exception:
                         pass
             else:
-                generate_report(str(inp), str(html_out))
+                # Legacy report generation - use new dual-report system instead
+                print(f"Legacy report generation not implemented. Use 'quietpatch report tech' or 'quietpatch report exec' for new reports.")
             print(html_out)
             if args.open:
                 _open_file(str(html_out))
