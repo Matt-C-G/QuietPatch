@@ -58,8 +58,8 @@ def main(argv: list[str] | None = None) -> int:
 
     base = _which_quietpatch()
     # Forward to the QuietPatch CLI:
-    # quietpatch report report tech <rest...>   or   quietpatch report report exec <rest...>
-    cmd = base + ["report", "report", args.report_type] + (args.rest or [])
+    # quietpatch report tech <rest...>   or   quietpatch report exec <rest...>
+    cmd = base + ["report", args.report_type] + (args.rest or [])
 
     # If user did `--help` after the subcommand, it sits in args.rest and is forwarded.
     return _run(cmd)

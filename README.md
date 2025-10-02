@@ -12,8 +12,7 @@
 
 ## ⚡ Live Demo (Safe / Offline)
 - **HTML report:** https://matt-c-g.github.io/QuietPatch/demo/
-- **1-page triage (PDF):** [QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Triage_Summary_1pager_Clean_ASCII.pdf)
-- **Screenshots:** [Report Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Report_Screenshot.png), [Terminal Screenshot](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Terminal_Screenshot_Cropped.png)
+- **Screenshots:** [Demo Report](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Report_Screenshot.svg), [Demo Terminal](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Terminal_Screenshot.svg)
 
 ### Run locally (no host data)
 ```bash
