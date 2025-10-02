@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>QuietPatch • Technical Report</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#0b1221; }
+  .wrap { max-width: 1080px; margin: 24px auto; padding: 0 12px; }
+  h1,h2,h3 { margin: 0.6rem 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { border:1px solid #e4e7ef; border-radius:12px; padding:12px 14px; background:#fff; }
+  .muted { color:#596179; font-size: 12px; }
+  table { width:100%; border-collapse:collapse; font-size: 13px; }
+  th, td { border-bottom:1px solid #eef1f7; padding:8px; text-align:left; vertical-align:top; }
+  th { background:#f8f9fc; font-weight:600; }
+  .sev-critical { color:#a10000; font-weight:700; }
+  .sev-high { color:#c53; font-weight:700; }
+  .sev-medium { color:#b67; }
+  .sev-low { color:#678; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+  .footer { margin-top: 24px; font-size: 11px; color:#6a728b; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #e4e7ef; font-size:11px; }
+  .wm {
+    position: fixed; z-index: 9999; top: 18px; right: 18px;
+    padding: 6px 10px; border:1px dashed #9aa3b2; border-radius:10px;
+    background: #f5f7fb; color:#3a4154; font-weight:700; font-size:12px;
+    opacity: 0.9;
+  }
+</style>
+</head>
+<body>
+{% if watermark %}
+<div class="wm">{{ watermark }}</div>
+{% endif %}
+<div class="wrap">
+  <h1>QuietPatch • Technical Report</h1>
+  <div class="muted">Run: <span class="mono">{{ run }}</span> • Generated: {{ now }}</div>
+
+  <div class="grid" style="margin-top:12px;">
+    <div class="card">
+      <h3>Overview</h3>
+      <div>Assets scanned: <b>{{ assets_total }}</b></div>
+      <div>Exposure index: <b>{{ exposure_idx }}</b></div>
+      <div>KEV items: <b>{{ kev_count }}</b></div>
+      <div>Bundle SHA256: <span class="mono">{{ bundle.sha256 or "(none)" }}</span></div>
+      <div>Catalog signed: <b>{{ "yes" if catalog.signed else "no" }}</b></div>
+    </div>
+    <div class="card">
+      <h3>Severity & BU Distribution</h3>
+      <div>{{ charts.sev_svg | safe }}</div>
+      <div style="height:8px"></div>
+      <div>{{ charts.heat_svg | safe }}</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h2>Findings & Fixes</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>BU</th><th>Asset</th><th>OS</th><th>Package</th><th>CVE</th><th>Sev</th><th>KEV/EPSS</th><th>Fix</th><th>Commands</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for a in assets %}
+        {% for v in a.vulns %}
+        <tr>
+          <td>{{ a.bu or "(unassigned)" }}</td>
+          <td class="mono">{{ a.hostname or a.asset_id }}</td>
+          <td>{{ a.os }}</td>
+          <td class="mono">{{ v.package or "-" }} {{ v.current_version or "" }}</td>
+          <td class="mono">{{ v.cve }}</td>
+          <td class="sev-{{ v.severity|lower }}">{{ v.severity|title }}</td>
+          <td>
+            {% if v.kev %}<span class="pill">KEV</span>{% endif %}
+            {% if v.epss %}<span class="pill">EPSS {{ "%.2f"|format(v.epss) }}</span>{% endif %}
+          </td>
+          <td>
+            {% if v.fix_available %}
+              → {{ v.fix.target_version }}
+            {% else %}
+              (no vendor fix)
+            {% endif %}
+          </td>
+          <td class="mono">
+            {% if v.fix_available %}
+              # install<br/>{{ v.fix.install_cmd }}<br/><br/>
+              # verify<br/>{{ v.fix.verify_cmd }}<br/><br/>
+              # rollback<br/>{{ v.fix.rollback_cmd }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid" style="margin-top:12px;">
+    <div class="card">
+      <h3>Policy Decisions</h3>
+      <div class="muted">Version: {{ policy.policy_version }}</div>
+      <ul>
+        {% for d in policy.decisions[:1000] %}
+        <li class="mono">{{ d.asset_id }} • {{ d.cve }} → {{ d.action }} (ring={{ d.ring or "?" }})</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Run Diff (vs previous)</h3>
+      <div>Added: <b>{{ diff.added }}</b> • Removed: <b>{{ diff.removed }}</b> • Net: <b>{{ diff.net }}</b></div>
+      <div class="muted">Previous run omitted if not supplied.</div>
+    </div>
+  </div>
+
+  {% if approval %}
+  <div class="card" style="margin-top:12px;">
+    <h3>Change Approval</h3>
+    <div class="mono">
+      Change ID: {{ approval.change_id }}<br/>
+      Submitted By: {{ approval.submitted_by }} on {{ approval.submitted_at }}<br/>
+      Approver 1: {{ approval.approver_1.name }} ({{ approval.approver_1.role }}) on {{ approval.approver_1.date }}<br/>
+      Approver 2: {{ approval.approver_2.name }} ({{ approval.approver_2.role }}) on {{ approval.approver_2.date }}<br/>
+      Scope: {{ approval.scope }}<br/>
+      Notes: {{ approval.notes }}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    Document SHA256: <span class="mono">{{__DOC_SHA256__}}</span>
+  </div>
+</div>
+</body>
+</html>

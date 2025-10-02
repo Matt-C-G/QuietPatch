@@ -11,6 +11,7 @@ from pathlib import Path
 from quietpatch.report.html import (
     generate_report,  # assumes you have generate_report(input_json, out_html)
 )
+from quietpatch.report.cli import add_report_subparser
 from src.config.encryptor_v3 import decrypt_file  # for report
 from src.core.cve_mapper_new import run as run_mapping  # scan path
 
@@ -61,23 +62,31 @@ def main():
     )
 
     # report
-    p_rep = sub.add_parser("report", help="Render HTML report from JSON/ENCRYPTED input")
-    p_rep.add_argument(
+    p_rep = sub.add_parser("report", help="Generate offline reports")
+    rep_sub = p_rep.add_subparsers(dest="report_cmd", required=True)
+    
+    # Legacy report command
+    p_legacy = rep_sub.add_parser("legacy", help="Render HTML report from JSON/ENCRYPTED input")
+    p_legacy.add_argument(
         "-i", "--input", required=True, help="Path to vuln_log.json or vuln_log.json.enc"
     )
-    p_rep.add_argument("-o", "--output", default="report.html", help="Output HTML path")
-    p_rep.add_argument("--age-identity", help="Path to age identity (for .enc input)")
-    p_rep.add_argument(
+    p_legacy.add_argument("-o", "--output", default="report.html", help="Output HTML path")
+    p_legacy.add_argument("--age-identity", help="Path to age identity (for .enc input)")
+    p_legacy.add_argument(
         "--open", action="store_true", help="Open the report in a browser (interactive runs)"
     )
-    p_rep.add_argument("--evidence", help="Create evidence pack ZIP file")
-    p_rep.add_argument(
+    p_legacy.add_argument("--evidence", help="Create evidence pack ZIP file")
+    p_legacy.add_argument(
         "--include",
         nargs="+",
         choices=["html", "json", "csv", "sbom", "signatures", "manifest"],
         default=["html"],
         help="Evidence pack contents",
     )
+    
+    # Add new report subcommands
+    template_dir = os.path.join(os.path.dirname(__file__), "quietpatch", "report", "templates")
+    add_report_subparser(rep_sub, template_dir)
 
     # show (keep existing functionality)
     p_show = sub.add_parser("show", help="Decrypt and print a file (e.g., data/vuln_log.json.enc)")
@@ -212,34 +221,39 @@ def main():
             sys.exit(10)  # internal error
 
     elif args.cmd == "report":
-        inp = Path(args.input)
-        html_out = Path(args.output)
-        html_out.parent.mkdir(parents=True, exist_ok=True)
-        if inp.suffix == ".enc":
-            raw = decrypt_file(
-                str(inp), age_identity=args.age_identity or os.environ.get("AGE_IDENTITY")
-            )
-            tmp = html_out.with_suffix(".tmp.json")
-            tmp.write_bytes(raw)
-            try:
-                generate_report(str(tmp), str(html_out))
-            finally:
+        if args.report_cmd == "legacy":
+            # Handle legacy report command
+            inp = Path(args.input)
+            html_out = Path(args.output)
+            html_out.parent.mkdir(parents=True, exist_ok=True)
+            if inp.suffix == ".enc":
+                raw = decrypt_file(
+                    str(inp), age_identity=args.age_identity or os.environ.get("AGE_IDENTITY")
+                )
+                tmp = html_out.with_suffix(".tmp.json")
+                tmp.write_bytes(raw)
                 try:
-                    tmp.unlink()
-                except Exception:
-                    pass
+                    generate_report(str(tmp), str(html_out))
+                finally:
+                    try:
+                        tmp.unlink()
+                    except Exception:
+                        pass
+            else:
+                generate_report(str(inp), str(html_out))
+            print(html_out)
+            if args.open:
+                _open_file(str(html_out))
+
+            # Create evidence pack if requested
+            if args.evidence:
+                from tools.evidence_pack import build_evidence_pack
+
+                build_evidence_pack(args.input, args.output, args.evidence, args.include)
+                print(f"Evidence pack created: {args.evidence}")
         else:
-            generate_report(str(inp), str(html_out))
-        print(html_out)
-        if args.open:
-            _open_file(str(html_out))
-
-        # Create evidence pack if requested
-        if args.evidence:
-            from tools.evidence_pack import build_evidence_pack
-
-            build_evidence_pack(args.input, args.output, args.evidence, args.include)
-            print(f"Evidence pack created: {args.evidence}")
+            # Handle new report subcommands (tech/exec)
+            args.func(args)
 
     elif args.cmd == "db" and args.db_cmd == "refresh":
         from src.datafeed.updater import refresh_db

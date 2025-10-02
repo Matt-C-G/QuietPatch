@@ -1,1 +1,2 @@
-"""Report generation module for QuietPatch."""
+# empty or version marker
+__all__ = []
