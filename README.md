@@ -25,6 +25,37 @@ mkdir -p demo && ./.venv/bin/quietpatch scan --offline --mock --out demo/report.
 
 ## 🚀 Quick Start
 
+### Try Reports (No Install Required)
+
+**macOS/Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.py -o qp-report
+chmod +x qp-report
+./qp-report exec \
+  --scan data/scan.json \
+  --kpi data/kpi.json \
+  --business-units data/business_units.json \
+  --actions data/actions.json \
+  --approval data/approval.json \
+  --watermark "APPROVED • CAB-2025-10-01" \
+  --out out/exec-report.html --pdf out/exec-report.pdf
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.ps1 -OutFile qp-report.ps1
+.\qp-report.ps1 exec `
+  --scan data\scan.json `
+  --kpi data\kpi.json `
+  --business-units data\business_units.json `
+  --actions data\actions.json `
+  --approval data\approval.json `
+  --watermark "APPROVED • CAB-2025-10-01" `
+  --out out\exec-report.html --pdf out\exec-report.pdf
+```
+
+### Full Installation
+
 **Supported Python:** 3.11–3.12 (3.13 not yet)
 
 **Install:**
