@@ -133,7 +133,19 @@ qp-report tech --scan scan.json --policy policy.json --out tech.html --pdf tech.
 
 ---
 
-### Full Installation
+## Complete Demo (One-Liner)
+
+**macOS/Linux:**
+```bash
+python3 -m venv .venv && . .venv/bin/activate && pip install -e . && pip install jinja2 matplotlib && mkdir -p out && quietpatch scan --offline --mock --json-out out/scan.json && python3 qp_cli.py report report exec --scan out/scan.json --html out/exec-report.html --watermark "DEMO • $(date -u +%Y-%m-%dT%H:%MZ)" && python3 qp_cli.py report report tech --scan out/scan.json --out out/tech-report.html --watermark "DEMO • $(date -u +%Y-%m-%dT%H:%MZ)" && zip -r QuietPatch_Reports_$(date +%Y%m%d).zip out/exec-report.html out/tech-report.html
+```
+
+**Windows (PowerShell):**
+```powershell
+py -3 -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -e .; pip install jinja2 matplotlib; if (!(Test-Path out)) { New-Item -ItemType Directory out | Out-Null }; quietpatch scan --offline --mock --json-out out\scan.json; py qp_cli.py report report exec --scan out\scan.json --html out\exec-report.html --watermark "DEMO • $(Get-Date -Format u)"; py qp_cli.py report report tech --scan out\scan.json --out out\tech-report.html --watermark "DEMO • $(Get-Date -Format u)"; Compress-Archive -Path out\exec-report.html,out\tech-report.html -DestinationPath ("QuietPatch_Reports_{0}.zip" -f (Get-Date -Format yyyyMMdd)) -Force
+```
+
+---
 
 **Supported Python:** 3.11–3.12 (3.13 not yet)
 
