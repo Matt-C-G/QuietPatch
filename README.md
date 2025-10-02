@@ -14,6 +14,8 @@
 - **HTML report:** https://matt-c-g.github.io/QuietPatch/demo/
 - **Screenshots:** [Demo Report](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Report_Screenshot.svg), [Demo Terminal](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Terminal_Screenshot.svg)
 
+> **Demo Notice:** These screenshots are generated from mock data. No host identifiers or live scan data are included.
+
 ### Run locally (no host data)
 ```bash
 python3 -m venv .venv && ./.venv/bin/python -m pip install -e .

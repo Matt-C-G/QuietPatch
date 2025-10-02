@@ -18,3 +18,17 @@ unknown_apps.log
 # Trigger CI
 # Trigger CI run after YAML fix
 .venv/
+
+# Never commit live outputs
+*.html
+out/
+scan*.json
+report*.json
+screenshots/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+quietpatch_report.html
+reports/
+samples/*.html
