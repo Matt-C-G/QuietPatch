@@ -1,4 +1,72 @@
-<!doctype html><meta charset="utf-8">
-<title>QuietPatch Demo</title>
-<h1>QuietPatch Demo</h1>
-<p><a href="./assets/QP_Demo.mp4">Download/Play the 90s demo video</a></p>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QuietPatch Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .demo-section { margin: 30px 0; padding: 20px; border: 1px solid #e1e5e9; border-radius: 8px; }
+        .demo-section h2 { color: #2c3e50; margin-top: 0; }
+        .screenshot { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }
+        .download-link { display: inline-block; margin: 10px 10px 10px 0; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .download-link:hover { background: #0056b3; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QuietPatch Demo</h1>
+        
+        <div class="demo-section">
+            <h2>📊 Demo Report Screenshot</h2>
+            <p>Interactive vulnerability report showing mock scan results:</p>
+            <img src="./assets/QuietPatch_Demo_Report_Screenshot.svg" alt="QuietPatch Demo Report" class="screenshot">
+            <p><strong>Summary:</strong> Scanned 2 apps • 1 vulnerable • 0 critical (0 KEV) • 0 unknowns</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>💻 Terminal Demo Screenshot</h2>
+            <p>Command-line demonstration of the no-install reporting system:</p>
+            <img src="./assets/QuietPatch_Demo_Terminal_Screenshot.svg" alt="QuietPatch Terminal Demo" class="screenshot">
+            <p><strong>Commands shown:</strong> Download wrapper, generate reports, open results</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>📄 Demo Summary</h2>
+            <p>One-page summary of the demo scan results:</p>
+            <a href="./assets/QuietPatch_Demo_Summary.md" class="download-link">📋 View Demo Summary (Markdown)</a>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Demo Notice:</strong> All data shown in this demo is simulated and safe for demonstration purposes. 
+            CVE-2099-0001 is a fictional identifier. No real security vulnerabilities are present.
+        </div>
+
+        <div class="demo-section">
+            <h2>🚀 Try It Yourself</h2>
+            <p>Generate your own demo reports in 60 seconds:</p>
+            <pre style="background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto;"><code># Download and run the demo
+curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.py -o qp-report
+chmod +x qp-report
+
+# Generate Executive Report
+./qp-report exec --scan data/scan.json --kpi data/kpi.json --out exec.html
+
+# Generate Technical Report  
+./qp-report tech --scan data/scan.json --out tech.html
+
+# Open results
+open exec.html tech.html</code></pre>
+        </div>
+
+        <div class="demo-section">
+            <h2>📚 Learn More</h2>
+            <p>Explore the full QuietPatch project:</p>
+            <a href="https://github.com/Matt-C-G/QuietPatch" class="download-link">🔗 GitHub Repository</a>
+            <a href="https://github.com/Matt-C-G/QuietPatch/releases/latest" class="download-link">📦 Latest Release</a>
+        </div>
+    </div>
+</body>
+</html>

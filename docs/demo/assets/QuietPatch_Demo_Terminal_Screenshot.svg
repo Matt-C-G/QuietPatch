@@ -1,0 +1,33 @@
+<svg width="800" height="500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Terminal Background -->
+  <rect width="800" height="500" fill="#1e1e1e"/>
+  
+  <!-- Terminal Header -->
+  <rect x="0" y="0" width="800" height="30" fill="#2d2d2d"/>
+  <circle cx="15" cy="15" r="5" fill="#ff5f57"/>
+  <circle cx="35" cy="15" r="5" fill="#ffbd2e"/>
+  <circle cx="55" cy="15" r="5" fill="#28ca42"/>
+  <text x="80" y="20" fill="#ffffff" font-family="Monaco, monospace" font-size="12">Terminal — zsh</text>
+  
+  <!-- Command Lines -->
+  <text x="20" y="50" fill="#ffffff" font-family="Monaco, monospace" font-size="14">$ curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.py -o qp-report</text>
+  <text x="20" y="80" fill="#ffffff" font-family="Monaco, monospace" font-size="14">$ chmod +x qp-report</text>
+  <text x="20" y="110" fill="#ffffff" font-family="Monaco, monospace" font-size="14">$ ./qp-report exec --scan scan.json --kpi kpi.json --out exec.html</text>
+  
+  <!-- Output -->
+  <text x="20" y="150" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Executive report generated: exec.html</text>
+  <text x="20" y="180" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Report includes KPIs, risk trends, and business unit breakdown</text>
+  <text x="20" y="210" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Watermark applied: DEMO • CAB-DRYRUN</text>
+  
+  <text x="20" y="250" fill="#ffffff" font-family="Monaco, monospace" font-size="14">$ ./qp-report tech --scan scan.json --out tech.html</text>
+  <text x="20" y="280" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Technical report generated: tech.html</text>
+  <text x="20" y="310" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Report includes asset inventory, CVE details, and remediation steps</text>
+  
+  <text x="20" y="350" fill="#ffffff" font-family="Monaco, monospace" font-size="14">$ open exec.html tech.html</text>
+  <text x="20" y="380" fill="#28ca42" font-family="Monaco, monospace" font-size="14">✓ Reports opened in browser</text>
+  
+  <!-- Summary -->
+  <text x="20" y="420" fill="#ffbd2e" font-family="Monaco, monospace" font-size="14">📊 Demo completed in 60 seconds - no installation required!</text>
+  <text x="20" y="450" fill="#6c757d" font-family="Monaco, monospace" font-size="12"># Generated demo reports with mock data for demonstration purposes</text>
+  <text x="20" y="470" fill="#6c757d" font-family="Monaco, monospace" font-size="12"># All vulnerabilities shown are simulated and safe for demo use</text>
+</svg>
