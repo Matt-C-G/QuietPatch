@@ -32,7 +32,7 @@ test = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["quietpatch*", "src*"]
+include = ["quietpatch*", "src*", "scripts*"]
 
 # ship non-Python assets (HTML/CSS/templates/policies/catalog)
 [tool.setuptools.package-data]

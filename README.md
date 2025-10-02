@@ -25,12 +25,21 @@ mkdir -p demo && ./.venv/bin/quietpatch scan --offline --mock --out demo/report.
 
 ## 🚀 Quick Start
 
-### Try Reports (No Install Required)
+## Try Reports (No Install Required)
 
-**macOS/Linux:**
+Generate Executive or Technical reports in under 60 seconds—fully offline, no package install.
+
+> **What this does:** downloads a tiny wrapper (`qp-report`) that calls QuietPatch's report engine.
+> **Outputs:** HTML + optional PDF (Note: PDF requires `wkhtmltopdf` in your PATH.)
+
+### macOS / Linux
+
 ```bash
+# 1) Fetch wrapper
 curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.py -o qp-report
 chmod +x qp-report
+
+# 2) Executive Report (CISO/Board)
 ./qp-report exec \
   --scan data/scan.json \
   --kpi data/kpi.json \
@@ -39,11 +48,23 @@ chmod +x qp-report
   --approval data/approval.json \
   --watermark "APPROVED • CAB-2025-10-01" \
   --out out/exec-report.html --pdf out/exec-report.pdf
+
+# 3) Technical Report (Engineer Runbook)
+./qp-report tech \
+  --scan data/scan.json \
+  --policy policies/policy.json \
+  --actions data/actions.json \
+  --approval data/approval.json \
+  --out out/tech-report.html --pdf out/tech-report.pdf
 ```
 
-**Windows (PowerShell):**
+### Windows (PowerShell)
+
 ```powershell
+# 1) Fetch wrapper
 iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.ps1 -OutFile qp-report.ps1
+
+# 2) Executive Report (CISO/Board)
 .\qp-report.ps1 exec `
   --scan data\scan.json `
   --kpi data\kpi.json `
@@ -52,7 +73,65 @@ iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report
   --approval data\approval.json `
   --watermark "APPROVED • CAB-2025-10-01" `
   --out out\exec-report.html --pdf out\exec-report.pdf
+
+# 3) Technical Report (Engineer Runbook)
+.\qp-report.ps1 tech `
+  --scan data\scan.json `
+  --policy policies\policy.json `
+  --actions data\actions.json `
+  --approval data\approval.json `
+  --out out\tech-report.html --pdf out\tech-report.pdf
 ```
+
+**Notes**
+
+* **PDF generation**: Requires `wkhtmltopdf` (install via Homebrew, apt, winget, etc.). If unavailable, omit `--pdf`.
+* **Offline**: No telemetry. All inputs are local JSON files; outputs are deterministic.
+* **Signing (optional)**: Add `--sign --sign-key ~/.config/quietpatch/minisign.key` to embed a Minisign signature.
+
+### Sample Data (for a 60-sec demo)
+
+Use the included sample files or your own scan JSON:
+
+```
+data/scan.json
+data/kpi.json
+data/business_units.json
+data/actions.json
+data/approval.json
+policies/policy.json
+```
+
+---
+
+## CLI (Installed)
+
+If you've installed QuietPatch (`pip install quietpatch`), use the console command:
+
+```bash
+# Executive
+qp-report exec --scan scan.json --kpi kpi.json --out exec.html --pdf exec.pdf
+
+# Technical
+qp-report tech --scan scan.json --policy policy.json --out tech.html --pdf tech.pdf
+```
+
+---
+
+## CI/CD Examples
+
+**GitHub Actions**
+
+```yaml
+- name: Generate Executive Report (no install)
+  run: |
+    curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report.py -o qp-report
+    chmod +x qp-report
+    ./qp-report exec --scan data/scan.json --kpi data/kpi.json \
+      --out out/exec.html --pdf out/exec.pdf
+```
+
+---
 
 ### Full Installation
 
