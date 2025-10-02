@@ -1,0 +1,123 @@
+---
+# Run from control node (AWX/Tower-compatible)
+# Inventory must define groups: canary, wave1, wave2
+# Copy bundle to /opt/quietpatch/bundles/<bundle_id> and run scripts.
+
+- hosts: canary
+  gather_facts: no
+  serial: 10%
+  vars:
+    bundle_root: "/opt/quietpatch/bundles/quietpatch-2025-10-demo"
+  tasks:
+    - name: Ensure bundle present
+      copy:
+        src: ./quietpatch_bundle/
+        dest: "{{ bundle_root }}/"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Detect
+      shell: |
+        if [ -f /usr/bin/powershell ] || [ -f /bin/pwsh ]; then exit 0; fi
+        if [ -f /usr/bin/lsb_release ] || [ -f /etc/os-release ]; then exit 0; fi
+        exit 0
+      changed_when: false
+
+    - name: Apply (Windows)
+      win_shell: |
+        powershell.exe -ExecutionPolicy Bypass -File "{{ bundle_root }}\scripts\win\apply.ps1"
+      register: win_apply
+      failed_when: win_apply.rc != 0
+      when: ansible_os_family is defined and ansible_os_family == "Windows"
+
+    - name: Verify (Windows)
+      win_shell: |
+        powershell.exe -ExecutionPolicy Bypass -File "{{ bundle_root }}\scripts\win\verify.ps1"
+      register: win_verify
+      failed_when: win_verify.rc != 0
+      when: ansible_os_family is defined and ansible_os_family == "Windows"
+
+    - name: Apply (macOS)
+      shell: "bash {{ bundle_root }}/scripts/mac/apply.sh"
+      args: { executable: /bin/bash }
+      register: mac_apply
+      failed_when: mac_apply.rc != 0
+      when: ansible_facts['system'] is defined and ansible_facts['system'] == "Darwin"
+
+    - name: Verify (macOS)
+      shell: "bash {{ bundle_root }}/scripts/mac/verify.sh"
+      args: { executable: /bin/bash }
+      register: mac_verify
+      failed_when: mac_verify.rc != 0
+      when: ansible_facts['system'] is defined and ansible_facts['system'] == "Darwin"
+
+    - name: Apply (Linux)
+      shell: "bash {{ bundle_root }}/scripts/linux/apply.sh"
+      args: { executable: /bin/bash }
+      register: lin_apply
+      failed_when: lin_apply.rc != 0
+      when: ansible_facts['os_family'] is defined and ansible_facts['os_family'] != "Windows" and ansible_facts['system'] != "Darwin"
+
+    - name: Verify (Linux)
+      shell: "bash {{ bundle_root }}/scripts/linux/verify.sh"
+      args: { executable: /bin/bash }
+      register: lin_verify
+      failed_when: lin_verify.rc != 0
+      when: ansible_facts['os_family'] is defined and ansible_facts['os_family'] != "Windows" and ansible_facts['system'] != "Darwin"
+
+- hosts: canary
+  gather_facts: no
+  any_errors_fatal: false
+  tasks:
+    - name: Auto-rollback failed canaries (Windows)
+      win_shell: 'powershell.exe -ExecutionPolicy Bypass -File "{{ hostvars[inventory_hostname].bundle_root | default("/opt/quietpatch/bundles/quietpatch-2025-10-demo") }}\scripts\win\rollback.ps1"'
+      when: hostvars[inventory_hostname]['ansible_failed_result'] is defined
+
+    - name: Auto-rollback failed canaries (posix)
+      shell: "bash {{ hostvars[inventory_hostname].bundle_root | default('/opt/quietpatch/bundles/quietpatch-2025-10-demo') }}/scripts/{{ 'mac' if ansible_facts['system']=='Darwin' else 'linux' }}/rollback.sh"
+      args: { executable: /bin/bash }
+      when: hostvars[inventory_hostname]['ansible_failed_result'] is defined
+
+- hosts: wave1:wave2
+  gather_facts: no
+  serial: 25%
+  vars:
+    bundle_root: "/opt/quietpatch/bundles/quietpatch-2025-10-demo"
+  pre_tasks:
+    - pause:
+        prompt: "Proceed to next wave? Review canary success in AWX. Press Enter to continue or Ctrl+C to abort."
+
+  tasks:
+    - name: Sync bundle
+      copy:
+        src: ./quietpatch_bundle/
+        dest: "{{ bundle_root }}/"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Run platform-specific apply+verify (same as above)
+      block:
+        - name: Apply/Verify Windows
+          block:
+            - win_shell: 'powershell.exe -ExecutionPolicy Bypass -File "{{ bundle_root }}\scripts\win\apply.ps1"'
+            - win_shell: 'powershell.exe -ExecutionPolicy Bypass -File "{{ bundle_root }}\scripts\win\verify.ps1"'
+          when: ansible_os_family is defined and ansible_os_family == "Windows"
+
+        - name: Apply/Verify macOS
+          block:
+            - shell: "bash {{ bundle_root }}/scripts/mac/apply.sh"; args: {executable: /bin/bash}
+            - shell: "bash {{ bundle_root }}/scripts/mac/verify.sh"; args: {executable: /bin/bash}
+          when: ansible_facts['system'] is defined and ansible_facts['system'] == "Darwin"
+
+        - name: Apply/Verify Linux
+          block:
+            - shell: "bash {{ bundle_root }}/scripts/linux/apply.sh"; args: {executable: /bin/bash}
+            - shell: "bash {{ bundle_root }}/scripts/linux/verify.sh"; args: {executable: /bin/bash}
+          when: ansible_facts['os_family'] is defined and ansible_facts['os_family'] != "Windows" and ansible_facts['system'] != "Darwin"
+
+  post_tasks:
+    - name: Summarize failures
+      debug:
+        msg: "Check AWX job for failed hosts; rerun rollback tasks if threshold exceeded."

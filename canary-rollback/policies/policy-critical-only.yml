@@ -1,0 +1,33 @@
+# QuietPatch Canary + Rollback Policy Template
+
+## Policy: Critical-Only Remediation
+
+This policy defines the criteria for when QuietPatch should generate remediation bundles and the deployment gates that must be satisfied.
+
+### Remediation Criteria
+
+- **KEV Required**: Only remediate vulnerabilities listed in CISA Known Exploited Vulnerabilities (KEV) catalog
+- **EPSS Minimum**: Only remediate vulnerabilities with EPSS score ≥ 0.7 (70% probability of exploitation)
+- **Critical Severity**: Only CVSS 9.0+ vulnerabilities or those marked as Critical by vendor
+
+### Deployment Gates
+
+- **Maintenance Window**: Only deploy during defined maintenance windows (UTC)
+- **Success Rate Threshold**: Require ≥98% success rate in canary before proceeding to waves
+- **Auto-Rollback Threshold**: Automatically rollback if failure rate exceeds 2% in any wave
+- **Preflight Checks**: 
+  - Minimum 500MB free disk space
+  - AC power connected (laptops)
+  - No active RDP sessions
+
+### Logging Requirements
+
+- All operations logged to platform-specific directories
+- Logs include timestamps, operation type, success/failure status
+- Logs retained for 90 days minimum
+
+### Security Requirements
+
+- All artifacts must be SHA256 signed
+- Scripts must validate artifact integrity before execution
+- No telemetry or external network calls from remediation scripts

@@ -1,0 +1,88 @@
+{
+  "bundle_id": "quietpatch-2025-10-demo",
+  "created_utc": "2025-10-01T18:30:00Z",
+  "policy": "policies/policy-critical-only.yml",
+  "targets": [
+    {
+      "os": "windows",
+      "product": "7-Zip (x64)",
+      "publisher": "Igor Pavlov / 7-Zip",
+      "display_name": "7-Zip 64-bit",
+      "detect": {
+        "type": "win_file_or_registry",
+        "file": "C:\\\\Program Files\\\\7-Zip\\\\7z.exe",
+        "registry_uninstall_displayname_prefix": "7-Zip"
+      },
+      "current_version": "22.01",
+      "target_version": "23.01",
+      "artifact": "artifacts/win/7zip-23.01-x64.msi",
+      "rollback_artifact": "artifacts/win/7zip-22.01-x64.msi",
+      "install_cmd": "msiexec /i \"{{artifact}}\" /qn /norestart",
+      "rollback_cmd": "msiexec /i \"{{rollback_artifact}}\" /qn /norestart",
+      "verify": {
+        "type": "file_version",
+        "path": "C:\\\\Program Files\\\\7-Zip\\\\7z.exe",
+        "version": "23.01"
+      },
+      "sha256": {
+        "artifact": "<FILL_AT_BUILD>",
+        "rollback_artifact": "<FILL_AT_BUILD>"
+      }
+    },
+    {
+      "os": "macos",
+      "product": "iTerm2",
+      "display_name": "iTerm2",
+      "bundle_id": "com.googlecode.iterm2",
+      "app_path": "/Applications/iTerm.app",
+      "current_version": "3.5.10",
+      "target_version": "3.5.12",
+      "artifact": "artifacts/mac/iterm2-3.5.12.pkg",
+      "rollback_artifact": "artifacts/mac/iterm2-3.5.10.pkg",
+      "install_cmd": "sudo installer -pkg \"{{artifact}}\" -target /",
+      "rollback_cmd": "sudo installer -pkg \"{{rollback_artifact}}\" -target /",
+      "verify": {
+        "type": "app_bundle_version",
+        "path": "/Applications/iTerm.app",
+        "version": "3.5.12"
+      },
+      "sha256": {
+        "artifact": "<FILL_AT_BUILD>",
+        "rollback_artifact": "<FILL_AT_BUILD>"
+      }
+    },
+    {
+      "os": "linux",
+      "product": "Visual Studio Code",
+      "display_name": "VS Code",
+      "package_name": "code",
+      "current_version": "1.91.0",
+      "target_version": "1.93.1",
+      "artifact": "artifacts/linux/vscode_1.93.1_amd64.deb",
+      "rollback_artifact": "artifacts/linux/vscode_1.91.0_amd64.deb",
+      "install_cmd": "sudo dpkg -i \"{{artifact}}\" || sudo apt-get -f install -y",
+      "rollback_cmd": "sudo dpkg -i \"{{rollback_artifact}}\" || sudo apt-get -f install -y",
+      "verify": {
+        "type": "cmd_version",
+        "cmd": "code --version",
+        "startswith": "1.93.1"
+      },
+      "sha256": {
+        "artifact": "<FILL_AT_BUILD>",
+        "rollback_artifact": "<FILL_AT_BUILD>"
+      }
+    }
+  ],
+  "gates": {
+    "maintenance_window_utc": "Sat 02:00-05:00",
+    "kev_required": true,
+    "epss_min": 0.7,
+    "min_success_rate": 0.98,
+    "auto_rollback_threshold": 0.02,
+    "preflight": ["disk_space_mb>=500", "ac_power", "no_active_rdp"]
+  },
+  "logging": {
+    "dir_win": "C:\\\\ProgramData\\\\QuietPatch\\\\Logs",
+    "dir_posix": "/var/log/quietpatch"
+  }
+}
