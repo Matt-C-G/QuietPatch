@@ -1,4 +1,4 @@
-# QuietPatch 🔐
+# QuietPatch 
 
 ![version](https://img.shields.io/badge/version-v0.5.0-blue.svg)
 [![CI](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Matt-C-G/QuietPatch/actions/workflows/ci.yml)
@@ -200,7 +200,7 @@ pip install quietpatch==0.5.0
 
 ---
 
-## 📦 Alternative Install Methods
+## Alternative Install Methods
 
 **One-command installers:**
 
