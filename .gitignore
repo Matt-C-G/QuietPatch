@@ -21,6 +21,7 @@ unknown_apps.log
 
 # Never commit live outputs
 *.html
+!docs/demo/*.html
 out/
 scan*.json
 report*.json
