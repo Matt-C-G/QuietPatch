@@ -1,5 +1,8 @@
 """Test HTML report generation."""
 
+import pytest
+pytest.importorskip("jinja2", reason="Install extras: pip install .[reports,test]")
+
 import json
 import tempfile
 from pathlib import Path

@@ -57,7 +57,7 @@ jobs:
         run: |
           set -eux
           python -m pip install -r requirements.ci.txt
-          python -m pip install -e .
+          python -m pip install -e ".[reports,test]"
       - name: Run tests
         run: pytest -q
 
