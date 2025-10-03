@@ -10,7 +10,7 @@
 
 ---
 
-## ⚡ Live Demo (Safe / Offline)
+## Live Demo (Safe / Offline)
 - **HTML report:** https://matt-c-g.github.io/QuietPatch/demo/
 - **Screenshots:** [Demo Report](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Report_Screenshot.svg), [Demo Terminal](https://matt-c-g.github.io/QuietPatch/demo/assets/QuietPatch_Demo_Terminal_Screenshot.svg)
 
@@ -24,7 +24,7 @@ mkdir -p demo && ./.venv/bin/quietpatch scan --offline --mock --out demo/report.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ## Try Reports (No Install Required)
 
@@ -168,9 +168,9 @@ shasum -a 256 -c SHA256SUMS
 python -m pip install quietpatch==0.5.0 --only-binary :all:
 ```
 
-> **⚠️ If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
+> ** If install fails:** Use Python 3.12 (`brew install python@3.12` / Winget 'Python 3.12'). We do not support 3.13 yet.
 
-## 📥 Downloads (v0.5.0)
+## Downloads (v0.5.0)
 
 **Direct downloads from the [v0.5.0 release](https://github.com/Matt-C-G/QuietPatch/releases/tag/v0.5.0):**
 
@@ -243,13 +243,13 @@ docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offli
 
 ---
 
-## ✨ What You Get
+## What You Get
 
-* 📦 Inventory of apps & versions
-* 🛡️ CVEs with severity badges (Critical/High/Medium/Low)
-* 🚨 KEV + EPSS flagged clearly
-* 🔧 Concrete remediation commands (copy-to-clipboard)
-* 📑 Deterministic, reproducible report for audits
+*  Inventory of apps & versions
+*  CVEs with severity badges (Critical/High/Medium/Low)
+*  KEV + EPSS flagged clearly
+*  Concrete remediation commands (copy-to-clipboard)
+*  Deterministic, reproducible report for audits
 
 <p align="center">
   <img src="docs/assets/screenshot-report.svg" alt="QuietPatch Report Preview" width="820"/>
@@ -257,7 +257,7 @@ docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offli
 
 ---
 
-## 🔒 Why QuietPatch?
+## Why QuietPatch?
 
 * **Privacy-first**: No telemetry. The app never sends data. Nightly jobs run on our infra against our test images only.
 * **Offline-first**: signed CVE DB snapshot; nothing leaves your machine
@@ -267,7 +267,7 @@ docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offli
 
 ---
 
-## ⚙️ Advanced Options
+## Advanced Options
 
 * Policies: tune results with ready-made presets
 
@@ -288,7 +288,7 @@ docker run --rm -v "$HOME/.quietpatch:/root/.quietpatch" quietpatch scan --offli
 
 ---
 
-## 🛠️ For Developers
+## For Developers
 
 ```bash
 git clone https://github.com/Matt-C-G/QuietPatch.git
@@ -300,12 +300,12 @@ pytest -q
 
 ---
 
-## 📄 License & Data
+## License & Data
 
 * License: [MIT](LICENSE)
 * Data sources: [NVD](https://nvd.nist.gov/), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/)
 
-## 🔄 Version Support Policy
+## Version Support Policy
 
 **We support exactly two CPython minor versions:**
 - **Current**: Python 3.11, 3.12
@@ -319,7 +319,7 @@ pytest -q
 - Python 3.13 support will be added in a future release
 - See [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md) for full details
 
-## 🔐 Security & Integrity
+## Security & Integrity
 
 **Database Security:**
 - All catalogs are minisign-verified before extraction
@@ -340,7 +340,7 @@ pytest -q
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -355,7 +355,7 @@ pytest -q
 quietpatch env doctor  # Shows exact fix commands
 ```
 
-## 🔑 Verify Downloads
+## Verify Downloads
 
 ```bash
 shasum -a 256 -c SHA256SUMS
@@ -377,7 +377,7 @@ xcrun stapler validate quietpatch-macos-arm64.zip  # Expect: The validate action
 
 ---
 
-## 🙏 Thanks
+## Thanks
 
 QuietPatch builds on the open-source security ecosystem.
 Thanks to early testers and contributors for shaping the tool.
