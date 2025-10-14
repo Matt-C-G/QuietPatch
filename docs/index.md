@@ -3,7 +3,7 @@ title: QuietPatch
 layout: default
 ---
 
-<h1>QuietPatch 🔐</h1>
+<h1>QuietPatch </h1>
 <p>Privacy-first vulnerability scanner with deterministic HTML reports and actionable remediation. Runs fully offline.</p>
 
 ## Install

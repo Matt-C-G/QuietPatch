@@ -1,6 +1,6 @@
 # QuietPatch Demo & Documentation
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Try Reports (No Install Required)
 
@@ -49,7 +49,7 @@ iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report
 ./demo_canary_rollback.sh
 ```
 
-## 📊 Dual-Report System
+##  Dual-Report System
 
 ### Technical Report (Engineers/SRE/IT)
 ```bash
@@ -82,7 +82,7 @@ quietpatch report exec \
 quietpatch report tech --scan data/scan.json --assets data/assets.json --out out/tech.html --sign --sign-key ~/.config/quietpatch/minisign.key
 ```
 
-## 📦 Canary + Rollback System
+##  Canary + Rollback System
 
 ### Build Bundle with SHA256 Hashes
 ```bash
@@ -113,7 +113,7 @@ ansible-playbook -i inventory canary-rollback/examples/deploy_canary_waves.yml
 2. Use scripts from `canary-rollback/scripts/mac/`
 3. Configure Smart Groups
 
-## 🔧 Sample Data Files
+##  Sample Data Files
 
 All sample data files are ready in the `data/` directory:
 
@@ -125,7 +125,7 @@ All sample data files are ready in the `data/` directory:
 - `business_units.json` - Business unit breakdown
 - `actions.json` - Action items and timelines
 
-## 📋 Ring-Based Deployment
+##  Ring-Based Deployment
 
 For ring-based deployments, use the enhanced manifest:
 
@@ -135,25 +135,25 @@ cp canary-rollback/examples/manifest-rings.json canary-rollback/sample-bundle/ma
 python3 canary-rollback/sample-bundle/build-hashes.py
 ```
 
-## 🎯 Features
+##  Features
 
 ### Dual-Report System
-- ✅ **Technical Report**: Detailed HTML/PDF for engineers
-- ✅ **Executive Report**: High-level HTML/PDF for leadership
-- ✅ **Watermarks**: CAB approval status
-- ✅ **Signing**: Optional minisign integration
-- ✅ **Deterministic**: Same input = same output
-- ✅ **Offline**: No network dependencies
+-  **Technical Report**: Detailed HTML/PDF for engineers
+-  **Executive Report**: High-level HTML/PDF for leadership
+-  **Watermarks**: CAB approval status
+-  **Signing**: Optional minisign integration
+-  **Deterministic**: Same input = same output
+-  **Offline**: No network dependencies
 
 ### Canary + Rollback System
-- ✅ **Cross-platform**: Windows/macOS/Linux scripts
-- ✅ **Integrity**: SHA256 verification
-- ✅ **Policy Gates**: Maintenance windows, success thresholds
-- ✅ **Ring Deployment**: Gradual rollout with auto-rollback
-- ✅ **Orchestration**: Ansible/Intune/SCCM/Jamf examples
-- ✅ **Offline**: No telemetry, local operation
+-  **Cross-platform**: Windows/macOS/Linux scripts
+-  **Integrity**: SHA256 verification
+-  **Policy Gates**: Maintenance windows, success thresholds
+-  **Ring Deployment**: Gradual rollout with auto-rollback
+-  **Orchestration**: Ansible/Intune/SCCM/Jamf examples
+-  **Offline**: No telemetry, local operation
 
-## 🔗 Integration Examples
+##  Integration Examples
 
 ### Microsoft Intune Integration
 ```powershell
@@ -177,14 +177,14 @@ python3 canary-rollback/sample-bundle/build-hashes.py
     target_ring: "ring0-canary"
 ```
 
-## 📖 Documentation
+##  Documentation
 
 - **Canary + Rollback**: `canary-rollback/docs/README.md`
 - **Dual Reports**: `quietpatch/report/README.md`
 - **Sample Bundle**: `canary-rollback/sample-bundle/README.md`
 - **Integration Examples**: `canary-rollback/examples/`
 
-## 🎉 Ready for Production
+##  Ready for Production
 
 QuietPatch is enterprise-ready with:
 - Deterministic reporting

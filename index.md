@@ -1,8 +1,8 @@
-# QuietPatch 🔐
+# QuietPatch 
 
 Privacy-first vulnerability scanner with deterministic reports.
 
-## 🚀 Install
+##  Install
 
 **macOS/Linux**
 ```bash
@@ -16,14 +16,14 @@ irm https://quietpatch.dev/install.ps1 | iex
 
 [Read the docs →](https://github.com/Matt-C-G/QuietPatch)
 
-## ✨ Features
+##  Features
 
-- **🔍 Offline-First**: Works without internet after initial setup
-- **🛡️ Privacy-Focused**: No telemetry, no data collection
-- **📊 Rich Reports**: Beautiful HTML reports with CVSS scores and remediation steps
-- **⚡ Cross-Platform**: Single-file executables for Windows, macOS, and Linux
+- ** Offline-First**: Works without internet after initial setup
+- **️ Privacy-Focused**: No telemetry, no data collection
+- ** Rich Reports**: Beautiful HTML reports with CVSS scores and remediation steps
+- ** Cross-Platform**: Single-file executables for Windows, macOS, and Linux
 
-## 🎯 Quick Start
+##  Quick Start
 
 ```bash
 # Install
@@ -39,7 +39,7 @@ quietpatch --version
 quietpatch clean --cache
 ```
 
-## 📦 Package Managers
+##  Package Managers
 
 **Homebrew (macOS/Linux)**
 ```bash
@@ -52,7 +52,7 @@ scoop bucket add quietpatch https://github.com/Matt-C-G/scoop-quietpatch
 scoop install quietpatch
 ```
 
-## 🔗 Links
+##  Links
 
 - [GitHub Repository](https://github.com/Matt-C-G/QuietPatch)
 - [Latest Releases](https://github.com/Matt-C-G/QuietPatch/releases)

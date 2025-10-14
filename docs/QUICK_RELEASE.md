@@ -1,4 +1,4 @@
-# 🚀 Quick Release Guide
+#  Quick Release Guide
 
 ## Pre-Release Validation (Run from macOS)
 
@@ -9,14 +9,14 @@
 ```
 
 This script validates:
-- ✅ All platform artifacts (macOS, Linux, Windows)
-- ✅ Database snapshot integrity and signatures
-- ✅ macOS artifact functionality
-- ✅ Linux artifact via Docker
-- ✅ Windows artifact structure
-- ✅ Security checks (selfcheck, bandit)
-- ✅ Deterministic operation
-- ✅ Offline operation
+-  All platform artifacts (macOS, Linux, Windows)
+-  Database snapshot integrity and signatures
+-  macOS artifact functionality
+-  Linux artifact via Docker
+-  Windows artifact structure
+-  Security checks (selfcheck, bandit)
+-  Deterministic operation
+-  Offline operation
 
 ### 2. **Run Release Checklist**
 ```bash
@@ -25,15 +25,15 @@ This script validates:
 ```
 
 This script checks:
-- ✅ Git status (clean, on main, up-to-date)
-- ✅ Version consistency
-- ✅ Selfcheck passing
-- ✅ Security scan results
-- ✅ No placeholder CVEs
-- ✅ Database snapshot ready
-- ✅ All artifacts present
-- ✅ Documentation complete
-- ✅ CI workflow configured
+-  Git status (clean, on main, up-to-date)
+-  Version consistency
+-  Selfcheck passing
+-  Security scan results
+-  No placeholder CVEs
+-  Database snapshot ready
+-  All artifacts present
+-  Documentation complete
+-  CI workflow configured
 
 ## Release Process
 
@@ -54,12 +54,12 @@ git push origin main --follow-tags
 ```
 
 ### 4. **CI Automatically:**
-- 🐧 **Builds Linux PEX** on Ubuntu runner
-- 🍎 **Builds macOS PEX** on macOS runner  
-- 🪟 **Builds Windows PEX** on Windows runner
-- 🗄️ **Creates DB snapshot** with checksums
-- 📦 **Uploads all artifacts** to GitHub Release
-- 🏷️ **Tags releases** with OS-specific labels
+-  **Builds Linux PEX** on Ubuntu runner
+-  **Builds macOS PEX** on macOS runner  
+-  **Builds Windows PEX** on Windows runner
+- ️ **Creates DB snapshot** with checksums
+-  **Uploads all artifacts** to GitHub Release
+- ️ **Tags releases** with OS-specific labels
 
 ## What Gets Released
 
@@ -161,13 +161,13 @@ See [PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for full details.
 
 ---
 
-**🎯 Quick Release Summary:**
-1. `./tools/pre_publish_checks.sh` ✅
-2. `./tools/release_checklist.sh` ✅  
-3. `git tag -a v0.2.2 -m "QuietPatch v0.2.2"` 🏷️
-4. `git push origin main --follow-tags` 🚀
-5. **CI builds and publishes automatically!** 🎉
+** Quick Release Summary:**
+1. `./tools/pre_publish_checks.sh` 
+2. `./tools/release_checklist.sh`   
+3. `git tag -a v0.2.2 -m "QuietPatch v0.2.2"` ️
+4. `git push origin main --follow-tags` 
+5. **CI builds and publishes automatically!** 
 
-**QuietPatch v0.2.2 will be released with full cross-platform support!** 🎊
+**QuietPatch v0.2.2 will be released with full cross-platform support!** 
 
 

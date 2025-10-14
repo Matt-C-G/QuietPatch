@@ -2,14 +2,14 @@
 
 ## Pre-Build Verification
 
-### ✅ Environment Setup
+###  Environment Setup
 - [ ] Python 3.12 x64 installed from python.org
 - [ ] Inno Setup 6 installed from jrsoftware.org
 - [ ] Minisign installed (`choco install minisign`)
 - [ ] 7-Zip installed (optional, falls back to PowerShell)
 - [ ] Git repository cloned to Windows VM
 
-### ✅ Build Files Present
+###  Build Files Present
 - [ ] `Makefile.ps1` exists
 - [ ] `README-QuickStart.txt` exists
 - [ ] `installer/windows/QuietPatch.iss` exists
@@ -19,7 +19,7 @@
 
 ## Build Process
 
-### ✅ One-Command Build
+###  One-Command Build
 ```powershell
 Set-ExecutionPolicy -Scope Process RemoteSigned
 .\Makefile.ps1 all
@@ -33,7 +33,7 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 - [ ] `release/README-QuickStart.txt` (user guide)
 - [ ] `release/VERIFY.md` (verification instructions)
 
-### ✅ Build Verification
+###  Build Verification
 ```powershell
 .\scripts\windows\verify-build.ps1
 ```
@@ -47,7 +47,7 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 
 ## Installer Testing
 
-### ✅ Clean Windows 11 VM Test
+###  Clean Windows 11 VM Test
 1. **Download & Run Installer**
    - [ ] Download `QuietPatch-Setup-v0.4.0.exe`
    - [ ] Right-click → Properties → Unblock (if needed)
@@ -91,7 +91,7 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 
 ## Portable CLI Testing
 
-### ✅ Portable CLI Test
+###  Portable CLI Test
 1. **Extract ZIP**
    - [ ] Download `quietpatch-cli-v0.4.0-win64.zip`
    - [ ] Extract to a folder
@@ -111,7 +111,7 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 
 ## Verification Testing
 
-### ✅ Checksum Verification
+###  Checksum Verification
 ```powershell
 cd release
 Get-FileHash .\QuietPatch-Setup-v0.4.0.exe -Algorithm SHA256
@@ -121,7 +121,7 @@ Get-Content .\SHA256SUMS.txt | Select-String QuietPatch-Setup-v0.4.0.exe
 **Expected:**
 - [ ] Hash matches between file and SHA256SUMS.txt
 
-### ✅ Minisign Verification
+###  Minisign Verification
 ```powershell
 cd release
 minisign -Vm .\SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZwdj/Ac+m8MR"
@@ -132,26 +132,26 @@ minisign -Vm .\SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZw
 
 ## Common Issues & Fixes
 
-### ❌ Build Issues
+###  Build Issues
 - **PyInstaller fails**: Check Python 3.12, virtual environment, dependencies
 - **Inno Setup fails**: Check installer script paths, file locations
 - **7-Zip missing**: Script falls back to PowerShell compression
 - **Minisign fails**: Check key file path, permissions
 
-### ❌ Installer Issues
+###  Installer Issues
 - **SmartScreen blocks**: Expected on first run, use "More info" → "Run anyway"
 - **Missing files**: Check Inno Setup script source paths
 - **Wrong shortcuts**: Check [Icons] section in installer script
 - **Installation fails**: Check admin privileges, disk space
 
-### ❌ Runtime Issues
+###  Runtime Issues
 - **GUI won't start**: Check PyInstaller build, dependencies
 - **CLI won't run**: Check executable permissions, antivirus
 - **Report won't open**: Check browser association, file permissions
 
 ## Release Readiness
 
-### ✅ Pre-Release Checklist
+###  Pre-Release Checklist
 - [ ] All tests pass on clean Windows 11 VM
 - [ ] Installer works with SmartScreen bypass
 - [ ] Portable CLI works without installation
@@ -159,7 +159,7 @@ minisign -Vm .\SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZw
 - [ ] Checksums and signatures verified
 - [ ] QuickStart guide accessible and helpful
 
-### ✅ Release Upload
+###  Release Upload
 - [ ] Upload all files from `release/` to GitHub Release
 - [ ] Update landing page download links
 - [ ] Test download links work correctly
@@ -167,11 +167,11 @@ minisign -Vm .\SHA256SUMS.txt -P "RWToYFmF4YgJS6OnTBHNCgRH59Fnx85WiQJF7jy9I3spZw
 
 ## Success Criteria
 
-**✅ Windows Release is Ready When:**
+** Windows Release is Ready When:**
 - [ ] One-command build works: `.\Makefile.ps1 all`
 - [ ] Installer works on clean Windows 11 VM
 - [ ] Portable CLI works without installation
 - [ ] All verification steps pass
 - [ ] User experience is smooth and professional
 
-**🎉 Ship it!** 🚀
+** Ship it!** 

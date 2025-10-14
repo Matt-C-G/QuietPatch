@@ -2,7 +2,7 @@
 
 QuietPatch can be installed in several ways across different platforms.
 
-## 🚀 One-Command Installation (Recommended)
+##  One-Command Installation (Recommended)
 
 ### macOS & Linux
 ```bash
@@ -22,7 +22,7 @@ These scripts will:
 - Set up PATH integration (where possible)
 - Provide usage instructions
 
-## 📦 Package Managers
+##  Package Managers
 
 ### macOS (Homebrew)
 ```bash
@@ -48,7 +48,7 @@ brew tap matt-c-g/quietpatch
 brew install quietpatch
 ```
 
-## 🔧 Manual Installation
+##  Manual Installation
 
 ### 1. Download Release
 Visit the [latest release](https://github.com/Matt-C-G/QuietPatch/releases/latest) and download:
@@ -73,7 +73,7 @@ For offline operation, download the vulnerability database:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/install.sh)"
 ```
 
-## 🔍 Verification
+##  Verification
 
 All releases include SHA256 checksums for verification:
 
@@ -83,13 +83,13 @@ curl -LO https://github.com/Matt-C-G/QuietPatch/releases/latest/download/SHA256S
 sha256sum -c SHA256SUMS
 ```
 
-## 📋 Requirements
+##  Requirements
 
 - **Python 3.11** (required for PEX execution)
 - **Internet connection** (for initial download and database updates)
 - **Offline operation** supported with local database
 
-## 🛠️ Development Installation
+## ️ Development Installation
 
 For developers who want to build from source:
 
@@ -124,7 +124,7 @@ If the `quietpatch` command isn't found after installation:
 - **Linux/macOS**: Add the installation directory to your PATH
 - **Windows**: Restart your terminal or run `refreshenv`
 
-## 🗑️ Uninstallation
+## ️ Uninstallation
 
 ### One-Command Uninstall
 
@@ -162,7 +162,7 @@ scoop uninstall quietpatch
 
 3. Remove PATH entries if manually added
 
-## 🔄 Updates
+##  Updates
 
 ### Package Managers
 ```bash
@@ -176,7 +176,7 @@ scoop update quietpatch
 ### Manual Updates
 Re-run the installation script or download the latest release manually.
 
-## 📞 Support
+##  Support
 
 For installation issues or questions:
 - [GitHub Issues](https://github.com/Matt-C-G/QuietPatch/issues)

@@ -9,13 +9,13 @@ The QuietPatch Dual-Report System provides enterprise-grade reporting capabiliti
 
 ## Key Features
 
-- **✅ Offline Generation**: No network calls, completely air-gapped
-- **✅ Deterministic Output**: Same input always produces identical reports
-- **✅ Watermark Support**: Add approval status banners (DRAFT, APPROVED, etc.)
-- **✅ Dual-Approval Metadata**: Embed change approval information
-- **✅ Optional Signing**: Minisign integration for document integrity
-- **✅ Cross-Platform**: Works on Windows, macOS, and Linux
-- **✅ PDF + HTML**: Generate both formats simultaneously
+- ** Offline Generation**: No network calls, completely air-gapped
+- ** Deterministic Output**: Same input always produces identical reports
+- ** Watermark Support**: Add approval status banners (DRAFT, APPROVED, etc.)
+- ** Dual-Approval Metadata**: Embed change approval information
+- ** Optional Signing**: Minisign integration for document integrity
+- ** Cross-Platform**: Works on Windows, macOS, and Linux
+- ** PDF + HTML**: Generate both formats simultaneously
 
 ## Quick Start
 

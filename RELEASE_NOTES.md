@@ -1,10 +1,10 @@
 # QuietPatch v0.3.2 Release Notes
 
-## 🎯 Complete Supply-Chain Integrity and Safe Catalog Updates
+##  Complete Supply-Chain Integrity and Safe Catalog Updates
 
 This release closes all remaining attack surface and edge-case gaps, providing bulletproof supply-chain integrity and safe catalog updates.
 
-## 🔐 Key Security Features
+##  Key Security Features
 
 ### Database Verification & Protection
 - **Minisign Signatures**: All database catalogs cryptographically verified before extraction
@@ -32,7 +32,7 @@ This release closes all remaining attack surface and edge-case gaps, providing b
 - **Mock Scanning**: Fast, deterministic CI checks with `--mock` flag
 - **Platform-Specific Constraints**: Hermetic installations work across all platforms
 
-## 🛠️ Technical Improvements
+## ️ Technical Improvements
 
 ### Platform Support
 - **macOS**: Native ARM64 support with proper PEX handling
@@ -51,13 +51,13 @@ This release closes all remaining attack surface and edge-case gaps, providing b
 - **Issue Templates**: Structured templates for bug reports and feature requests
 - **Troubleshooting Guide**: Step-by-step solutions for common issues
 
-## 🔧 Breaking Changes
+##  Breaking Changes
 
 - **Python Version**: Now requires Python 3.11+ (previously 3.9+)
 - **CLI Changes**: New subcommands for catalog and trust management
 - **Database Format**: New epoch-based versioning system
 
-## 📦 Installation
+##  Installation
 
 ### Quick Install
 ```bash
@@ -79,7 +79,7 @@ quietpatch --version
 quietpatch doctor
 ```
 
-## 🔍 Verification
+##  Verification
 
 All release artifacts are cryptographically signed with minisign:
 
@@ -92,14 +92,14 @@ shasum -a 256 -c SHA256SUMS
 minisign -Vm <file> -P <PUBLIC_KEY>
 ```
 
-## 🚀 What's Next
+##  What's Next
 
 - **Automated Catalog Updates**: Daily vulnerability database updates
 - **Enhanced Reporting**: More detailed vulnerability analysis and reporting
 - **Integration APIs**: REST API for CI/CD integration
 - **Enterprise Features**: Advanced policy management and compliance reporting
 
-## 📋 Full Changelog
+##  Full Changelog
 
 ### Security
 - Implemented comprehensive database verification with minisign signatures
@@ -131,4 +131,4 @@ minisign -Vm <file> -P <PUBLIC_KEY>
 
 ---
 
-**This release makes QuietPatch production-ready without surprises!** 🎉
+**This release makes QuietPatch production-ready without surprises!** 

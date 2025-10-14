@@ -15,8 +15,8 @@
 - **KEV:** 0
 
 ## Applications Scanned
-1. **ExampleApp v1.2.3** - ✓ No vulnerabilities found
-2. **OpenSSL v3.0.0** - ⚠ 1 High severity vulnerability
+1. **ExampleApp v1.2.3** -  No vulnerabilities found
+2. **OpenSSL v3.0.0** -  1 High severity vulnerability
 
 ## Vulnerability Details
 - **CVE:** CVE-2099-0001
@@ -39,7 +39,7 @@
 4. **90 Days:** Create comprehensive security baseline
 
 ## Demo Notes
-⚠️ **This is a demonstration report with mock data**  
+️ **This is a demonstration report with mock data**  
 - All vulnerabilities shown are simulated
 - CVE-2099-0001 is a fictional identifier
 - Commands are suggestions for demo purposes

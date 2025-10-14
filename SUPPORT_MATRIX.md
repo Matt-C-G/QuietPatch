@@ -4,22 +4,22 @@
 
 | OS | Architecture | Status | Notes |
 |---|---|---|---|
-| macOS 13+ | arm64 (Apple Silicon) | ✅ Fully supported | Native performance |
-| macOS 13+ | x64 (Intel) | ✅ Fully supported | Via Rosetta 2 |
-| Windows 10/11 | x64 | ✅ Fully supported | Native performance |
-| Ubuntu 22.04 LTS | x64 | ✅ Fully supported | Native performance |
-| Ubuntu 24.04 LTS | x64 | ✅ Fully supported | Native performance |
-| Other Linux | x64 | ⚠️ Community support | May work, not tested |
+| macOS 13+ | arm64 (Apple Silicon) |  Fully supported | Native performance |
+| macOS 13+ | x64 (Intel) |  Fully supported | Via Rosetta 2 |
+| Windows 10/11 | x64 |  Fully supported | Native performance |
+| Ubuntu 22.04 LTS | x64 |  Fully supported | Native performance |
+| Ubuntu 24.04 LTS | x64 |  Fully supported | Native performance |
+| Other Linux | x64 | ️ Community support | May work, not tested |
 
 ## Python Requirements
 
 | Python Version | Status | Support Level |
 |---|---|---|
-| 3.11.x | ✅ Fully supported | Primary support |
-| 3.12.x | ✅ Fully supported | Primary support |
-| 3.13.x | ❌ Not supported | Not yet supported |
-| 3.10.x and below | ❌ Not supported | Unsupported |
-| 3.14.x and above | ❌ Not supported | Unsupported |
+| 3.11.x |  Fully supported | Primary support |
+| 3.12.x |  Fully supported | Primary support |
+| 3.13.x |  Not supported | Not yet supported |
+| 3.10.x and below |  Not supported | Unsupported |
+| 3.14.x and above |  Not supported | Unsupported |
 
 **Version Policy:**
 - We support **exactly two** CPython minor versions (currently 3.11 and 3.12)
@@ -31,9 +31,9 @@
 
 | Mode | Network Required | Notes |
 |---|---|---|
-| Online | ✅ Yes | Downloads latest CVE data from NVD |
-| Offline | ❌ No | Uses local database snapshot |
-| CI/CD | ❌ No | Always runs offline for security |
+| Online |  Yes | Downloads latest CVE data from NVD |
+| Offline |  No | Uses local database snapshot |
+| CI/CD |  No | Always runs offline for security |
 
 **Offline Mode:**
 - Fully supported with local database snapshots
@@ -44,9 +44,9 @@
 
 | Format | Status | Dependencies | Notes |
 |---|---|---|---|
-| `.tar.zst` | ✅ Primary | `zstandard` Python package | Best compression |
-| `.tar.gz` | ✅ Supported | Built-in `gzip` | Fallback format |
-| `.tar.bz2` | ✅ Supported | Built-in `bz2` | Alternative format |
+| `.tar.zst` |  Primary | `zstandard` Python package | Best compression |
+| `.tar.gz` |  Supported | Built-in `gzip` | Fallback format |
+| `.tar.bz2` |  Supported | Built-in `bz2` | Alternative format |
 
 **Requirements:**
 - No external `zstd` binary required
@@ -57,11 +57,11 @@
 
 | Method | Python Required | Platform | Status |
 |---|---|---|---|
-| `pip install` | ✅ Yes | All | ✅ Recommended |
-| One-command installers | ❌ No | All | ✅ Convenient |
-| Homebrew | ❌ No | macOS | ✅ Native |
-| Scoop | ❌ No | Windows | ✅ Native |
-| Standalone executables | ❌ No | All | ✅ No dependencies |
+| `pip install` |  Yes | All |  Recommended |
+| One-command installers |  No | All |  Convenient |
+| Homebrew |  No | macOS |  Native |
+| Scoop |  No | Windows |  Native |
+| Standalone executables |  No | All |  No dependencies |
 
 ## Troubleshooting
 
@@ -77,14 +77,14 @@
 
 | Aspect | Status | Notes |
 |---|---|---|
-| Code signing | ✅ Windows/macOS | Authenticode/Notarization |
-| Checksums | ✅ All platforms | SHA256SUMS provided |
-| Minisign | ✅ Required | All catalogs cryptographically verified |
-| Path traversal protection | ✅ All platforms | Prevents `../` attacks in archives |
-| Downgrade protection | ✅ All platforms | Blocks rollback attacks via epoch |
-| Offline operation | ✅ Default | No data leaves your machine |
-| Telemetry | ❌ None | No tracking or analytics |
-| Alpine/musl | ❌ Not supported | Use Docker image instead |
+| Code signing |  Windows/macOS | Authenticode/Notarization |
+| Checksums |  All platforms | SHA256SUMS provided |
+| Minisign |  Required | All catalogs cryptographically verified |
+| Path traversal protection |  All platforms | Prevents `../` attacks in archives |
+| Downgrade protection |  All platforms | Blocks rollback attacks via epoch |
+| Offline operation |  Default | No data leaves your machine |
+| Telemetry |  None | No tracking or analytics |
+| Alpine/musl |  Not supported | Use Docker image instead |
 
 ## Performance Expectations
 

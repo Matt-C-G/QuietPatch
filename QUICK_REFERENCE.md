@@ -1,12 +1,12 @@
 # QuietPatch: Enterprise-Ready CVE Management
 
-## 🎯 What This Proves
+##  What This Proves
 
 **Dual-Report System**: Generate both Technical (engineer) and Executive (C-suite) reports with watermarks, approval metadata, and optional digital signing.
 
 **Canary + Rollback**: Cross-platform deployment with ring-based rollouts, integrity checks, and automated rollback on failure.
 
-## 🚀 Quick Demo
+##  Quick Demo
 
 ### Try Reports (No Install Required)
 
@@ -50,7 +50,7 @@ iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report
 ./demo_canary_rollback.sh
 ```
 
-## 📊 Reports
+##  Reports
 
 ### Technical Report (Engineers/SRE/IT)
 - Detailed asset inventory with CVEs
@@ -66,7 +66,7 @@ iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report
 - Risk trend visualization
 - Audit proof with signatures
 
-## 📦 Canary + Rollback
+##  Canary + Rollback
 
 ### Cross-Platform Scripts
 - **Windows**: PowerShell with MSI/registry detection
@@ -85,7 +85,7 @@ iwr https://raw.githubusercontent.com/Matt-C-G/QuietPatch/main/scripts/qp-report
 - Maximum failure limits
 - Auto-rollback triggers
 
-## 🔧 Sample Commands
+##  Sample Commands
 
 ### Generate Technical Report
 ```bash
@@ -123,7 +123,7 @@ python3 build-hashes.py
 ansible-playbook -i inventory canary-rollback/examples/deploy_canary_waves.yml
 ```
 
-## 🎯 Enterprise Features
+##  Enterprise Features
 
 - **Offline Operation**: No telemetry, no network dependencies
 - **Deterministic Output**: Same input = identical output
@@ -133,7 +133,7 @@ ansible-playbook -i inventory canary-rollback/examples/deploy_canary_waves.yml
 - **Integration Ready**: Works with existing orchestration tools
 - **Optional Signing**: Minisign integration for report integrity
 
-## 📋 Sample Data
+##  Sample Data
 
 Ready-to-use sample files in `data/`:
 - `scan.json` - Scan totals and metadata
@@ -144,7 +144,7 @@ Ready-to-use sample files in `data/`:
 - `business_units.json` - BU breakdown
 - `actions.json` - Action items
 
-## 🔗 Integration Examples
+##  Integration Examples
 
 ### Microsoft Intune
 ```powershell
@@ -168,7 +168,7 @@ Ready-to-use sample files in `data/`:
 - Use scripts from `canary-rollback/scripts/mac/`
 - Configure Smart Groups for ring deployment
 
-## 🎉 Production Ready
+##  Production Ready
 
 Perfect for:
 - SOC 2 compliance

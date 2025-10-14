@@ -2,14 +2,14 @@
 
 A comprehensive, enterprise-ready deployment system for vulnerability remediation across Windows, macOS, and Linux platforms.
 
-## 🚀 Quick Start
+##  Quick Start
 
 1. **Copy the sample bundle**: `cp -r canary-rollback/sample-bundle/ my-remediation-bundle/`
 2. **Replace placeholder artifacts** with real installers
 3. **Generate SHA256 hashes**: `./build_bundle.sh`
 4. **Deploy using your orchestration tool** (Ansible, Intune, SCCM, Jamf)
 
-## 📁 Directory Structure
+##  Directory Structure
 
 ```
 canary-rollback/
@@ -38,18 +38,18 @@ canary-rollback/
     └── README.md
 ```
 
-## 🎯 Key Features
+##  Key Features
 
-- **✅ Cross-Platform**: Windows (PowerShell), macOS (Bash), Linux (Bash)
-- **✅ Canary Deployment**: Test on small subset before full rollout
-- **✅ Automatic Rollback**: Revert failed deployments automatically
-- **✅ Integrity Verification**: SHA256 validation of all artifacts
-- **✅ Preflight Checks**: Disk space, power, active sessions
-- **✅ Comprehensive Logging**: Detailed logs for audit and troubleshooting
-- **✅ Zero Telemetry**: Completely offline operation
-- **✅ Enterprise Integration**: Works with Ansible, Intune, SCCM, Jamf
+- ** Cross-Platform**: Windows (PowerShell), macOS (Bash), Linux (Bash)
+- ** Canary Deployment**: Test on small subset before full rollout
+- ** Automatic Rollback**: Revert failed deployments automatically
+- ** Integrity Verification**: SHA256 validation of all artifacts
+- ** Preflight Checks**: Disk space, power, active sessions
+- ** Comprehensive Logging**: Detailed logs for audit and troubleshooting
+- ** Zero Telemetry**: Completely offline operation
+- ** Enterprise Integration**: Works with Ansible, Intune, SCCM, Jamf
 
-## 🔧 Integration Options
+##  Integration Options
 
 ### Ansible/AWX
 ```bash
@@ -71,28 +71,28 @@ ansible-playbook -i inventory deploy_canary_waves.yml
 - Collections for canary deployment
 - Uninstall program for rollback
 
-## 📋 Exit Code Contract
+##  Exit Code Contract
 
 - **0**: Success (up-to-date or successfully updated)
 - **1**: Needs remediation or verification failed
 - **2**: Not installed (treat as needs remediation)
 - **3**: Integrity check failed (SHA256 mismatch)
 
-## 🔒 Security Model
+##  Security Model
 
 - **No Local Admin**: QuietPatch never requires local admin credentials
 - **Orchestration Control**: MDM/SCCM tools run scripts as SYSTEM/root
 - **Offline Operation**: No network calls from remediation scripts
 - **Integrity Verification**: All artifacts SHA256 signed and validated
 
-## 📊 Policy Gates
+##  Policy Gates
 
 - **Maintenance Windows**: Deploy only during approved windows
 - **Success Thresholds**: Require ≥98% success before proceeding
 - **Auto-Rollback**: Trigger rollback if failure rate >2%
 - **Preflight Checks**: Disk space, power, active sessions
 
-## 🛠️ Example Usage
+## ️ Example Usage
 
 ```bash
 # Test detection
@@ -108,7 +108,7 @@ ansible-playbook -i inventory deploy_canary_waves.yml
 ./scripts/win/rollback.ps1
 ```
 
-## 📚 Documentation
+##  Documentation
 
 - [Complete Documentation](docs/README.md)
 - [Ansible Integration](examples/deploy_canary_waves.yml)
@@ -116,7 +116,7 @@ ansible-playbook -i inventory deploy_canary_waves.yml
 - [Jamf Integration](examples/jamf_integration.md)
 - [SCCM Integration](examples/sccm_integration.md)
 
-## 🎯 Best Practices
+##  Best Practices
 
 - Always test in isolated environment first
 - Use canary deployment for all production rollouts
@@ -125,6 +125,6 @@ ansible-playbook -i inventory deploy_canary_waves.yml
 - Document all customizations and policies
 - Regular testing of rollback procedures
 
-## 📞 Support
+##  Support
 
 For questions or issues with the Canary + Rollback system, refer to the QuietPatch documentation or create an issue in the repository.

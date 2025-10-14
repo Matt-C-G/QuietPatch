@@ -1,10 +1,10 @@
 # QuietPatch v0.4.0 Release Summary
 
-## 🎯 Complete Download-Ready Release Kit
+##  Complete Download-Ready Release Kit
 
 This release kit provides **one-click, trustable downloads** for non-technical users while maintaining security and privacy standards.
 
-## 📦 What's Included
+##  What's Included
 
 ### Core Components
 - **Tkinter Wizard GUI** - User-friendly interface with safe defaults
@@ -24,7 +24,7 @@ This release kit provides **one-click, trustable downloads** for non-technical u
 - **RELEASE_CHECKLIST.md** - Complete release process guide
 - **RELEASE_PROCESS.md** - Technical implementation details
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### 1. Generate Signing Keys
 ```bash
@@ -41,7 +41,7 @@ This release kit provides **one-click, trustable downloads** for non-technical u
 ./scripts/release.sh
 ```
 
-## 📋 Release Artifacts
+##  Release Artifacts
 
 Each release includes:
 
@@ -64,7 +64,7 @@ Each release includes:
 - `LICENSE.txt` - Software license
 - `README-QuickStart.md` - Quick start guide
 
-## 🔧 Technical Implementation
+##  Technical Implementation
 
 ### Build Process
 1. **PyInstaller** creates platform-specific binaries
@@ -84,7 +84,7 @@ Each release includes:
 - **SmartScreen/Gatekeeper guidance** for unsigned binaries
 - **Portable CLI fallback** for advanced users
 
-## 🧪 Testing
+##  Testing
 
 ### Automated Testing
 - GitHub Actions builds and tests all platforms
@@ -97,7 +97,7 @@ Each release includes:
 - Report generation and viewing
 - Uninstall process verification
 
-## 📈 Future Improvements
+##  Future Improvements
 
 ### When to Invest in Code Signing
 - **Windows OV cert**: When >20% users bounce at SmartScreen
@@ -109,7 +109,7 @@ Each release includes:
 - Windows Store submission
 - Enhanced error handling and diagnostics
 
-## 🎉 Ready for Release
+##  Ready for Release
 
 The release kit is complete and production-ready. All components have been tested and documented. The automated GitHub Actions workflow will handle the entire release process once triggered.
 
