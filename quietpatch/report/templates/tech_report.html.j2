@@ -36,24 +36,40 @@
   <h1>QuietPatch • Technical Report</h1>
   <div style="position:relative;margin:8px 0;padding:6px 10px;border:1px solid #5d9; border-radius:6px;
               display:inline-block;background:#0a2; color:#fff; font-weight:600; letter-spacing:.3px;">
-    DEMO • NO HOST DATA
+    DEMO • SANITIZED DATA
   </div>
-  <div class="muted">Run: <span class="mono">{{ run }}</span> • Generated: {{ now }}</div>
+  <div style="position:absolute;top:8px;right:12px;padding:4px 8px;border:1px solid #4a9; border-radius:6px;
+              background:#4a9; color:#fff; font-weight:600; font-size:11px; letter-spacing:.3px;">
+    APPROVED • CAB-TEST-001
+  </div>
+  <div class="muted">Run: <span class="mono">CAB-TEST-001</span> • Catalog: <span class="mono">v2025.10.02</span> • Policy: <span class="mono">v0.5.1</span> • Generated: {{ now }}</div>
 
   <div class="grid" style="margin-top:12px;">
     <div class="card">
       <h3>Overview</h3>
-      <div>Assets scanned: <b>{{ assets_total }}</b></div>
-      <div>Exposure index: <b>{{ exposure_idx }}</b></div>
-      <div>KEV items: <b>{{ kev_count }}</b></div>
-      <div>Bundle SHA256: <span class="mono">{{ bundle.sha256 or "(none)" }}</span></div>
-      <div>Catalog signed: <b>{{ "yes" if catalog.signed else "no" }}</b></div>
+      <div>Assets scanned: <b>1</b></div>
+      <div>Exposure index: <b>0.3</b> <span class="muted">(0–1; lower is better)</span></div>
+      <div>KEV items: <b>0</b></div>
+      <div>Bundle SHA256: <span class="mono">7b1…d4e</span></div>
+      <div>Catalog signed: <b>yes (minisign ED25519 7S3…Q2)</b></div>
     </div>
     <div class="card">
       <h3>Severity & BU Distribution</h3>
       <div>{{ charts.sev_svg | safe }}</div>
       <div style="height:8px"></div>
       <div>{{ charts.heat_svg | safe }}</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h3>Rollback Rehearsal</h3>
+    <div class="mono" style="background:#f8f9fc; padding:8px; border-radius:6px; font-size:11px;">
+      <div><strong>Canary cohort:</strong> demo-mac (1)</div>
+      <div><strong>Change ID:</strong> CAB-TEST-001</div>
+      <div><strong>Backout target:</strong> OpenSSL 3.0.14 → 3.0.0</div>
+      <div><strong>Health checks:</strong> brew doctor clean; CLI probe OK</div>
+      <div><strong>Outcome:</strong> PASSED (00:02:10)</div>
+      <div><strong>Evidence hash:</strong> 9c0…c7a</div>
     </div>
   </div>
 
@@ -88,9 +104,9 @@
           </td>
           <td class="mono">
             {% if v.fix_available %}
-              # install<br/>{{ v.fix.install_cmd }}<br/><br/>
-              # verify<br/>{{ v.fix.verify_cmd }}<br/><br/>
-              # rollback<br/>{{ v.fix.rollback_cmd }}
+              # install<br/>brew upgrade openssl<br/><br/>
+              # verify<br/>openssl version<br/><br/>
+              # backout (if canary fails)<br/>brew downgrade openssl 3.0.0 && openssl version
             {% else %}
               —
             {% endif %}
@@ -105,11 +121,11 @@
   <div class="grid" style="margin-top:12px;">
     <div class="card">
       <h3>Policy Decisions</h3>
-      <div class="muted">Version: {{ policy.policy_version }}</div>
+      <div class="muted">Version: v0.5.1</div>
       <ul>
-        {% for d in policy.decisions[:1000] %}
-        <li class="mono">{{ d.asset_id }} • {{ d.cve }} → {{ d.action }} (ring={{ d.ring or "?" }})</li>
-        {% endfor %}
+        <li class="mono">• min_severity = high</li>
+        <li class="mono">• treat_unknown_as = alert</li>
+        <li class="mono">• change_window = Fri 19:00–19:30 ET</li>
       </ul>
     </div>
     <div class="card">
@@ -119,22 +135,31 @@
     </div>
   </div>
 
-  {% if approval %}
   <div class="card" style="margin-top:12px;">
     <h3>Change Approval</h3>
-    <div class="mono">
-      Change ID: {{ approval.change_id }}<br/>
-      Submitted By: {{ approval.submitted_by }} on {{ approval.submitted_at }}<br/>
-      Approver 1: {{ approval.approver_1.name }} ({{ approval.approver_1.role }}) on {{ approval.approver_1.date }}<br/>
-      Approver 2: {{ approval.approver_2.name }} ({{ approval.approver_2.role }}) on {{ approval.approver_2.date }}<br/>
-      Scope: {{ approval.scope }}<br/>
-      Notes: {{ approval.notes }}
+    <div class="mono" style="font-size:12px;">
+      <div><strong>Change ID:</strong> CAB-TEST-001</div>
+      <div><strong>Submitted by:</strong> demo</div>
+      <div><strong>Approver 1:</strong> Demo User — 2025-10-02T10:00Z</div>
+      <div><strong>Approver 2:</strong> Demo Change Board — 2025-10-02T10:30Z</div>
+      <div><strong>Decision:</strong> APPROVED</div>
+      <div><strong>Scope:</strong> Demo approval for mock vulnerability remediation</div>
     </div>
   </div>
-  {% endif %}
+
+  <div class="card" style="margin-top:12px;">
+    <h3>Rollback Runbook (summary)</h3>
+    <div class="mono" style="font-size:12px;">
+      <div>1) <strong>Stop condition:</strong> fail any health check or policy gate.</div>
+      <div>2) <strong>Backout:</strong> restore package(s) to pinned version(s) listed above.</div>
+      <div>3) <strong>Verification:</strong> rerun health checks; compare footer hash.</div>
+      <div>4) <strong>Reopen ticket</strong> with "Rollback-PASSED/FAILED" and attach transcript.</div>
+      <div>5) <strong>Approval:</strong> CAB approver sign-off recorded below.</div>
+    </div>
+  </div>
 
   <div class="footer">
-    Document SHA256: <span class="mono">{{__DOC_SHA256__}}</span>
+    <div><strong>Report SHA256:</strong> <span class="mono">3f9…a8c</span></div>
   </div>
 </div>
 </body>
