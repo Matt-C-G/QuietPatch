@@ -93,7 +93,7 @@
           <td class="sev-{{ v.severity|lower }}">{{ v.severity|title }}</td>
           <td>
             {% if v.kev %}<span class="pill">KEV</span>{% endif %}
-            {% if v.epss %}<span class="pill">EPSS {{ "%.2f"|format(v.epss) }}</span>{% endif %}
+            {% if v.epss %}<span class="pill">EPSS {{ "%.2f"|format(v.epss) }} (p)</span>{% endif %}
           </td>
           <td>
             {% if v.fix_available %}
@@ -126,6 +126,7 @@
         <li class="mono">• min_severity = high</li>
         <li class="mono">• treat_unknown_as = alert</li>
         <li class="mono">• change_window = Fri 19:00–19:30 ET</li>
+        <li class="mono">• require_signed_catalog = true</li>
       </ul>
     </div>
     <div class="card">
